@@ -118,6 +118,7 @@ def make_scout(tmp_path, fetcher, **kw):
 
     async def fake_sleep(s):   # waiting moves the fake clock on
         clock[0] += s
+        await asyncio.sleep(0.01)   # and still lets the other tasks run, so the background re-check loop can't hog the loop
     kw.setdefault("transcriber", NoVoice())
     return vs.VideoScout(tmp_path, fetcher=fetcher, vault_dir=tmp_path / "vault", clock=lambda: clock[0],
                          sleep=fake_sleep, **kw)

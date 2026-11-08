@@ -222,7 +222,10 @@ def test_runner_refuses_suspicious_installs(tmp_path):
         r.start_checks.append(safety.runner_check)
         run = await r.start("pip install reqeusts", cwd=str(tmp_path))
         ok = await r.start("echo fine", cwd=str(tmp_path))
-        await asyncio.sleep(0.5)
+        for _ in range(200):   # wait for both to finish (up to 10 s: slow CI machines)
+            if run.exit_code is not None and ok.exit_code is not None:
+                break
+            await asyncio.sleep(0.05)
         return run, ok
     run, ok = asyncio.run(go())
     assert run.exit_code == 126 and any("Package Reality Check stopped this" in t for t in run.tail)

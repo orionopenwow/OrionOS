@@ -323,7 +323,7 @@ export default function EarthContextWindow({
                 </button>
               ) : undefined
             }
-            className="left-6 top-[56px] bottom-[88px] w-[min(520px,calc(100vw-48px))] text-white"
+            className="left-6 top-[56px] bottom-[88px] w-[min(760px,calc(100vw-48px))] text-white"
             bodyClassName="overflow-hidden"
           >
             {/* =====================================================================

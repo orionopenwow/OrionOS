@@ -287,7 +287,7 @@ export default function Tour() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#8DB0FF] shadow-[0_0_10px_#8DB0FF] animate-pulse" aria-hidden="true" />
+              <span className="w-2 h-2 rounded-full bg-[#8DB0FF] animate-pulse" aria-hidden="true" />
               <span className="text-[13px] font-bold">{s.title}</span>
               <span className="ml-auto text-[11.5px] font-mono text-white/72">
                 {step + 1}/{STEPS.length}

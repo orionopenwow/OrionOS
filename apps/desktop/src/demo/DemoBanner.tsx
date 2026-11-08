@@ -20,7 +20,7 @@ export default function DemoBanner() {
       }`}
       style={{ fontFamily: 'Figtree Variable, Figtree, system-ui, sans-serif' }}
     >
-      <span className="w-1.5 h-1.5 rounded-full bg-[#2E6BFF] shadow-[0_0_8px_#2E6BFF] shrink-0" aria-hidden="true" />
+      <span className="w-1.5 h-1.5 rounded-full bg-[#2E6BFF] shrink-0" aria-hidden="true" />
       <span className="truncate">
         Preview — sample data
         {!mobile && <span className="text-[#DDE5F0]/74"> · runs only in your browser · click the round Orion button to start</span>}

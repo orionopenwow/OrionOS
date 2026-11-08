@@ -166,7 +166,7 @@ export default function DiscordImportSkin({
       {/* Top Header Bar */}
       <div className="flex items-center justify-between px-5 py-3.5 bg-[#2B2D31] border-b border-[#1E1F22]">
         <div className="flex items-center gap-3">
-          <div className="p-1.5 rounded-xl bg-[#5865F2] text-white shadow-[0_0_12px_#5865F2]">
+          <div className="p-1.5 rounded-xl bg-[#5865F2] text-white">
             <MessageSquare size={18} />
           </div>
           <div>
@@ -198,7 +198,7 @@ export default function DiscordImportSkin({
             onClick={onToggleDiscordSkin}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono transition-all border ${
               isDiscordSkinActive
-                ? 'bg-[#5865F2] text-white border-[#5865F2] shadow-[0_0_12px_#5865F2]'
+                ? 'bg-[#5865F2] text-white border-[#5865F2]'
                 : 'bg-white/5 text-gray-300 border-white/10 hover:border-[#5865F2]/50'
             }`}
           >
@@ -313,7 +313,7 @@ export default function DiscordImportSkin({
             <button
               onClick={handleExecuteImport}
               disabled={selectedIds.size === 0}
-              className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-[#5865F2] hover:bg-[#4752C4] text-xs font-semibold text-white transition-all disabled:opacity-40 shadow-[0_0_15px_rgba(88,101,242,0.4)]"
+              className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-[#5865F2] hover:bg-[#4752C4] text-xs font-semibold text-white transition-all disabled:opacity-40"
             >
               <Database size={13} />
               <span>Import Selected to LanceDB</span>

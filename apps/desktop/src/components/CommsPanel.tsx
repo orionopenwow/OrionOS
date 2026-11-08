@@ -236,7 +236,7 @@ export default function CommsPanel({
           )}
           {bridges.map((b) => (
             <span key={b.label} className="flex items-center gap-1">
-              <span className={`h-1.5 w-1.5 rounded-full ${b.on ? 'bg-[#3DFFA8] shadow-[0_0_5px_#3DFFA8]' : 'bg-white/25'}`} />
+              <span className={`h-1.5 w-1.5 rounded-full ${b.on ? 'bg-[#3DFFA8]' : 'bg-white/25'}`} />
               {b.label}
             </span>
           ))}

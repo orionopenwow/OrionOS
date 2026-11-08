@@ -97,7 +97,7 @@ export default function SideChatDrawer({
             <div className="flex items-center gap-2.5">
               <div className="relative">
                 <Bot size={18} className="text-pulse" />
-                <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-success shadow-[0_0_8px_#3DFFA8]" />
+                <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-success" />
               </div>
               <div>
                 <div className="font-display text-xs font-bold tracking-widest text-starlight">
@@ -193,7 +193,7 @@ export default function SideChatDrawer({
               title={micActive ? 'Stop Listening' : 'Speak to Orion'}
               className={`p-2 rounded-lg transition-colors ${
                 micActive
-                  ? 'text-danger bg-danger/20 shadow-[0_0_12px_#FF5C8A] animate-pulse'
+                  ? 'text-danger bg-danger/20 animate-pulse'
                   : 'text-dust hover:text-pulse hover:bg-white/5'
               }`}
             >

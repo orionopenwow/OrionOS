@@ -102,7 +102,7 @@ export default function PersonalityVoicePanel({
             onClick={() => onSetPersonality('concise_companion')}
             className={`w-full text-left p-4 rounded-xl border transition-all ${
               personality === 'concise_companion'
-                ? 'border-[#00E5FF]/60 bg-[#00E5FF]/10 shadow-[0_0_20px_rgba(0,229,255,0.15)]'
+                ? 'border-[#00E5FF]/60 bg-[#00E5FF]/10'
                 : 'border-white/5 bg-white/[0.02] hover:bg-white/[0.05]'
             }`}
           >
@@ -129,7 +129,7 @@ export default function PersonalityVoicePanel({
             onClick={() => onSetPersonality('detailed_researcher')}
             className={`w-full text-left p-4 rounded-xl border transition-all ${
               personality === 'detailed_researcher'
-                ? 'border-[#7FA6FF]/60 bg-[#7FA6FF]/10 shadow-[0_0_20px_rgba(127,166,255,0.15)]'
+                ? 'border-[#7FA6FF]/60 bg-[#7FA6FF]/10'
                 : 'border-white/5 bg-white/[0.02] hover:bg-white/[0.05]'
             }`}
           >
@@ -263,7 +263,7 @@ export default function PersonalityVoicePanel({
               className={`p-2 rounded-xl border transition-all ${
                 audioMuted
                   ? 'bg-red-500/20 text-red-400 border-red-500/30'
-                  : 'bg-[#3DFFA8]/20 text-[#3DFFA8] border-[#3DFFA8]/30 shadow-[0_0_12px_rgba(61,255,168,0.2)]'
+                  : 'bg-[#3DFFA8]/20 text-[#3DFFA8] border-[#3DFFA8]/30'
               }`}
               title={audioMuted ? 'Unmute Cosmic Chimes' : 'Mute Cosmic Chimes'}
             >

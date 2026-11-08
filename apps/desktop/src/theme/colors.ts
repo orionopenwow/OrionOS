@@ -28,9 +28,9 @@ export const brand = {
 
 /** Text on gunmetal, WCAG AA or better on #1A1F27: body 15:1, secondary 10:1, muted 7.4:1 (5.9:1 on #2A313B). */
 export const text = {
-  body: '#F2F5FA',
-  secondary: '#C3CCDA',
-  muted: '#A3AEC2',
+  body: '#FFFFFF',
+  secondary: '#E1E6EE',
+  muted: '#BCC5D3',
 } as const;
 
 /** Brand type. Unbounded: wordmark, clock, headings. Figtree: reading text. Martian Mono: terminal, code, numbers. */

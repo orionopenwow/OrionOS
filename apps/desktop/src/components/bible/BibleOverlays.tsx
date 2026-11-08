@@ -63,7 +63,7 @@ export default function BibleOverlays({ bible, send, patch }: Props) {
             className="fixed top-12 left-1/2 -translate-x-1/2 z-[70] emboss-pill rounded-full px-3 py-1.5 text-[11.5px] font-semibold text-[#FF5C8A] flex items-center gap-2"
             title="Click or say “stop watching”"
           >
-            <span className="w-2.5 h-2.5 rounded-full bg-[#FF5C8A] animate-pulse shadow-[0_0_10px_#FF5C8A]" />
+            <span className="w-2.5 h-2.5 rounded-full bg-[#FF5C8A] animate-pulse" />
             Watching & learning — click to stop
           </motion.button>
         )}

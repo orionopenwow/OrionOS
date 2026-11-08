@@ -30,7 +30,7 @@ export default function FloatingVoiceTranscript({
           
           {/* Neon Voice Wave Halo in Light Purple */}
           <div className="relative mb-3 flex items-center justify-center">
-            <div className="h-12 w-12 rounded-full border border-[#7FA6FF]/50 bg-[#7FA6FF]/15 flex items-center justify-center shadow-[0_0_30px_rgba(127,166,255,0.55)] animate-pulse">
+            <div className="h-12 w-12 rounded-full border border-[#7FA6FF]/50 bg-[#7FA6FF]/15 flex items-center justify-center animate-pulse">
               <Mic size={20} className="text-[#DCE7FF]" />
             </div>
             <span className="absolute h-16 w-16 rounded-full border border-[#DCE7FF]/40 animate-ping opacity-70" />
@@ -38,7 +38,7 @@ export default function FloatingVoiceTranscript({
 
           {/* Floating Ethereal Text with Glowing Light Purple / Starlight Typography */}
           <div className="min-h-[48px] flex items-center justify-center px-6 py-2">
-            <p className="font-sans text-base md:text-lg font-medium tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-[#FFFFFF] via-[#DCE7FF] to-[#7FA6FF] drop-shadow-[0_0_15px_rgba(127,166,255,0.7)] leading-relaxed select-text">
+            <p className="font-sans text-base md:text-lg font-medium tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-[#FFFFFF] via-[#DCE7FF] to-[#7FA6FF] drop- leading-relaxed select-text">
               {transcript || 'Receiving speech...'}
             </p>
           </div>
@@ -55,7 +55,7 @@ export default function FloatingVoiceTranscript({
                   onSubmit(transcript);
                   onStop();
                 }}
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded-full border border-[#3DFFA8]/50 bg-[#3DFFA8]/15 hover:bg-[#3DFFA8]/25 text-[#3DFFA8] text-xs font-mono tracking-wider shadow-[0_0_15px_rgba(61,255,168,0.3)] transition-all"
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-full border border-[#3DFFA8]/50 bg-[#3DFFA8]/15 hover:bg-[#3DFFA8]/25 text-[#3DFFA8] text-xs font-mono tracking-wider transition-all"
                 title="Send instruction to Orion"
               >
                 <Check size={13} />

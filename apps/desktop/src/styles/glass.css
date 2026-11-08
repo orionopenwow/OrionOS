@@ -427,8 +427,8 @@
 }
 .orion-tile__badge {
   position: absolute;
-  top: -4px;
-  right: -4px;
+  top: 0;
+  right: 0;
   min-width: 16px;
   padding: 0 4px;
   border-radius: 999px;
@@ -452,8 +452,8 @@
 }
 .orion-sparkle i {
   position: absolute;
-  left: -4px;
-  top: -4px;
+  left: 0;
+  top: 0;
   width: 8px;
   height: 8px;
   background: #fff;
@@ -982,3 +982,117 @@ html[data-calm-motion] .orion-gravity,
 html[data-calm-motion] .orion-gravity-soft {
   transform: none;
 }
+
+/* =====================================================================================================
+   Matte pass (owner feedback, 2026-11-07): dramatically less glow; matte, rounded and simple; slightly thicker
+   strokes; thicker, pure-white icons; white text more often. These rules come last on purpose so they win.
+   ===================================================================================================== */
+:root {
+  --matte-stroke: 1.5px;
+  --matte-edge: rgba(255, 255, 255, 0.16);
+  --matte-edge-strong: rgba(255, 255, 255, 0.28);
+  --matte-depth: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+/* icons: thicker lines, white unless a class gives them a meaning colour */
+svg.lucide { stroke-width: 2.4px; }
+.orion-console svg.lucide,
+.orion-feature__icon,
+.orion-chip,
+.orion-console__icon-btn,
+.orion-console__close { color: #ffffff; }
+/* no text glow anywhere */
+.orion-console, .orion-console *, .glass-ui, .glass-ui * { text-shadow: none !important; }
+
+/* panels: flat, matte, rounded, one thicker edge, a plain soft shadow (never a coloured glow) */
+.orion-console {
+  /* keep the space background in view (it still follows the mouse): a light veil, no heavy blur */
+  background-color: rgba(6, 8, 12, 0.28);
+  background-image: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.orion-console__chat { background-color: rgba(22, 26, 33, 0.9); }
+.orion-section { background-color: rgba(22, 26, 33, 0.86); }
+.orion-console__chat {
+  border: var(--matte-stroke) solid var(--matte-edge);
+  box-shadow: var(--matte-depth);
+  border-radius: 22px;
+}
+.orion-section {
+  border: var(--matte-stroke) solid var(--matte-edge);
+  border-radius: 20px;
+}
+.orion-section__title { color: #ffffff; }
+.orion-section__hint { color: #c9d1dc; }
+.orion-feature__label { color: #ffffff; }
+.orion-feature__desc { color: #d3d9e2; }
+.orion-feature:hover { border-color: var(--matte-edge); }
+.orion-feature__icon {
+  background: rgba(255, 255, 255, 0.07);
+  border: var(--matte-stroke) solid var(--matte-edge);
+  box-shadow: none;
+}
+.orion-feature[data-main] .orion-feature__icon {
+  background: #2e6bff;
+  border: var(--matte-stroke) solid rgba(255, 255, 255, 0.22);
+  box-shadow: none;
+}
+.orion-feature[data-lit] { border: var(--matte-stroke) solid #2e6bff; background: rgba(46, 107, 255, 0.14); }
+
+/* inputs and buttons: matte fills, thicker edges, focus is a crisp line not a halo */
+.orion-console__input {
+  color: #ffffff;
+  background: #10141a;
+  border: var(--matte-stroke) solid var(--matte-edge-strong);
+  box-shadow: none;
+}
+.orion-console__input::placeholder { color: #aeb8c6; }
+.orion-console__input:focus { border-color: #2e6bff; box-shadow: none; }
+.orion-console__icon-btn,
+.orion-console__close,
+.orion-chip {
+  background: rgba(255, 255, 255, 0.07);
+  border: var(--matte-stroke) solid var(--matte-edge);
+  box-shadow: none;
+  color: #ffffff;
+}
+.orion-console__icon-btn.is-live { background: #2e6bff; border-color: #2e6bff; box-shadow: none; }
+.orion-console__send { background: #2e6bff; border: var(--matte-stroke) solid #2e6bff; box-shadow: none; }
+.orion-chip[data-active] { background: #2e6bff; border-color: #2e6bff; color: #ffffff; }
+.orion-bubble { color: #ffffff; border: var(--matte-stroke) solid var(--matte-edge); }
+
+/* the Orion button: matte disc, no halo */
+.orion-orb {
+  background-image: var(--orion-grain);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  box-shadow: var(--matte-depth);
+}
+.orion-orb:hover { box-shadow: var(--matte-depth); border-color: rgba(255, 255, 255, 0.5); }
+.orion-orb[data-open], .orion-orb[aria-expanded="true"] { box-shadow: var(--matte-depth); border-color: #2e6bff; }
+
+/* windows elsewhere in the HUD: same matte edge, no coloured glow on hover or focus, light blur so space shows */
+.orion-glass, .orion-window {
+  border: var(--matte-stroke) solid var(--matte-edge);
+  box-shadow: var(--matte-depth);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: #ffffff;
+}
+.orion-window[data-focused] { border-color: var(--matte-edge-strong); box-shadow: var(--matte-depth); }
+
+/* resize from any edge or corner (GlassWindow); invisible strips along the inside of the edge (the window clips overflow) */
+.orion-resize { position: absolute; z-index: 5; touch-action: none; }
+.orion-resize[data-edge='n'], .orion-resize[data-edge='s'] { left: 14px; right: 14px; height: 8px; cursor: ns-resize; }
+.orion-resize[data-edge='e'], .orion-resize[data-edge='w'] { top: 14px; bottom: 14px; width: 8px; cursor: ew-resize; }
+.orion-resize[data-edge='n'] { top: 0; }
+.orion-resize[data-edge='s'] { bottom: 0; }
+.orion-resize[data-edge='e'] { right: 0; }
+.orion-resize[data-edge='w'] { left: 0; }
+.orion-resize[data-edge='ne'], .orion-resize[data-edge='nw'], .orion-resize[data-edge='se'], .orion-resize[data-edge='sw'] { width: 18px; height: 18px; }
+.orion-resize[data-edge='ne'] { top: 0; right: 0; cursor: nesw-resize; }
+.orion-resize[data-edge='sw'] { bottom: 0; left: 0; cursor: nesw-resize; }
+.orion-resize[data-edge='nw'] { top: 0; left: 0; cursor: nwse-resize; }
+.orion-resize[data-edge='se'] { bottom: 0; right: 0; cursor: nwse-resize; }
+.orion-window__titlebar { cursor: grab; }
+.orion-window[data-maximised] .orion-window__titlebar, .orion-window[data-sheet] .orion-window__titlebar { cursor: default; }
+.orion-belt svg.lucide { stroke-width: 3.2px; }

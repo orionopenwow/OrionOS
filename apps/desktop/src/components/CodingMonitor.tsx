@@ -40,7 +40,7 @@ export default function CodingMonitor({ responses, activeWindowTitle }: Props) {
         <div className="flex items-center gap-1.5 text-[11px]">
           <span
             className={`inline-block h-1.5 w-1.5 rounded-full ${
-              isIdeFocused ? 'bg-success shadow-[0_0_8px_#3DFFA8]' : 'bg-dust'
+              isIdeFocused ? 'bg-success' : 'bg-dust'
             }`}
           />
           <span className="text-dust font-mono truncate max-w-[150px]">

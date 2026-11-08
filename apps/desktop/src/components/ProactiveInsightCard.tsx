@@ -118,7 +118,7 @@ export default function ProactiveInsightCard({ insights, onDismiss, onApplyActio
           {onAskOrion && (
             <button
               onClick={() => onAskOrion(`Tell me more about what you noticed in ${current.window_title}: ${current.summary}`)}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11.5px] font-mono text-[#00E5FF] bg-[#00E5FF]/10 hover:bg-[#00E5FF]/20 border border-[#00E5FF]/30 transition-all shadow-[0_0_10px_rgba(0,229,255,0.2)]"
+              className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11.5px] font-mono text-[#00E5FF] bg-[#00E5FF]/10 hover:bg-[#00E5FF]/20 border border-[#00E5FF]/30 transition-all"
             >
               <span>Explore</span>
               <ArrowRight size={12} />

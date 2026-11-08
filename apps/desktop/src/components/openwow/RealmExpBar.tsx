@@ -113,7 +113,7 @@ export const RealmExpBar: React.FC<{ data?: RealmLevelData; className?: string }
 
           {/* Authentic WoW Purple/Violet Rested-XP Fill */}
           <div
-            className="absolute top-0 bottom-0 left-0 bg-gradient-to-r from-[#3e1261] via-[#7b2cbf] to-[#9d4edd] shadow-[0_0_15px_rgba(157,78,221,0.8)] transition-all duration-700 ease-out z-10"
+            className="absolute top-0 bottom-0 left-0 bg-gradient-to-r from-[#3e1261] via-[#7b2cbf] to-[#9d4edd] transition-all duration-700 ease-out z-10"
             style={{ width: `${pct}%` }}
           >
             {/* Liquid shimmer overlay */}

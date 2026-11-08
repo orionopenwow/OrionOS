@@ -145,7 +145,7 @@ function AgentWindow({ agent, origin, reduce, onClose }: { agent: SwarmAgent; or
   return (
     <div className="fixed inset-0 z-[64] flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
       <motion.div
-        className="absolute inset-0 bg-[#06080C]/60 backdrop-blur-[3px]"
+        className="absolute inset-0 bg-[#06080C]/25"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}

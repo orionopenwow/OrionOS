@@ -39,7 +39,7 @@ export default function OrionFloatingSpeech({ taskText, isProcessing, latestResp
 
         {/* Floating Ethereal Pill Bubble */}
         <div
-          className="relative px-5 py-2.5 rounded-full border border-[#7FA6FF]/40 bg-gradient-to-r from-[#151A21]/90 via-[#1a1333]/85 to-[#151A21]/90 backdrop-blur-2xl shadow-[0_0_30px_rgba(127,166,255,0.25)] flex items-center gap-2.5 text-center"
+          className="relative px-5 py-2.5 rounded-full border border-[#7FA6FF]/40 bg-gradient-to-r from-[#151A21]/90 via-[#1a1333]/85 to-[#151A21]/90 backdrop-blur-2xl flex items-center gap-2.5 text-center"
         >
           {isProcessing ? (
             <Terminal size={14} className="text-[#00E5FF] animate-spin shrink-0" />

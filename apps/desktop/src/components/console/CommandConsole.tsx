@@ -423,7 +423,7 @@ export default function CommandConsole({
               <div ref={feed} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 selectable" aria-live="polite">
                 {responses.length === 0 ? (
                   <div className="mx-auto max-w-md py-10 text-center">
-                    <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-cobalt/40 bg-cobalt/15 shadow-[0_0_28px_rgba(46,107,255,0.35)]">
+                    <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-cobalt/40 bg-cobalt/15">
                       <Sparkles size={26} className="text-cobalt-light" />
                     </div>
                     <h3 className="text-[17px] font-bold text-ink">Ask Orion anything</h3>
@@ -440,7 +440,7 @@ export default function CommandConsole({
                       <div key={r.request_id} className="space-y-1.5">
                         <div className="flex items-center justify-between px-1 text-[12.5px] font-semibold">
                           <span className="flex items-center gap-2 text-cobalt-light">
-                            <span className="h-2 w-2 rounded-full bg-cobalt shadow-[0_0_8px_#2E6BFF]" />
+                            <span className="h-2 w-2 rounded-full bg-cobalt" />
                             Orion
                             {r.response.tier && <span className="rounded bg-white/10 px-1.5 text-[12px] text-ink-2">{r.response.tier}</span>}
                           </span>

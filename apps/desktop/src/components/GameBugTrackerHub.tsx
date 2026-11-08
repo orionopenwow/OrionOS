@@ -79,7 +79,7 @@ export default function GameBugTrackerHub({ bugs, onSendResponse, onSendTelegram
                 onClick={() => setSelectedBugId(b.id)}
                 className={`w-full text-left p-3 rounded-xl border transition-all ${
                   selectedBug?.id === b.id
-                    ? 'border-[#7FA6FF]/50 bg-[#7FA6FF]/10 shadow-[0_0_15px_rgba(127,166,255,0.15)]'
+                    ? 'border-[#7FA6FF]/50 bg-[#7FA6FF]/10'
                     : 'border-white/5 bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/10'
                 }`}
               >
@@ -148,7 +148,7 @@ export default function GameBugTrackerHub({ bugs, onSendResponse, onSendTelegram
             </div>
 
             {/* Gemini Search & Diagnosis */}
-            <div className="rounded-xl border border-[#00E5FF]/30 bg-gradient-to-br from-[#00E5FF]/5 to-transparent p-4 shadow-[0_0_20px_rgba(0,229,255,0.06)]">
+            <div className="rounded-xl border border-[#00E5FF]/30 bg-gradient-to-br from-[#00E5FF]/5 to-transparent p-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <Sparkles size={16} className="text-[#00E5FF]" />

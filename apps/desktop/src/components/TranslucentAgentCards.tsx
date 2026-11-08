@@ -54,7 +54,7 @@ export default function TranslucentAgentCards({
       {/* Section Header */}
       <div className="flex items-center justify-between mb-3 px-1">
         <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-[#3DFFA8] shadow-[0_0_8px_#3DFFA8]" />
+          <div className="h-2 w-2 rounded-full bg-[#3DFFA8]" />
           <span className="font-display text-xs font-bold tracking-[0.2em] text-[#7FA6FF]">
             ACTIVE PC AGENTS & DIAGNOSTICS
           </span>
@@ -110,7 +110,7 @@ export default function TranslucentAgentCards({
                 <span
                   className={`h-2.5 w-2.5 rounded-full ${
                     rBullzActive
-                      ? 'bg-[#3DFFA8] shadow-[0_0_10px_#3DFFA8]'
+                      ? 'bg-[#3DFFA8]'
                       : 'bg-dust/50'
                   }`}
                 />
@@ -214,7 +214,7 @@ export default function TranslucentAgentCards({
                 <span
                   className={`h-2.5 w-2.5 rounded-full ${
                     mimosaActive
-                      ? 'bg-[#3DFFA8] shadow-[0_0_10px_#3DFFA8]'
+                      ? 'bg-[#3DFFA8]'
                       : 'bg-dust/50'
                   }`}
                 />
@@ -314,7 +314,7 @@ export default function TranslucentAgentCards({
             {/* Dual Pill Badge matching reference (purple gradient pill with green dot) */}
             <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-gradient-to-r from-[#7FA6FF]/30 to-[#00E5FF]/30 border border-[#00E5FF]/40">
               <span className="text-[10.5px] font-mono text-starlight">ONLINE</span>
-              <span className="h-2 w-2 rounded-full bg-[#3DFFA8] shadow-[0_0_8px_#3DFFA8]" />
+              <span className="h-2 w-2 rounded-full bg-[#3DFFA8]" />
             </div>
           </div>
 

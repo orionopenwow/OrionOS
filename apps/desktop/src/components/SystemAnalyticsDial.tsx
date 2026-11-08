@@ -38,7 +38,7 @@ export default function SystemAnalyticsDial({ telemetry }: Props) {
         </div>
         <div className="flex items-center gap-3 text-[11px] font-mono text-dust">
           <span className="flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#3DFFA8] shadow-[0_0_6px_#3DFFA8]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-[#3DFFA8]" />
             RADAR: ACTIVE #{ticker}
           </span>
           <span className="text-[#7FA6FF]">SAMPLE RATE: 48kHz</span>
@@ -118,7 +118,7 @@ export default function SystemAnalyticsDial({ telemetry }: Props) {
 
             {/* Center Core Pip & Telemetry */}
             <div className="relative flex flex-col items-center justify-center">
-              <div className="h-10 w-10 rounded-full border border-[#00E5FF]/50 bg-[#00E5FF]/10 flex items-center justify-center shadow-[0_0_15px_rgba(0,229,255,0.4)]">
+              <div className="h-10 w-10 rounded-full border border-[#00E5FF]/50 bg-[#00E5FF]/10 flex items-center justify-center">
                 <Radio size={16} className="text-[#00E5FF] animate-pulse" />
               </div>
               <span className="text-[10.5px] font-mono font-bold text-starlight mt-1">420.8 GHz</span>

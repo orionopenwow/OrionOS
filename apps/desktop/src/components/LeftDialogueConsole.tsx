@@ -204,9 +204,9 @@ export default function LeftDialogueConsole({
              ========================================================================= */}
           <header className="relative flex items-center justify-between border-b border-white/10 px-5 pt-4 pb-3 bg-gradient-to-r from-[#0E1022] to-[#070913]">
             <div className="flex items-center gap-3">
-              <div className="relative p-2 rounded-xl bg-gradient-to-br from-[#7FA6FF]/25 to-[#2E6BFF]/15 border border-[#7FA6FF]/40 text-[#DCE7FF] shadow-[0_0_15px_rgba(127,166,255,0.3)]">
+              <div className="relative p-2 rounded-xl bg-gradient-to-br from-[#7FA6FF]/25 to-[#2E6BFF]/15 border border-[#7FA6FF]/40 text-[#DCE7FF]">
                 <Bot size={18} />
-                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#00E5FF] shadow-[0_0_6px_#00E5FF] animate-pulse" />
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#00E5FF] animate-pulse" />
               </div>
               <div>
                 <span className="font-display text-xs font-bold tracking-widest text-starlight block">
@@ -235,7 +235,7 @@ export default function LeftDialogueConsole({
               onClick={() => setActiveView('chat')}
               className={`flex items-center justify-center gap-2 py-3 transition-all border-b-2 font-medium ${
                 activeView === 'chat'
-                  ? 'border-[#7FA6FF] text-[#DCE7FF] bg-white/[0.04] shadow-[inset_0_-2px_10px_rgba(127,166,255,0.2)]'
+                  ? 'border-[#7FA6FF] text-[#DCE7FF] bg-white/[0.04]'
                   : 'border-transparent text-white/80 hover:text-white hover:bg-white/[0.02]'
               }`}
             >
@@ -247,7 +247,7 @@ export default function LeftDialogueConsole({
               onClick={() => setActiveView('history')}
               className={`flex items-center justify-center gap-2 py-3 transition-all border-b-2 font-medium ${
                 activeView === 'history'
-                  ? 'border-[#00E5FF] text-[#00E5FF] bg-white/[0.04] shadow-[inset_0_-2px_10px_rgba(0,229,255,0.2)]'
+                  ? 'border-[#00E5FF] text-[#00E5FF] bg-white/[0.04]'
                   : 'border-transparent text-white/80 hover:text-white hover:bg-white/[0.02]'
               }`}
             >
@@ -259,7 +259,7 @@ export default function LeftDialogueConsole({
               onClick={() => setActiveView('project')}
               className={`flex items-center justify-center gap-2 py-3 transition-all border-b-2 font-medium ${
                 activeView === 'project'
-                  ? 'border-[#3DFFA8] text-[#3DFFA8] bg-white/[0.04] shadow-[inset_0_-2px_10px_rgba(61,255,168,0.2)]'
+                  ? 'border-[#3DFFA8] text-[#3DFFA8] bg-white/[0.04]'
                   : 'border-transparent text-white/80 hover:text-white hover:bg-white/[0.02]'
               }`}
             >
@@ -281,7 +281,7 @@ export default function LeftDialogueConsole({
                     onClick={() => onSetPersonality?.('concise_companion')}
                     className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
                       activePersonality === 'concise_companion' || !activePersonality
-                        ? 'bg-[#7FA6FF]/30 text-[#DCE7FF] border border-[#7FA6FF]/60 shadow-[0_0_10px_rgba(127,166,255,0.4)]'
+                        ? 'bg-[#7FA6FF]/30 text-[#DCE7FF] border border-[#7FA6FF]/60'
                         : 'text-white/76 hover:text-white'
                     }`}
                   >
@@ -291,7 +291,7 @@ export default function LeftDialogueConsole({
                     onClick={() => onSetPersonality?.('detailed_researcher')}
                     className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
                       activePersonality === 'detailed_researcher'
-                        ? 'bg-[#00E5FF]/30 text-[#00E5FF] border border-[#00E5FF]/60 shadow-[0_0_10px_rgba(0,229,255,0.4)]'
+                        ? 'bg-[#00E5FF]/30 text-[#00E5FF] border border-[#00E5FF]/60'
                         : 'text-white/76 hover:text-white'
                     }`}
                   >
@@ -304,7 +304,7 @@ export default function LeftDialogueConsole({
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {responses.length === 0 ? (
                   <div className="py-20 text-center space-y-3 px-6">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#7FA6FF]/20 to-[#00E5FF]/10 border border-[#7FA6FF]/30 mx-auto flex items-center justify-center shadow-[0_0_25px_rgba(127,166,255,0.25)]">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#7FA6FF]/20 to-[#00E5FF]/10 border border-[#7FA6FF]/30 mx-auto flex items-center justify-center">
                       <Sparkles size={24} className="text-[#DCE7FF] animate-pulse" />
                     </div>
                     <h3 className="font-display text-sm font-bold tracking-wider text-starlight">
@@ -325,7 +325,7 @@ export default function LeftDialogueConsole({
                         {/* Orion Message Header */}
                         <div className="flex items-center justify-between text-xs font-mono px-1">
                           <div className="flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full bg-[#7FA6FF] shadow-[0_0_6px_#7FA6FF]" />
+                            <span className="w-2 h-2 rounded-full bg-[#7FA6FF]" />
                             <span className="text-[#DCE7FF] font-semibold">Orion</span>
                             <span className="text-[11.5px] px-1.5 py-0.2 rounded bg-white/10 text-white/85">
                               {r.response.tier}
@@ -422,7 +422,7 @@ export default function LeftDialogueConsole({
                     onClick={onToggleMic}
                     className={`p-2.5 rounded-xl border transition-all ${
                       micActive
-                        ? 'border-[#7FA6FF] bg-[#7FA6FF]/30 text-[#DCE7FF] shadow-[0_0_15px_rgba(127,166,255,0.5)] animate-pulse'
+                        ? 'border-[#7FA6FF] bg-[#7FA6FF]/30 text-[#DCE7FF] animate-pulse'
                         : 'border-white/15 bg-white/5 text-white/85 hover:text-white hover:bg-white/10'
                     }`}
                     title={micActive ? 'Listening (Click to stop)' : 'Speak to Orion'}
@@ -471,7 +471,7 @@ export default function LeftDialogueConsole({
 
                 <button
                   onClick={handleNewConversation}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#00E5FF]/40 bg-[#00E5FF]/15 hover:bg-[#00E5FF]/25 text-[#00E5FF] text-xs font-mono font-medium shadow-[0_0_12px_rgba(0,229,255,0.25)] transition-all whitespace-nowrap"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#00E5FF]/40 bg-[#00E5FF]/15 hover:bg-[#00E5FF]/25 text-[#00E5FF] text-xs font-mono font-medium transition-all whitespace-nowrap"
                 >
                   <Plus size={14} />
                   <span>New Chat</span>
@@ -491,7 +491,7 @@ export default function LeftDialogueConsole({
                       }}
                       className={`p-3 rounded-xl border transition-all cursor-pointer space-y-1 ${
                         isSelected
-                          ? 'border-[#00E5FF]/60 bg-gradient-to-r from-[#00E5FF]/15 via-[#00E5FF]/5 to-transparent shadow-[0_0_15px_rgba(0,229,255,0.15)]'
+                          ? 'border-[#00E5FF]/60 bg-gradient-to-r from-[#00E5FF]/15 via-[#00E5FF]/5 to-transparent'
                           : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.06] hover:border-white/20'
                       }`}
                     >

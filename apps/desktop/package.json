@@ -11,7 +11,7 @@
     "build:demo": "vite build --mode demo --base ./ --outDir ../../docs/app --emptyOutDir",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
-    "test": "node --test tests/reactions.test.ts tests/look.test.ts tests/guide.test.ts tests/menu.test.ts tests/testflow.test.ts tests/demo.test.ts tests/windowRect.test.ts tests/emoji.test.ts tests/focus.test.ts",
+    "test": "node --test tests/reactions.test.ts tests/look.test.ts tests/guide.test.ts tests/menu.test.ts tests/testflow.test.ts tests/demo.test.ts tests/windowRect.test.ts tests/emoji.test.ts tests/focus.test.ts tests/commandCentre.test.ts",
     "test:demo-smoke": "node ../../scripts/capture-screenshots.mjs --smoke",
     "tauri": "tauri",
     "build:desktop-assets": "node ../../scripts/stage-daemon.mjs && npm run build:web"

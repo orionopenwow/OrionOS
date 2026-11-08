@@ -28,7 +28,21 @@ export const DEMO_ROUTES = [
   '/hardware/report', '/telegram/pair', '/extension/pair', '/compute', '/agents/swarm', '/vault/drop', '/assets/upload', '/games',
   '/voice', // [voice2]
   '/focus', // [focus]
+  '/promises', '/core/signals', // [command] the console's Today and Computer panels
 ] as const;
+
+// ---------------------------------------------------------------- command console panels [command]
+const promiseDone = new Set<string>();
+function demoPromises() {
+  const t = now();
+  return [
+    { id: 'pr-demo', task: 'Send Maya the demo track', to: 'tg:maya', platform: 'telegram', due: t + 3 * 3600 },
+    { id: 'pr-leo', task: 'Switch the reset timer to server time', to: 'dc:openwow-dev', platform: 'discord', due: t + 5 * 3600 },
+    { id: 'pr-sam', task: 'Look over Sam\'s level sketches', to: 'dc:openwow-dev', platform: 'discord', due: null },
+  ].filter((p) => !promiseDone.has(p.id)).map((p) => ({ ...p, status: 'open', said: '', sent_at: T0 - 3600 }));
+}
+/** A gently moving sample CPU load, so the meter looks alive. */
+const demoCpu = () => Math.round((0.22 + 0.1 * Math.sin(now() / 9) + 0.04 * Math.sin(now() / 2.3)) * 100) / 100;
 
 // ---------------------------------------------------------------- Focus dashboard [focus]
 const focusPins = new Set<string>();
@@ -433,6 +447,13 @@ export async function demoRoute(method: string, path: string, body: Json, emitEv
 
   // ---- Focus dashboard [focus] (sample data; drafts are never sent)
   if (p === '/focus' && !POST) return ok(focusView());
+  // ---- the console's side panels [command] (sample data)
+  if (p === '/promises' && !POST) return ok({ promises: demoPromises(), week: '', brief: '' });
+  if ((m = p.match(/^\/promises\/([\w-]+)\/(done|dismiss|reopen)$/))) {
+    if (m[2] === 'reopen') promiseDone.delete(m[1]); else promiseDone.add(m[1]);
+    return ok({ promise: { id: m[1], status: m[2] === 'reopen' ? 'open' : m[2] === 'done' ? 'done' : 'dismissed' } });
+  }
+  if (p === '/core/signals') return ok({ cpu: demoCpu(), battery: null, thinking: 0, heat: 0, quiet: 0 });
   if (p === '/focus/feedback') {
     const id = String(body.id ?? '');
     const action = String(body.action ?? '');
@@ -735,7 +756,8 @@ export async function demoRoute(method: string, path: string, body: Json, emitEv
   if (p === '/health/status') {
     return ok({ status: 'ok', words: 'Everything is working.', turbulence: 0, checks: [
       { id: 'brain', label: "Orion's brain", status: 'ok', reason: 'Answering.' },
-      { id: 'disk', label: 'Disk space', status: 'ok', reason: '212 GB free.' },
+      { id: 'disk', label: 'Disk space', status: 'ok', reason: '212.4 GB free on / (46%).' },
+      { id: 'memory', label: 'Memory', status: 'ok', reason: '9.8 GB of 16.0 GB free (61%).' }, // [command]
       { id: 'phone', label: 'Phone link', status: phones.length ? 'ok' : 'warn', reason: phones.length ? 'Paired.' : 'No phone paired yet.', fix_words: phones.length ? undefined : 'Open Phone from the Orion button.' },
     ] });
   }

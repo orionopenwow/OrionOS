@@ -1,0 +1,447 @@
+/* =====================================================================================================
+   [command] The console as a full-screen life and project command centre (owner feedback, 2026-11-07: "fill the
+   panes to the full screen too, it should be the ultimate life and project command center with tools of all
+   kinds"). Keeps the Gunmetal pass: solid steel panels with the brushed grain, burned colour roles used only on a
+   small group marker, bold Arial, 4-6px corners, no glow. White titles, grey body, dim meta.
+   Selectors start with .orion-console so they win over glass.css (which loads after this file).
+   ===================================================================================================== */
+
+/* ---- the grid: whole width and height, even 14px gutters, every column ends on the same line -------------- */
+.orion-console .orion-console__grid[data-layout] {
+  gap: 14px;
+  /* the bottom strip is where the Orion button and the tray rest */
+  padding: 2px 14px 78px;
+  justify-content: stretch;
+}
+.orion-console .orion-console__grid[data-layout='three'] {
+  grid-template-columns: minmax(270px, 1fr) minmax(560px, 2fr) minmax(270px, 1fr);
+}
+.orion-console .orion-console__grid[data-layout='four'] {
+  grid-template-columns: minmax(280px, 1fr) minmax(620px, 2.15fr) minmax(280px, 1fr) minmax(280px, 1fr);
+}
+.orion-console .orion-console__grid[data-layout] > .orion-console__side {
+  margin-bottom: 0;
+  gap: 14px;
+  padding: 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+/* a column's grow panel takes the rest of the height, so all columns end together */
+.orion-console .cc-panel[data-grow] { flex: 1 0 auto; }
+.orion-console .orion-console__bar { padding: 12px 14px 10px 84px; }
+
+/* ---- a panel ---------------------------------------------------------------------------------------------- */
+.orion-console .cc-panel {
+  --cat: var(--cat-work);
+  --cat-solid: var(--cat-work-solid);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 12px 12px 12px;
+  border-radius: 5px;
+  background-color: var(--matte-surface);
+  background-image: var(--gunmetal-grain), linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(0, 0, 0, 0.12));
+  background-size: 320px 320px, auto;
+  border: var(--matte-stroke, 1.5px) solid rgba(255, 255, 255, 0.13);
+}
+.orion-console .cc-panel[data-group='life'] { --cat: var(--cat-life); --cat-solid: var(--cat-life-solid); }
+.orion-console .cc-panel[data-group='connect'] { --cat: var(--cat-connect); --cat-solid: var(--cat-connect-solid); }
+.orion-console .cc-panel[data-group='system'] { --cat: var(--cat-system); --cat-solid: var(--cat-system-solid); }
+.orion-console .cc-panel__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  margin-bottom: 8px;
+}
+.orion-console .cc-panel__head::before {
+  content: '';
+  flex: none;
+  width: 4px;
+  height: 16px;
+  border-radius: 1px;
+  background: var(--cat-solid);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cat) 45%, transparent);
+}
+.orion-console .cc-panel__title {
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink-1);
+  letter-spacing: 0;
+}
+.orion-console .cc-panel__meta {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.orion-console .cc-panel__head > button:last-child { margin-left: auto; }
+.orion-console .cc-panel__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  flex: 1;
+}
+
+/* ---- small steel buttons ------------------------------------------------------------------------------------ */
+.orion-console .cc-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 4px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-1);
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.05);
+  border: var(--matte-stroke, 1.5px) solid rgba(255, 255, 255, 0.14);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.orion-console .cc-mini:hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.24); }
+.orion-console .cc-mini:disabled { color: var(--ink-3); cursor: default; }
+.orion-console .cc-mini--solid { background: var(--steel-btn); border-color: rgba(255, 255, 255, 0.22); }
+.orion-console .cc-mini--solid:hover:not(:disabled) { background: var(--steel-btn-hover); }
+.orion-console .cc-mini--icon { width: 28px; padding: 0; justify-content: center; }
+.orion-console .cc-mini svg.lucide { color: var(--ink-2); }
+.orion-console .cc-mini:focus-visible,
+.orion-console .cc-row--button:focus-visible,
+.orion-console .cc-link-row:focus-visible,
+.orion-console .cc-tool:focus-visible,
+.orion-console .cc-field__answer:focus-visible {
+  outline: 2px solid #4a72c9;
+  outline-offset: 2px;
+}
+
+/* ---- rows ------------------------------------------------------------------------------------------------ */
+.orion-console .cc-rows { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.orion-console .cc-row,
+.orion-console .cc-link-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 38px;
+  padding: 4px 6px 4px 8px;
+  border-radius: 4px;
+  text-align: left;
+  background: rgba(0, 0, 0, 0.16);
+  border: var(--matte-stroke, 1.5px) solid rgba(255, 255, 255, 0.05);
+}
+.orion-console .cc-row--button,
+.orion-console .cc-link-row { cursor: pointer; transition: background-color 0.15s ease, border-color 0.15s ease; }
+.orion-console .cc-row--button:hover,
+.orion-console .cc-link-row:hover { background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.12); }
+.orion-console .cc-row__text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.orion-console .cc-row__name {
+  overflow: hidden;
+  font-size: 13.5px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink-1);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.orion-console .cc-row__name--plain { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.orion-console .cc-row__sub {
+  overflow: hidden;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--ink-3);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.orion-console .cc-row__time {
+  flex: none;
+  width: 66px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.orion-console .cc-row[data-overdue] .cc-row__time { color: var(--role-needs); }
+.orion-console .cc-row[data-kind='wind'] .cc-row__time,
+.orion-console .cc-row[data-kind='bed'] .cc-row__time { color: var(--cat-life); }
+.orion-console .cc-row[data-kind='break'] .cc-row__time { color: var(--role-approval); }
+
+/* a status square: amber needs you, blue running, steel idle */
+.orion-console .cc-status {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: #5b636e;
+}
+.orion-console .cc-row[data-status='needs'] .cc-status { background: var(--role-approval); }
+.orion-console .cc-row[data-status='needs'] .cc-row__sub { color: var(--role-approval); }
+.orion-console .cc-row[data-status='running'] .cc-status { background: var(--role-now); }
+.orion-console .cc-status--app { background: var(--cat-connect-solid); box-shadow: inset 0 0 0 1px var(--cat-connect); }
+.orion-console .cc-link-row[data-on] .cc-status { background: #5fae7c; }
+.orion-console .cc-count {
+  flex: none;
+  min-width: 26px;
+  height: 22px;
+  padding: 0 7px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--ink-1);
+  background: color-mix(in srgb, var(--cat-connect-solid) 55%, #2a2d31);
+}
+
+.orion-console .cc-empty {
+  padding: 8px 2px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ink-3);
+}
+.orion-console .cc-note {
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink-2);
+}
+
+/* ---- the focus timer ---------------------------------------------------------------------------------------- */
+.orion-console .cc-timer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px 10px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.22);
+  border: var(--matte-stroke, 1.5px) solid rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+.orion-console .cc-timer__clock {
+  flex: none;
+  min-width: 92px;
+  font-family: var(--font-ui);
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.orion-console .cc-timer[data-running] .cc-timer__clock { color: var(--ink-1); }
+.orion-console .cc-timer__side { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.orion-console .cc-timer__what { font-size: 12.5px; font-weight: 700; color: var(--ink-3); }
+.orion-console .cc-timer__btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.orion-console .cc-timer__bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.orion-console .cc-timer__bar > span { display: block; height: 100%; background: var(--cat-life-solid); transition: width 1s linear; }
+
+/* ---- quick tools ----------------------------------------------------------------------------------------------- */
+.orion-console .cc-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 6px 0 10px;
+  border-radius: 4px;
+  background: #17191c;
+  border: var(--matte-stroke, 1.5px) solid rgba(255, 255, 255, 0.1);
+}
+.orion-console .cc-field:focus-within { border-color: #4a72c9; }
+.orion-console .cc-field__icon { flex: none; color: var(--ink-3); }
+.orion-console .cc-field__input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  background: transparent;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink-1);
+}
+.orion-console .cc-field__input:focus { outline: none; }
+.orion-console .cc-field__input::placeholder { color: var(--ink-3); font-weight: 600; }
+.orion-console .cc-field__answer {
+  flex: none;
+  max-width: 55%;
+  overflow: hidden;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 4px;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--ink-1);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  background: var(--steel-btn);
+  font-variant-numeric: tabular-nums;
+}
+.orion-console .cc-tool {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-1);
+  background: rgba(255, 255, 255, 0.04);
+  border: var(--matte-stroke, 1.5px) solid rgba(255, 255, 255, 0.1);
+}
+.orion-console .cc-tool:hover { background: rgba(255, 255, 255, 0.08); }
+.orion-console .cc-tool svg.lucide { color: var(--ink-2); }
+
+/* ---- computer meters ---------------------------------------------------------------------------------------------- */
+.orion-console .cc-meters { display: flex; flex-direction: column; gap: 9px; margin: 2px 0 2px; padding: 0 2px; list-style: none; }
+.orion-console .cc-meter { display: grid; grid-template-columns: 66px 1fr 44px; align-items: center; gap: 10px; }
+.orion-console .cc-meter__label { font-size: 13px; font-weight: 700; color: var(--ink-2); }
+.orion-console .cc-meter__bar {
+  position: relative;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+.orion-console .cc-meter__bar > span { display: block; height: 100%; background: #8a939f; transition: width 0.6s ease; }
+.orion-console .cc-meter[data-level='warn'] .cc-meter__bar > span { background: var(--role-approval-solid); }
+.orion-console .cc-meter[data-level='high'] .cc-meter__bar > span { background: var(--role-needs-solid); }
+.orion-console .cc-meter__val { font-size: 12.5px; font-weight: 700; color: var(--ink-1); text-align: right; font-variant-numeric: tabular-nums; }
+.orion-console .cc-meter[data-level='none'] .cc-meter__val { color: var(--ink-3); }
+
+/* ---- feature tiles inside a tools panel: groups stacked, compact tiles that fill the width ------------------------- */
+.orion-console .cc-tools { display: flex; flex-direction: column; gap: 8px; }
+.orion-console .cc-tools .orion-section {
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+}
+.orion-console .cc-tools .orion-section__head { padding: 0 2px 6px; }
+.orion-console .cc-tools .orion-section__head::before { width: 8px; height: 8px; border-radius: 2px; background: var(--cat-solid); }
+.orion-console .cc-tools .orion-section__title { font-size: 13px; font-weight: 700; color: var(--cat); }
+.orion-console .cc-tools .orion-section__count { font-size: 12px; }
+.orion-console .cc-tools .orion-section__grid {
+  grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+  gap: 2px;
+}
+/* every tile the same size here; main items keep their solid steel chip and a white name */
+.orion-console .cc-tools .orion-feature,
+.orion-console .cc-tools .orion-feature[data-main] {
+  grid-column: auto;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 5px;
+  padding: 7px 2px 6px;
+  text-align: center;
+  background: transparent;
+  border-color: transparent;
+}
+.orion-console .cc-tools .orion-feature:hover,
+.orion-console .cc-tools .orion-feature:focus-visible { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.12); }
+.orion-console .cc-tools .orion-feature[data-lit] { background: color-mix(in srgb, var(--cat-solid) 20%, transparent); border-color: color-mix(in srgb, var(--cat) 60%, transparent); }
+.orion-console .cc-tools .orion-feature__icon,
+.orion-console .cc-tools .orion-feature[data-main] .orion-feature__icon { width: 36px; height: 36px; }
+.orion-console .cc-tools .orion-feature[data-main] .orion-feature__label { font-size: 12.5px; font-weight: 700; }
+.orion-console .cc-panel .orion-section__info { margin-top: auto; padding-top: 8px; }
+.orion-console .cc-panel .cc-tools + .orion-section__info { margin-top: 10px; }
+.orion-console .cc-panel[data-grow] .cc-tools + .orion-section__info { margin-top: auto; }
+
+/* ---- the middle stays the lead: a little more weight on its frame ---------------------------------------------- */
+.orion-console .orion-console__grid[data-layout] > .orion-console__chat { border-color: rgba(255, 255, 255, 0.2); }
+
+/* ---- narrow screens: the middle first, the panels stacked under it, no sideways scroll ----------------------------- */
+@media (max-width: 1100px) {
+  .orion-console .orion-console__grid[data-layout] { padding: 2px 12px 90px; gap: 12px; }
+  .orion-console .orion-console__grid[data-layout='stack'] > .orion-console__side {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+    align-items: start;
+    gap: 12px;
+  }
+  .orion-console .orion-console__grid[data-layout='stack'] .cc-panel[aria-label^='All tools'] { grid-column: 1 / -1; }
+}
+@media (max-width: 640px) {
+  .orion-console .orion-console__grid[data-layout] { padding: 2px 10px 90px; gap: 10px; }
+  .orion-console .orion-console__grid[data-layout='stack'] > .orion-console__side { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .orion-console .orion-console__bar { padding: 12px 12px 8px; }
+  .orion-console .cc-tools .orion-section__grid { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .orion-console .cc-timer__bar > span,
+  .orion-console .cc-meter__bar > span { transition: none; }
+}
+
+/* ---- [command] second pass: latest chats, the jot pad, a tighter three-column fit -------------------------------- */
+.orion-console .cc-sub {
+  margin: 4px 2px -2px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-3);
+}
+.orion-console .cc-row__app { font-size: 12px; font-weight: 700; color: var(--cat-connect); }
+.orion-console .cc-pad { display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 120px; }
+.orion-console .cc-pad__text {
+  flex: 1;
+  min-height: 90px;
+  resize: none;
+  padding: 10px 12px;
+  border-radius: 4px;
+  font-family: var(--font-ui);
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--ink-1);
+  background: #17191c;
+  border: var(--matte-stroke, 1.5px) solid rgba(255, 255, 255, 0.1);
+}
+.orion-console .cc-pad__text:focus { outline: none; border-color: #4a72c9; }
+.orion-console .cc-pad__text::placeholder { color: var(--ink-3); }
+.orion-console .cc-pad__foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.orion-console .cc-pad__hint { font-size: 12px; font-weight: 600; color: var(--ink-3); }
+
+.orion-console .orion-console__grid[data-layout='three'] .cc-panel { padding: 10px 10px 10px; }
+.orion-console .orion-console__grid[data-layout='three'] .cc-panel__head { margin-bottom: 6px; }
+.orion-console .orion-console__grid[data-layout='three'] .cc-row { min-height: 36px; padding-top: 3px; padding-bottom: 3px; }
+.orion-console .orion-console__grid[data-layout='three'] .cc-timer { padding: 6px 10px 8px; }
+.orion-console .orion-console__grid[data-layout='three'] .cc-timer__clock { font-size: 26px; min-width: 80px; }
+.orion-console .orion-console__grid[data-layout='three'] .cc-tools .orion-feature { padding: 5px 2px 4px; gap: 4px; }
+.orion-console .orion-console__grid[data-layout='three'] .cc-tools .orion-feature__icon { width: 32px; height: 32px; }
+.orion-console .orion-console__grid[data-layout='three'] .cc-tools .orion-section__head { padding-bottom: 4px; }
+.orion-console .orion-console__grid[data-layout='three'] .cc-panel .orion-section__info { min-height: 2.6em; padding-top: 6px; }
+
+.orion-console .orion-console__grid[data-layout='three'] .cc-tools .orion-feature__label { font-size: 12px; overflow-wrap: normal; }
+.orion-console .orion-console__grid[data-layout='three'] .cc-pad { min-height: 92px; }
+.orion-console .orion-console__grid[data-layout='three'] .cc-pad__text { min-height: 52px; padding: 8px 10px; }
+/* three columns: the tool description line gives its room to the tiles (names and descriptions stay in the
+   tooltip, in what screen readers hear and in search) */
+.orion-console .orion-console__grid[data-layout='three'] .cc-panel .orion-section__info { display: none; }
+.orion-console .orion-console__grid[data-layout='three'] .cc-tools { gap: 6px; }
+/* four columns: four tiles to a row from 1700px up */
+.orion-console .orion-console__grid[data-layout='four'] .cc-tools .orion-section__grid { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
+/* long single words ("Personality") break with a hyphen rather than mid-letter */
+.orion-console .cc-tools .orion-feature__label { overflow-wrap: normal; word-break: normal; -webkit-hyphens: auto; hyphens: auto; }
+
+/* shorter screens: tighten the focus cards so all five fit above the chat bar without scrolling */
+@media (min-width: 1101px) and (max-height: 1100px) {
+  .orion-console .focus__head { padding-bottom: 8px; }
+  .orion-console .focus__title { font-size: 21px; }
+  .orion-console .focus-card { padding: 9px 12px 9px 18px; }
+  .orion-console .focus-card--hero { padding: 12px 16px 12px 24px; }
+  .orion-console .focus-card--hero .focus-card__title { margin-top: 6px; font-size: 20px; }
+  .orion-console .focus-card--hero .focus-card__detail { margin-top: 2px; font-size: 14.5px; }
+  .orion-console .focus-card--hero .focus-card__foot { padding-top: 8px; }
+  .orion-console .focus-card__detail { -webkit-line-clamp: 1; }
+  .orion-console .focus-progress { margin-top: 8px; }
+}

@@ -12,6 +12,10 @@
  *   - [focus] Before a conversation starts, the middle shows the Focus dashboard (FocusDashboard.tsx, at most five
  *     cards). It moves away as soon as the session has messages or a chat message is being typed (a feature search
  *     keeps it); "New" brings it back.
+ *   - [command] The console fills the whole screen as a life and project command centre: the sides hold small live
+ *     panels (Projects, Today, Quick tools, Computer, Messages: CommandWidgets.tsx) and the feature tiles in compact
+ *     "tools" panels. Wide screens (1700px and up) get a fourth column; below 1101px the middle comes first and the
+ *     panels stack under it. Every column runs to the same bottom line.
  * Picking an item fires `orion:open` with its id; the window that owns that id opens itself.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -29,6 +33,8 @@ import { getButtonPos, BUTTON_SIZE } from '../../lib/orionButton';
 import { cosmicAudio } from '../../lib/cosmicAudio';
 import { useCalmMotion } from '../../lib/hudPrefs';
 import OrionMark from '../glass/OrionMark';
+import type { CommsThread, TelemetrySnapshot } from '@orion/shared-types';
+import { ComputerPanel, MessagesPanel, Panel, ProjectsPanel, QuickToolsPanel, TodayPanel } from './CommandWidgets'; // [command]
 import FocusDashboard, { AllClear } from './FocusDashboard'; // [focus]
 import { showDashboard } from '../../lib/focus'; // [focus]
 import '../../styles/glass.css';
@@ -74,6 +80,23 @@ interface Props {
   onSendTelegram?: (text: string) => void;
   /** [focus] Open a conversation in Messages, optionally with a draft in its reply box (never sent). */
   onOpenThread?: (thread: string, draft?: string) => void;
+  /** [command] Live numbers for the Today panel (wind-down, bedtime, breaks). */
+  telemetry?: TelemetrySnapshot | null;
+  /** [command] The live chat list, for unread counts by app. */
+  threads?: CommsThread[];
+}
+
+/** [command] How the console lays out: the middle stacked over the panels, three columns, or four on wide screens. */
+type Layout = 'stack' | 'three' | 'four';
+const layoutFor = (w: number): Layout => (w <= 1100 ? 'stack' : w >= 1700 ? 'four' : 'three');
+function useLayout(): Layout {
+  const [layout, setLayout] = useState<Layout>(() => (typeof window === 'undefined' ? 'three' : layoutFor(window.innerWidth)));
+  useEffect(() => {
+    const on = () => setLayout(layoutFor(window.innerWidth));
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
+  return layout;
 }
 
 // --------------------------------------------------------------------------------------- feature tiles
@@ -111,20 +134,36 @@ function Tile({
 }
 
 function SectionBlock({
-  id, badges, hits, onPick,
-}: { id: MenuSection; badges: MenuBadges; hits: Set<string> | null; onPick: (id: string) => void }) {
+  id, badges, hits, onPick, onShow,
+}: { id: MenuSection; badges: MenuBadges; hits: Set<string> | null; onPick: (id: string) => void; onShow: (item: MenuItem | null) => void }) {
   const meta = SECTIONS.find((s) => s.id === id)!;
   const items = sectionItems(id);
-  const [shown, setShown] = useState<MenuItem | null>(null);
   return (
     <section aria-label={meta.label} className="orion-section" data-section={id}>
       <header className="orion-section__head">
-        <h2 className="orion-section__title">{meta.label}</h2>
+        <h3 className="orion-section__title">{meta.label}</h3>
         <span className="orion-section__count">{items.length}</span>
       </header>
       <div className="orion-section__grid">
         {items.map((i) => (
-          <Tile key={i.id} item={i} badge={badges[i.id]} dim={!!hits && !hits.has(i.id)} lit={!!hits && hits.has(i.id)} onPick={onPick} onShow={setShown} />
+          <Tile key={i.id} item={i} badge={badges[i.id]} dim={!!hits && !hits.has(i.id)} lit={!!hits && hits.has(i.id)} onPick={onPick} onShow={onShow} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** [command] Feature tiles for one or more groups in one compact panel, with one line that describes the tile in view. */
+function ToolsPanel({
+  title, group, sections, badges, hits, onPick, grow,
+}: { title: string; group: MenuSection; sections: MenuSection[]; badges: MenuBadges; hits: Set<string> | null; onPick: (id: string) => void; grow?: boolean }) {
+  const [shown, setShown] = useState<MenuItem | null>(null);
+  const count = sections.reduce((n, id) => n + sectionItems(id).length, 0);
+  return (
+    <Panel title={title} group={group} meta={count} grow={grow} label={`${title}: ${sections.map((id) => SECTIONS.find((x) => x.id === id)!.label).join(', ')}`}>
+      <div className="cc-tools">
+        {sections.map((id) => (
+          <SectionBlock key={id} id={id} badges={badges} hits={hits} onPick={onPick} onShow={setShown} />
         ))}
       </div>
       <p className="orion-section__info" aria-hidden data-showing={shown ? true : undefined}>
@@ -133,10 +172,10 @@ function SectionBlock({
             <b>{shown.label}</b> {shown.description}
           </>
         ) : (
-          meta.hint
+          'Point at a tool to see what it does, or type its name to find it.'
         )}
       </p>
-    </section>
+    </Panel>
   );
 }
 
@@ -155,7 +194,10 @@ export default function CommandConsole({
   onConsolidateMemories,
   onSendTelegram,
   onOpenThread,
+  telemetry,
+  threads,
 }: Props) {
+  const layout = useLayout(); // [command]
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [pick, setPick] = useState(-1);
@@ -365,12 +407,16 @@ export default function CommandConsole({
             </div>
           </div>
 
-          <div className="orion-console__grid">
-            {/* left: Work, Life and play */}
-            <aside className="orion-console__side" aria-label="Work and life">
-              <SectionBlock id="work" badges={badges} hits={hits} onPick={pickItem} />
-              <SectionBlock id="life" badges={badges} hits={hits} onPick={pickItem} />
-            </aside>
+          <div className="orion-console__grid" data-layout={layout}>
+            {/* [command] left: projects, then the day and quick tools (four columns) or every feature (three columns) */}
+            {layout !== 'stack' && (
+              <aside className="orion-console__side" aria-label="Projects and your day">
+                <ProjectsPanel onOpen={pickItem} />
+                {layout === 'four' && <TodayPanel onOpen={pickItem} telemetry={telemetry} rows={5} />}
+                {layout === 'four' && <QuickToolsPanel grow />}
+                {layout === 'three' && <ToolsPanel title="All tools" group="system" sections={['work', 'life', 'connect', 'system']} badges={badges} hits={hits} onPick={pickItem} grow />}
+              </aside>
+            )}
 
             {/* middle: the chat */}
             <main className="orion-console__chat" aria-label="Chat with Orion">
@@ -609,11 +655,37 @@ export default function CommandConsole({
               </div>
             </main>
 
-            {/* right: Connect, System */}
-            <aside className="orion-console__side" aria-label="Connect and system">
-              <SectionBlock id="connect" badges={badges} hits={hits} onPick={pickItem} />
-              <SectionBlock id="system" badges={badges} hits={hits} onPick={pickItem} />
-            </aside>
+            {/* [command] right: the day, messages, the computer and quick tools (three columns); messages and the
+                computer, then every feature in its own column (four columns) */}
+            {layout === 'three' && (
+              <aside className="orion-console__side" aria-label="Your day, messages, computer and quick tools">
+                <TodayPanel onOpen={pickItem} telemetry={telemetry} rows={3} />
+                <MessagesPanel onOpen={pickItem} threads={threads} rows={3} />
+                <ComputerPanel onOpen={pickItem} />
+                <QuickToolsPanel grow />
+              </aside>
+            )}
+            {layout === 'four' && (
+              <>
+                <aside className="orion-console__side" aria-label="Messages and computer">
+                  <MessagesPanel onOpen={pickItem} onOpenThread={(k) => openThread(k)} threads={threads} latest={5} grow />
+                  <ComputerPanel onOpen={pickItem} />
+                </aside>
+                <aside className="orion-console__side" aria-label="All tools">
+                  <ToolsPanel title="All tools" group="system" sections={['work', 'life', 'connect', 'system']} badges={badges} hits={hits} onPick={pickItem} grow />
+                </aside>
+              </>
+            )}
+            {layout === 'stack' && (
+              <aside className="orion-console__side" aria-label="Your projects, day, messages, computer and tools">
+                <ProjectsPanel onOpen={pickItem} />
+                <TodayPanel onOpen={pickItem} telemetry={telemetry} />
+                <MessagesPanel onOpen={pickItem} onOpenThread={(k) => openThread(k)} threads={threads} latest={3} />
+                <ComputerPanel onOpen={pickItem} />
+                <QuickToolsPanel />
+                <ToolsPanel title="All tools" group="system" sections={['work', 'life', 'connect', 'system']} badges={badges} hits={hits} onPick={pickItem} />
+              </aside>
+            )}
           </div>
         </motion.div>
       )}

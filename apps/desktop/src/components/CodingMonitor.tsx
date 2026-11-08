@@ -37,7 +37,7 @@ export default function CodingMonitor({ responses, activeWindowTitle }: Props) {
           <Code2 size={14} className="text-pulse" />
           <div className="panel-title">Active Coding Monitor</div>
         </div>
-        <div className="flex items-center gap-1.5 text-[10px]">
+        <div className="flex items-center gap-1.5 text-[11px]">
           <span
             className={`inline-block h-1.5 w-1.5 rounded-full ${
               isIdeFocused ? 'bg-success shadow-[0_0_8px_#3DFFA8]' : 'bg-dust'
@@ -52,9 +52,9 @@ export default function CodingMonitor({ responses, activeWindowTitle }: Props) {
       <div className="flex-1 space-y-3 overflow-y-auto pr-1">
         {codingEvents.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center text-center p-4">
-            <Terminal size={24} className="text-dust/40 mb-2" />
+            <Terminal size={24} className="text-dust/72 mb-2" />
             <p className="text-xs text-dust">No active code suggestions or repairs.</p>
-            <p className="text-[10px] text-dust/60 mt-1">
+            <p className="text-[11px] text-dust/80 mt-1">
               Switch focus to an IDE window with the Coding Agent enabled to observe live AST analysis.
             </p>
           </div>
@@ -77,21 +77,21 @@ export default function CodingMonitor({ responses, activeWindowTitle }: Props) {
                   className="rounded-lg border border-glass bg-white/[0.02] p-3 space-y-2 text-xs"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1.5 font-display text-[10px] text-pulse">
+                    <span className="flex items-center gap-1.5 font-display text-[11px] text-pulse">
                       <Bug size={12} />
                       AGENT SUGGESTION ({codePayload.language || 'code'})
                     </span>
-                    <span className="text-[10px] font-mono text-dust">
+                    <span className="text-[11px] font-mono text-dust">
                       {ev.response.latency_ms ? `${ev.response.latency_ms}ms` : ''}
                     </span>
                   </div>
 
-                  <p className="selectable text-starlight/90 text-[11px] leading-relaxed">
+                  <p className="selectable text-starlight/90 text-[11.5px] leading-relaxed">
                     {codePayload.explanation || ev.response.summary}
                   </p>
 
                   {codePayload.code && (
-                    <div className="relative rounded bg-black/60 p-2.5 font-mono text-[11px] text-starlight border border-glass">
+                    <div className="relative rounded bg-black/60 p-2.5 font-mono text-[11.5px] text-starlight border border-glass">
                       <button
                         onClick={() => handleCopy(ev.request_id, codePayload.code!)}
                         className="absolute right-2 top-2 rounded p-1 text-dust hover:text-pulse bg-white/5 hover:bg-white/10"

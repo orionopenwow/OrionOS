@@ -30,15 +30,15 @@ export default function FloatingVoiceTranscript({
           
           {/* Neon Voice Wave Halo in Light Purple */}
           <div className="relative mb-3 flex items-center justify-center">
-            <div className="h-12 w-12 rounded-full border border-[#C084FC]/50 bg-[#C084FC]/15 flex items-center justify-center shadow-[0_0_30px_rgba(192,132,252,0.55)] animate-pulse">
-              <Mic size={20} className="text-[#E9D5FF]" />
+            <div className="h-12 w-12 rounded-full border border-[#7FA6FF]/50 bg-[#7FA6FF]/15 flex items-center justify-center shadow-[0_0_30px_rgba(127,166,255,0.55)] animate-pulse">
+              <Mic size={20} className="text-[#DCE7FF]" />
             </div>
-            <span className="absolute h-16 w-16 rounded-full border border-[#E9D5FF]/40 animate-ping opacity-70" />
+            <span className="absolute h-16 w-16 rounded-full border border-[#DCE7FF]/40 animate-ping opacity-70" />
           </div>
 
           {/* Floating Ethereal Text with Glowing Light Purple / Starlight Typography */}
           <div className="min-h-[48px] flex items-center justify-center px-6 py-2">
-            <p className="font-sans text-base md:text-lg font-medium tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-[#FFFFFF] via-[#E9D5FF] to-[#C084FC] drop-shadow-[0_0_15px_rgba(192,132,252,0.7)] leading-relaxed select-text">
+            <p className="font-sans text-base md:text-lg font-medium tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-[#FFFFFF] via-[#DCE7FF] to-[#7FA6FF] drop-shadow-[0_0_15px_rgba(127,166,255,0.7)] leading-relaxed select-text">
               {transcript || 'Receiving speech...'}
             </p>
           </div>
@@ -73,7 +73,7 @@ export default function FloatingVoiceTranscript({
           )}
 
           {!transcript && (
-            <span className="text-[11px] font-mono text-dust/70 tracking-widest mt-1">
+            <span className="text-[11.5px] font-mono text-dust/85 tracking-widest mt-1">
               SPEAK FREELY · ORION IS LISTENING
             </span>
           )}

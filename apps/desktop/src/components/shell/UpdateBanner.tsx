@@ -106,19 +106,19 @@ export default function UpdateBanner() {
                 {phase === 'error' && 'Update failed'}
               </span>
               {(phase === 'available' || phase === 'error' || phase === 'uptodate') && (
-                <button aria-label="Dismiss" onClick={() => setPhase('idle')} className="text-white/50 hover:text-white">
+                <button aria-label="Dismiss" onClick={() => setPhase('idle')} className="text-white/76 hover:text-white">
                   <X size={14} />
                 </button>
               )}
             </div>
             {phase === 'available' && notes && (
-              <p className="selectable max-h-28 overflow-y-auto whitespace-pre-wrap text-[11.5px] text-white/65">{notes}</p>
+              <p className="selectable max-h-28 overflow-y-auto whitespace-pre-wrap text-[12px] text-white/82">{notes}</p>
             )}
-            {phase === 'error' && <p className="selectable text-[11px] text-[#FF8FAB] break-words">{error}</p>}
+            {phase === 'error' && <p className="selectable text-[11.5px] text-[#FF8FAB] break-words">{error}</p>}
             {(phase === 'downloading' || phase === 'installing') && (
               <div className="emboss-well h-2 overflow-hidden rounded-full">
                 <motion.div
-                  className="h-full bg-gradient-to-r from-[#7B5CFF] to-[#00E5FF]"
+                  className="h-full bg-gradient-to-r from-[#2E6BFF] to-[#00E5FF]"
                   animate={{ width: `${Math.round((phase === 'installing' ? 1 : progress) * 100)}%` }}
                 />
               </div>
@@ -131,7 +131,7 @@ export default function UpdateBanner() {
                 Restart to update
               </button>
             )}
-            {phase === 'installing' && <Loader2 size={14} className="mx-auto animate-spin text-white/60" />}
+            {phase === 'installing' && <Loader2 size={14} className="mx-auto animate-spin text-white/80" />}
           </div>
         </motion.div>
       )}

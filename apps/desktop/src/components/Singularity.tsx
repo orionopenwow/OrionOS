@@ -6,7 +6,7 @@
  * Earlier notes (still true for the overlays): no rings, no borders. The vortex bleeds into the starfield through a feathered
  * radial mask, and each mode shifts the astrophysics (palette, spin, particles) instead of swapping UI chrome:
  *
- *   idle      Dormant supermassive black hole — obsidian core, slow violet/indigo swirl, sparse drifting light
+ *   idle      Dormant supermassive black hole — obsidian core, slow cobalt swirl, sparse drifting light
  *   focus     Quasar — electric cyan accretion, 1.5x spin, stars visibly pulled inward
  *   voice     Pulsar — teal/emerald, concentric gravitational waves that ripple with your voice
  *   podcast   Binary merger / flare — crimson, magenta & gold; "mark that" fires a relativistic jet
@@ -59,7 +59,7 @@ interface Props {
   swallow?: SwallowItem | null;
 }
 
-const INFALL_STARS = 10;
+const INFALL_STARS = 4; // look pass: calmer, fewer streaks
 
 export default function Singularity({
   mode,
@@ -164,8 +164,8 @@ export default function Singularity({
     () =>
       Array.from({ length: INFALL_STARS }, (_, i) => ({
         angle: (360 / INFALL_STARS) * i + (i % 3) * 11,
-        delay: (i * 0.77) % 6,
-        dur: 4.5 + (i % 4) * 0.9,
+        delay: (i * 1.9) % 7,
+        dur: 7 + (i % 3) * 1.4,
       })),
     [],
   );

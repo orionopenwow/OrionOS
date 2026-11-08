@@ -44,11 +44,11 @@ export default function CosmicCore3D({ state, analyser, size = 420 }: Props) {
     cyanLight.position.set(-3, 2, 3);
     scene.add(cyanLight);
 
-    const purpleLight = new THREE.PointLight(0x9d8ec7, 6.0, 15);
+    const purpleLight = new THREE.PointLight(0x8a9ab5, 6.0, 15);
     purpleLight.position.set(3, -2, 3);
     scene.add(purpleLight);
 
-    const centerGlow = new THREE.PointLight(0x7b5cff, 3.0, 10);
+    const centerGlow = new THREE.PointLight(0x2e6bff, 3.0, 10);
     centerGlow.position.set(0, 0, 1);
     scene.add(centerGlow);
 

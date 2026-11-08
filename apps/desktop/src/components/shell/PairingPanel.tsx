@@ -26,7 +26,7 @@ function Code({ shown, now }: { shown: Shown; now: number }) {
   return (
     <div className="mt-2 flex items-center justify-between rounded-md border border-glass bg-black/30 px-3 py-2">
       <span className="font-mono text-lg tracking-[0.25em]" style={{ color: colors.cyan }}>{shown.code}</span>
-      <span className="text-[11px] text-dust">{left >= 60 ? `${Math.ceil(left / 60)} min` : `${left} s`} left</span>
+      <span className="text-[11.5px] text-dust">{left >= 60 ? `${Math.ceil(left / 60)} min` : `${left} s`} left</span>
     </div>
   );
 }
@@ -65,7 +65,7 @@ export default function PairingPanel({ connected }: { connected: boolean }) {
   };
 
   const row = 'rounded-lg border border-glass bg-white/[0.02] px-3 py-2 text-sm';
-  const btn = 'rounded-md border border-glass px-2 py-1 text-[11px] text-starlight hover:bg-white/5 disabled:opacity-40';
+  const btn = 'rounded-md border border-glass px-2 py-1 text-[11.5px] text-starlight hover:bg-white/5 disabled:opacity-40';
   return (
     <section>
       <div className="panel-title mb-2">Pair</div>
@@ -80,7 +80,7 @@ export default function PairingPanel({ connected }: { connected: boolean }) {
         <div className={row}>
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-2">
-              <Send size={14} className="text-nebula" /> Telegram{tgPaired ? <span className="text-[11px] text-dust">· paired</span> : null}
+              <Send size={14} className="text-nebula" /> Telegram{tgPaired ? <span className="text-[11.5px] text-dust">· paired</span> : null}
             </span>
             <button type="button" className={btn} disabled={!connected} onClick={pairTelegram}>
               {tgPaired ? 'Pair again' : 'Show code'}
@@ -88,7 +88,7 @@ export default function PairingPanel({ connected }: { connected: boolean }) {
           </div>
           <Code shown={tg} now={now} />
         </div>
-        {note ? <div className="px-1 text-[11px] text-dust">{note}</div> : null}
+        {note ? <div className="px-1 text-[11.5px] text-dust">{note}</div> : null}
       </div>
     </section>
   );

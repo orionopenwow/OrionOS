@@ -83,6 +83,8 @@ step "4/4  Voice: talk to Orion, the hot mic that only answers you, and Orion's 
 if ask "   Install voice? (your phone asks for your fingerprint)"; then
   orion-ctl setup voice >/dev/null 2>&1 && printf "   Approve \"Install voice for Orion\" on your phone. Then: Settings > Set up my voice.\n"
 fi
+# [voice2] the voice programming step: hear samples, pick Orion's voice, speed, warmth, design one (Voicebox)
+command -v orion-voice-setup >/dev/null && { orion-voice-setup || true; }  # [voice2]
 
 # [move-kit] Bring my stuff: a move kit from "Move my stuff to Orion.cmd" on a USB drive, in a VM's shared folder,
 # or on this PC's Windows drive (dual boot). One summary, one yes, then apps, Firefox (extensions, Tampermonkey

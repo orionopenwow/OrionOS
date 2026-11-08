@@ -38,7 +38,7 @@ const SETUP: Record<string, string> = {
   steam: 'setup-steam', heroic: 'setup-heroic', battlenet: 'setup-battlenet', wow112: 'setup-wow112',
 };
 
-const pill = { background: 'rgba(124,92,255,0.25)', border: '1px solid #3A3F6B' };
+const pill = { background: 'rgba(46,107,255,0.25)', border: '1px solid #3A4352' };
 
 export default function GamesWindow({ onClose, mobile }: { onClose: () => void; mobile?: boolean }) {
   const [d, setD] = useState<GamesData | null>(null);
@@ -76,11 +76,11 @@ export default function GamesWindow({ onClose, mobile }: { onClose: () => void; 
   const row = (g: Game) => (
     <div key={`${g.where}-${g.id}`} className="flex items-start gap-3 rounded-xl px-3 py-2 hover:bg-white/[0.04]">
       <span className="min-w-0 flex-1">
-        <span className="block text-[13px] font-semibold text-[#D8DEFF]">{g.name}</span>
+        <span className="block text-[13px] font-semibold text-[#DDE5F0]">{g.name}</span>
         {g.where === 'windows' && g.reuse && (
-          <span className="block text-[11px] leading-snug text-[#D8DEFF]/50">{g.copied ? 'Already copied here.' : g.reuse}</span>
+          <span className="block text-[11.5px] leading-snug text-[#DDE5F0]/76">{g.copied ? 'Already copied here.' : g.reuse}</span>
         )}
-        {g.note && <span className="block text-[11px] leading-snug text-[#D8DEFF]/40">{g.note}</span>}
+        {g.note && <span className="block text-[11.5px] leading-snug text-[#DDE5F0]/72">{g.note}</span>}
       </span>
       <button
         type="button"
@@ -107,8 +107,8 @@ export default function GamesWindow({ onClose, mobile }: { onClose: () => void; 
       className="left-4 bottom-[88px] w-[460px] max-w-[calc(100vw-32px)]"
     >
       <div className="p-3 space-y-2 max-h-[64vh] overflow-y-auto">
-        {!d && <div className="px-3 text-[13px] text-[#D8DEFF]/70">Looking for your games…</div>}
-        {d && !d.ok && <div className="px-3 text-[13px] text-[#D8DEFF]/70">{d.message}</div>}
+        {!d && <div className="px-3 text-[13px] text-[#DDE5F0]/85">Looking for your games…</div>}
+        {d && !d.ok && <div className="px-3 text-[13px] text-[#DDE5F0]/85">{d.message}</div>}
         {note && <div className="px-3 text-[12px] text-[#FFC66B]">{note}</div>}
         {d?.ok && (
           <>
@@ -132,22 +132,22 @@ export default function GamesWindow({ onClose, mobile }: { onClose: () => void; 
               </button>
             </div>
             {wd?.present && !wd.open && (
-              <div className="flex items-center gap-3 rounded-xl px-3 py-2" style={{ background: 'rgba(216,222,255,0.05)' }}>
-                <span className="flex-1 text-[12px] text-[#D8DEFF]/80">
+              <div className="flex items-center gap-3 rounded-xl px-3 py-2" style={{ background: 'rgba(221,229,240,0.05)' }}>
+                <span className="flex-1 text-[12px] text-[#DDE5F0]/80">
                   This PC has a Windows drive. Open it (read-only{wd.bitlocker ? '; BitLocker asks for its recovery key' : ''}) to find games on it.
                 </span>
                 <button type="button" disabled={busy} onClick={() => void act('menu')}
                   className="rounded-full px-3 py-1 text-[12px] font-semibold text-white" style={pill}>Open</button>
               </div>
             )}
-            {(d.here ?? []).length > 0 && <div className="px-3 pt-1 text-[11px] uppercase tracking-wide text-[#D8DEFF]/45">Here</div>}
+            {(d.here ?? []).length > 0 && <div className="px-3 pt-1 text-[11.5px] uppercase tracking-wide text-[#DDE5F0]/74">Here</div>}
             {(d.here ?? []).map(row)}
-            {(d.windows ?? []).length > 0 && <div className="px-3 pt-1 text-[11px] uppercase tracking-wide text-[#D8DEFF]/45">On the Windows drive</div>}
+            {(d.windows ?? []).length > 0 && <div className="px-3 pt-1 text-[11.5px] uppercase tracking-wide text-[#DDE5F0]/74">On the Windows drive</div>}
             {(d.windows ?? []).map(row)}
             {!(d.here ?? []).length && !(d.windows ?? []).length && (
-              <div className="px-3 text-[12.5px] text-[#D8DEFF]/65">No games found yet. Set up a launcher above and sign in.</div>
+              <div className="px-3 text-[12.5px] text-[#DDE5F0]/82">No games found yet. Set up a launcher above and sign in.</div>
             )}
-            {d.general_note && <div className="px-3 pt-1 text-[11px] leading-snug text-[#D8DEFF]/40">{d.general_note}</div>}
+            {d.general_note && <div className="px-3 pt-1 text-[11.5px] leading-snug text-[#DDE5F0]/72">{d.general_note}</div>}
             <div className="px-3">
               <button type="button" onClick={() => void load()} className="text-[12px] text-[#8fc7ff] underline">Look again</button>
             </div>

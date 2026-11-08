@@ -26,7 +26,7 @@ export default function ProjectsPanel({ bible, send, connected }: Props) {
         title="Battle Stations"
         color="#FF2A85"
         icon={<Swords size={14} />}
-        right={bible.activeStation ? <span className="text-[10px] font-mono text-[#FF2A85]">● {bible.activeStation}</span> : null}
+        right={bible.activeStation ? <span className="text-[11px] font-mono text-[#FF2A85]">● {bible.activeStation}</span> : null}
       >
         {custom.length ? (
           <div className="flex flex-wrap gap-1.5">
@@ -55,14 +55,14 @@ export default function ProjectsPanel({ bible, send, connected }: Props) {
       {ctx && (
         <Section title={`Context · ${ctx.workspace.name}`} color="#3DFFA8" icon={<FolderGit2 size={14} />}>
           {ctx.git && (
-            <div className="text-[11px] font-mono text-white/70">
+            <div className="text-[11.5px] font-mono text-white/85">
               <GitBranch size={11} className="inline mr-1" />
               {ctx.git.branch} · {ctx.git.dirty_files} uncommitted · last commit {timeAgo(ctx.git.last_commit_at)}
             </div>
           )}
           <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
             {ctx.memories.slice(0, 5).map((m) => (
-              <p key={m.id} className="text-[11px] text-white/75 line-clamp-2 bg-black/30 rounded-lg p-2">
+              <p key={m.id} className="text-[11.5px] text-white/88 line-clamp-2 bg-black/30 rounded-lg p-2">
                 <span className="text-[#3DFFA8] font-mono mr-1">{m.source}</span>
                 {m.content}
               </p>
@@ -85,7 +85,7 @@ export default function ProjectsPanel({ bible, send, connected }: Props) {
       >
         {bible.harvest && (
           <div className="space-y-1">
-            <div className="text-[10px] font-mono text-white/60 truncate">
+            <div className="text-[11px] font-mono text-white/80 truncate">
               {bible.harvest.error ? `⚠ ${bible.harvest.error}` : bible.harvest.message}
               {!bible.harvest.running && bible.harvest.result && (
                 <span className="text-[#3DFFA8]">
@@ -108,10 +108,10 @@ export default function ProjectsPanel({ bible, send, connected }: Props) {
                 className="flex items-center justify-between gap-2 rounded-xl bg-black/35 border border-white/5 px-2.5 py-2"
               >
                 <div className="min-w-0">
-                  <div className={`text-xs font-semibold truncate ${ws.exists ? 'text-starlight' : 'text-white/35 line-through'}`}>
+                  <div className={`text-xs font-semibold truncate ${ws.exists ? 'text-starlight' : 'text-white/68 line-through'}`}>
                     {ws.name}
                   </div>
-                  <div className="text-[10px] font-mono text-white/40 truncate" title={ws.path}>
+                  <div className="text-[11px] font-mono text-white/72 truncate" title={ws.path}>
                     {ws.path}
                     {ws.ports.length ? ` · :${ws.ports.join(', :')}` : ''}
                   </div>
@@ -142,7 +142,7 @@ export default function ProjectsPanel({ bible, send, connected }: Props) {
             <PillButton onClick={() => send('GIT_RADAR')} title="Refresh">
               <RefreshCw size={11} />
             </PillButton>
-            <PillButton color="#C084FC" onClick={() => send('DEVLOG_REQUEST')} title="Draft a devlog from recent commits">
+            <PillButton color="#7FA6FF" onClick={() => send('DEVLOG_REQUEST')} title="Draft a devlog from recent commits">
               <ScrollText size={11} /> Devlog
             </PillButton>
           </div>
@@ -152,16 +152,16 @@ export default function ProjectsPanel({ bible, send, connected }: Props) {
           <div className="space-y-1.5">
             {bible.radar.map((r) => (
               <div key={r.id} className="rounded-xl bg-black/35 border border-white/5 px-2.5 py-2 space-y-1">
-                <div className="flex items-center justify-between text-[11px]">
+                <div className="flex items-center justify-between text-[11.5px]">
                   <span className="font-semibold text-starlight truncate">{r.name}</span>
-                  <span className="font-mono text-white/50 shrink-0">
+                  <span className="font-mono text-white/76 shrink-0">
                     {r.branch}
                     {r.dirty_files > 0 && <span className="text-[#FFB300]"> · {r.dirty_files}✎</span>}
                     {' · '}
                     {timeAgo(r.last_commit_at)}
                   </span>
                 </div>
-                {r.recent[0] && <div className="text-[10px] text-white/55 truncate">{r.recent[0].subject}</div>}
+                {r.recent[0] && <div className="text-[11px] text-white/78 truncate">{r.recent[0].subject}</div>}
               </div>
             ))}
           </div>
@@ -211,15 +211,15 @@ function Constellation({ bible, send }: { bible: BibleState; send: BibleSend }) 
   return (
     <Section
       title="Constellation"
-      color="#B388FF"
+      color="#8DB0FF"
       icon={<Sparkles size={14} />}
-      right={active ? <span className="text-[10px] font-mono text-[#B388FF]">★ {active.w.name}</span> : null}
+      right={active ? <span className="text-[11px] font-mono text-[#8DB0FF]">★ {active.w.name}</span> : null}
     >
       <div className="relative h-44 rounded-xl bg-black/60 border border-white/5 overflow-hidden" role="list">
         <svg className="absolute inset-0 w-full h-full pointer-events-none" aria-hidden="true">
           {stars.slice(1).map((s, i) => (
             <line key={s.w.id} x1={`${stars[i].x}%`} y1={`${stars[i].y}%`} x2={`${s.x}%`} y2={`${s.y}%`}
-              stroke="#B388FF" strokeOpacity="0.15" strokeWidth="1" />
+              stroke="#8DB0FF" strokeOpacity="0.15" strokeWidth="1" />
           ))}
         </svg>
         {stars.map((s) => {
@@ -244,11 +244,11 @@ function Constellation({ bible, send }: { bible: BibleState; send: BibleSend }) 
                 style={{
                   width: on ? s.size + 6 : s.size,
                   height: on ? s.size + 6 : s.size,
-                  background: on ? '#fff' : `rgba(220,210,255,${0.45 + s.glow * 0.55})`,
-                  boxShadow: `0 0 ${on ? 18 : 6 + s.glow * 10}px ${s.dirty ? '#FFB300' : on ? '#B388FF' : '#9fb0ff'}`,
+                  background: on ? '#fff' : `rgba(214,226,255,${0.45 + s.glow * 0.55})`,
+                  boxShadow: `0 0 ${on ? 18 : 6 + s.glow * 10}px ${s.dirty ? '#FFB300' : on ? '#8DB0FF' : '#9FB8FF'}`,
                 }}
               />
-              <span className={`text-[9.5px] font-mono whitespace-nowrap ${on ? 'text-white' : 'text-white/45 group-hover:text-white/80'}`}>
+              <span className={`text-[10.5px] font-mono whitespace-nowrap ${on ? 'text-white' : 'text-white/74 group-hover:text-white/80'}`}>
                 {s.w.name}
               </span>
             </button>

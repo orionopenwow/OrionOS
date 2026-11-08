@@ -58,7 +58,7 @@ export const RealmExpBar: React.FC<{ data?: RealmLevelData; className?: string }
         </span>
         <button
           onClick={() => setShowAltruismModal(true)}
-          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#1b1933]/80 border border-[#a87f32]/40 hover:border-[#ffd100] text-[#ffdd55] text-[10px] font-semibold transition-all shadow-sm"
+          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#1b1933]/80 border border-[#a87f32]/40 hover:border-[#ffd100] text-[#ffdd55] text-[11px] font-semibold transition-all shadow-sm"
           title="Click to view open-source grants and funding transparency"
         >
           <span className="w-1.5 h-1.5 rounded-full bg-[#3DFFA8] animate-pulse" />
@@ -164,7 +164,7 @@ export const RealmExpBar: React.FC<{ data?: RealmLevelData; className?: string }
               <span className="text-[#ffd100] text-sm font-bold uppercase tracking-wider block font-serif">
                 Realm Milestone: Level {data.currentLevel + 1}
               </span>
-              <span className="text-[#a7a2c7] text-[11px]">
+              <span className="text-[#a7a2c7] text-[11.5px]">
                 Progress: ${data.currentXpUsd} of ${data.nextLevelXpUsd} USD (Ko-fi & Bitcoin)
               </span>
             </div>
@@ -174,7 +174,7 @@ export const RealmExpBar: React.FC<{ data?: RealmLevelData; className?: string }
           </div>
 
           <div className="text-xs text-[#d6c7ff] mb-2 font-medium">Unlocks Globally for Every Player at Level 5:</div>
-          <ul className="space-y-1.5 mb-3 text-[11px] text-[#f4effa]">
+          <ul className="space-y-1.5 mb-3 text-[11.5px] text-[#f4effa]">
             {data.nextMilestonePerks.map((perk, idx) => (
               <li key={idx} className="flex items-start gap-1.5">
                 <span className="text-[#ffd100] flex-shrink-0">★</span>
@@ -183,7 +183,7 @@ export const RealmExpBar: React.FC<{ data?: RealmLevelData; className?: string }
             ))}
           </ul>
 
-          <div className="border-t border-[#46396e]/60 pt-2 flex items-center justify-between text-[10px] text-[#8e85b0]">
+          <div className="border-t border-[#46396e]/60 pt-2 flex items-center justify-between text-[11px] text-[#8e85b0]">
             <span>Vaelis the Starwright cosmic vendor restocks</span>
             <span className="text-[#3DFFA8] font-semibold">100% Non-Pay-to-Win</span>
           </div>
@@ -212,15 +212,15 @@ export const RealmExpBar: React.FC<{ data?: RealmLevelData; className?: string }
             {/* Financial Breakdown */}
             <div className="grid grid-cols-3 gap-2 mb-4 p-3 rounded-lg bg-[#18152b] border border-[#3b335c] text-center">
               <div>
-                <div className="text-[10px] text-[#8e87b2]">Ko-fi Donations</div>
+                <div className="text-[11px] text-[#8e87b2]">Ko-fi Donations</div>
                 <div className="text-sm font-bold text-[#ffdd55]">${data.kofiTotalUsd}</div>
               </div>
               <div>
-                <div className="text-[10px] text-[#8e87b2]">Bitcoin On-Chain</div>
+                <div className="text-[11px] text-[#8e87b2]">Bitcoin On-Chain</div>
                 <div className="text-sm font-bold text-[#f7931a]">${data.bitcoinTotalUsd}</div>
               </div>
               <div>
-                <div className="text-[10px] text-[#8e87b2]">25% Open Source Tithe</div>
+                <div className="text-[11px] text-[#8e87b2]">25% Open Source Tithe</div>
                 <div className="text-sm font-bold text-[#3DFFA8]">${data.openSourceAllocatedUsd}</div>
               </div>
             </div>
@@ -229,7 +229,7 @@ export const RealmExpBar: React.FC<{ data?: RealmLevelData; className?: string }
             <div className="mb-4">
               <div className="text-xs font-semibold text-[#f0e6b2] mb-2 flex items-center justify-between">
                 <span>Manually Approved Upstream GitHub Projects:</span>
-                <span className="text-[10px] text-[#3DFFA8]">Boardroom Verified [✓]</span>
+                <span className="text-[11px] text-[#3DFFA8]">Boardroom Verified [✓]</span>
               </div>
               <div className="space-y-1.5">
                 {data.approvedGitHubProjects.map((p, i) => (
@@ -242,12 +242,12 @@ export const RealmExpBar: React.FC<{ data?: RealmLevelData; className?: string }
                         href={p.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-[#9d4edd] hover:underline font-mono text-[11px]"
+                        className="text-[#9d4edd] hover:underline font-mono text-[11.5px]"
                       >
                         {p.name}
                       </a>
                     </div>
-                    <span className="px-2 py-0.5 rounded bg-[#3DFFA8]/10 text-[#3DFFA8] text-[10px] font-bold">
+                    <span className="px-2 py-0.5 rounded bg-[#3DFFA8]/10 text-[#3DFFA8] text-[11px] font-bold">
                       ${p.grantUsd} USD Earmarked
                     </span>
                   </div>

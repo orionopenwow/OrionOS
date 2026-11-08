@@ -920,6 +920,8 @@ class OrionPage(Page):
                                                      'Whisper" && { echo "Voice is not installed yet. Asking your '
                                                      'phone to approve it:"; orion-ctl setup voice; } || { orion-ctl '
                                                      'voice calibrate && orion-ctl voice enroll; }')]))
+        vg.add(self.row("Orion's voice", "Hear samples and pick how Orion sounds, or design a voice",  # [voice2]
+                        icon="audio-speakers-symbolic", suffix=[self.terminal_button("Choose", "orion-voice-setup")]))
         pg = self.group("Phone and approvals")
         pg.add(self.row("Pair my phone", "Shows a code to scan with Orion Mobile", icon="phone-symbolic",
                         suffix=[self.terminal_button("Pair", "orion-ctl pair-phone", "suggested-action")]))

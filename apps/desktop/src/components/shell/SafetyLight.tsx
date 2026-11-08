@@ -30,7 +30,7 @@ interface Freeze {
 
 const pill: React.CSSProperties = {
   display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderRadius: 999,
-  background: 'rgba(11,15,30,0.85)', border: '1px solid #262D50', color: '#D8DEFF',
+  background: 'rgba(26,31,39,0.85)', border: '1px solid #2F3744', color: '#DDE5F0',
   font: '500 12px/1.2 system-ui, sans-serif', backdropFilter: 'blur(8px)',
 };
 
@@ -124,7 +124,7 @@ export default function SafetyLight({ inline = false }: { inline?: boolean }) {
             <Snowflake size={14} color="#7FF2FF" /> Frozen · ask phone to unfreeze
           </button>
         ) : (
-          <button style={{ ...pill, cursor: 'pointer', padding: '6px 9px', borderColor: armed ? '#7FF2FF' : '#262D50' }}
+          <button style={{ ...pill, cursor: 'pointer', padding: '6px 9px', borderColor: armed ? '#7FF2FF' : '#2F3744' }}
             onClick={onFreeze} title="Kill switch: stop all self-changes, updates and agents (tap twice)"
             aria-label={armed ? 'Tap again to freeze Orion' : 'Freeze Orion (tap twice)'}>
             <Snowflake size={14} color={armed ? '#7FF2FF' : '#8A93C2'} />

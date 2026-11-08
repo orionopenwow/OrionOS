@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { Settings2 } from 'lucide-react';
 import GlassWindow from './GlassWindow';
+import { openOrion } from '../../lib/menu'; // [voice2]
 import { hudPrefs, useHudPrefs, systemReducedMotion, type HudPrefs } from '../../lib/hudPrefs';
 import { readQualitySetting, writeQualitySetting, type QualitySetting } from '../../lib/blackhole';
 
@@ -19,8 +20,8 @@ function QualityRow() {
   return (
     <label className="flex items-start gap-3 rounded-xl px-3 py-2.5 hover:bg-white/[0.04]">
       <span className="min-w-0 flex-1">
-        <span className="block text-[13px] font-semibold text-[#D8DEFF]">Graphics quality</span>
-        <span className="block text-[11.5px] leading-snug text-[#D8DEFF]/55">
+        <span className="block text-[13px] font-semibold text-[#DDE5F0]">Graphics quality</span>
+        <span className="block text-[12px] leading-snug text-[#DDE5F0]/78">
           Automatic picks from your graphics card and battery, and steps down if it gets slow.
         </span>
       </span>
@@ -32,7 +33,7 @@ function QualityRow() {
           setV(next);
           writeQualitySetting(next);
         }}
-        className="mt-0.5 shrink-0 rounded-lg border border-[rgba(216,222,255,0.14)] bg-[rgba(11,15,30,0.9)] px-2 py-1 text-[12px] text-[#D8DEFF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#00E5FF]"
+        className="mt-0.5 shrink-0 rounded-lg border border-[rgba(221,229,240,0.14)] bg-[rgba(26,31,39,0.9)] px-2 py-1 text-[12px] text-[#DDE5F0] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#00E5FF]"
       >
         {QUALITY_CHOICES.map(([k, label]) => (
           <option key={k} value={k}>
@@ -51,8 +52,8 @@ function Toggle({ k, label, hint, disabled }: { k: keyof HudPrefs; label: string
   return (
     <label className={`flex items-start gap-3 rounded-xl px-3 py-2.5 hover:bg-white/[0.04] ${disabled ? 'opacity-55' : 'cursor-pointer'}`}>
       <span className="min-w-0 flex-1">
-        <span className="block text-[13px] font-semibold text-[#D8DEFF]">{label}</span>
-        <span className="block text-[11.5px] leading-snug text-[#D8DEFF]/55">{disabled ?? hint}</span>
+        <span className="block text-[13px] font-semibold text-[#DDE5F0]">{label}</span>
+        <span className="block text-[12px] leading-snug text-[#DDE5F0]/78">{disabled ?? hint}</span>
       </span>
       <button
         type="button"
@@ -63,9 +64,9 @@ function Toggle({ k, label, hint, disabled }: { k: keyof HudPrefs; label: string
         onClick={() => hudPrefs.set({ [k]: !p[k] } as Partial<HudPrefs>)}
         className="relative mt-0.5 h-[22px] w-[38px] shrink-0 rounded-full border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#00E5FF]"
         style={{
-          background: on ? 'rgba(124,92,255,0.55)' : 'rgba(216,222,255,0.08)',
-          borderColor: on ? 'rgba(176,156,255,0.7)' : 'rgba(216,222,255,0.12)',
-          boxShadow: on ? '0 0 12px rgba(124,92,255,0.45)' : 'none',
+          background: on ? 'rgba(46,107,255,0.55)' : 'rgba(221,229,240,0.08)',
+          borderColor: on ? 'rgba(141,176,255,0.7)' : 'rgba(221,229,240,0.12)',
+          boxShadow: on ? '0 0 12px rgba(46,107,255,0.45)' : 'none',
         }}
       >
         <span
@@ -84,7 +85,7 @@ export default function HudSettingsWindow({ onClose, mobile }: { onClose: () => 
       id="settings"
       title="Settings"
       subtitle="Look & motion"
-      icon={<Settings2 size={14} className="text-[#B09CFF]" />}
+      icon={<Settings2 size={14} className="text-[#8DB0FF]" />}
       onClose={onClose}
       maximisable={false}
       mobile={mobile}
@@ -117,9 +118,9 @@ export default function HudSettingsWindow({ onClose, mobile }: { onClose: () => 
         />
         {/* [v1gaps] privacy dashboard + Guide Mode (components/shell/V1Shell.tsx) */}
         <div className="flex gap-2 px-3 pt-2 pb-1">
-          {([['orion:open-privacy', 'Privacy dashboard'], ['orion:open-guide', 'Show me how to…']] as const).map(([ev, label]) => (
-            <button key={ev} type="button" onClick={() => window.dispatchEvent(new Event(ev))}
-              className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-[12px] font-semibold text-[#D8DEFF] hover:bg-white/[0.1]">
+          {([['orion:open-privacy', 'Privacy dashboard'], ['orion:open-guide', 'Show me how to…'], ['orion:open-voice', "Orion's voice"]] as const).map(([ev, label]) => ( // [voice2] Orion's voice
+            <button key={ev} type="button" onClick={() => (ev === 'orion:open-voice' ? openOrion('voice') : window.dispatchEvent(new Event(ev)))}
+              className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-[12px] font-semibold text-[#DDE5F0] hover:bg-white/[0.1]">
               {label}
             </button>
           ))}

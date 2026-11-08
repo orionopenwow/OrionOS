@@ -70,7 +70,7 @@ Features:
     : activeTab.text_sample;
 
   return (
-    <div className="w-full rounded-2xl border border-white/10 bg-[#0B0D17]/85 p-5 backdrop-blur-2xl shadow-2xl">
+    <div className="w-full rounded-2xl border border-white/10 bg-[#151A21]/85 p-5 backdrop-blur-2xl shadow-2xl">
       {/* Header */}
       <div className="flex items-center justify-between mb-4 border-b border-white/10 pb-3">
         <div className="flex items-center gap-2.5">
@@ -83,7 +83,7 @@ Features:
                 CHROME CONTEXT WINDOW
               </span>
               <span
-                className={`text-[9px] font-mono px-2 py-0.5 rounded-full border ${
+                className={`text-[10.5px] font-mono px-2 py-0.5 rounded-full border ${
                   isExtensionConnected
                     ? 'border-[#3DFFA8]/40 bg-[#3DFFA8]/10 text-[#3DFFA8]'
                     : 'border-yellow-500/40 bg-yellow-500/10 text-yellow-400'
@@ -92,7 +92,7 @@ Features:
                 {isExtensionConnected ? 'MV3 BRIDGE CONNECTED' : 'STANDALONE CDP READY'}
               </span>
             </div>
-            <span className="text-[10px] text-dust font-mono">
+            <span className="text-[11px] text-dust font-mono">
               Live DOM extraction & perceptual page comprehension
             </span>
           </div>
@@ -102,7 +102,7 @@ Features:
         <div className="flex items-center gap-2">
           <button
             onClick={handleCopyUrl}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-white/10 bg-white/5 text-[11px] font-mono text-dust hover:text-starlight hover:border-white/20 transition-colors"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-white/10 bg-white/5 text-[11.5px] font-mono text-dust hover:text-starlight hover:border-white/20 transition-colors"
             title="Copy URL"
           >
             {copied ? <Check size={12} className="text-[#3DFFA8]" /> : <Copy size={12} />}
@@ -125,13 +125,13 @@ Features:
               href={activeTab.url}
               target="_blank"
               rel="noreferrer"
-              className="text-[11px] font-mono text-dust/80 hover:text-[#00E5FF] truncate block flex items-center gap-1"
+              className="text-[11.5px] font-mono text-dust/80 hover:text-[#00E5FF] truncate block flex items-center gap-1"
             >
               <span className="truncate">{activeTab.url}</span>
               <ExternalLink size={10} className="shrink-0" />
             </a>
           </div>
-          <span className="text-[10px] font-mono text-dust shrink-0">
+          <span className="text-[11px] font-mono text-dust shrink-0">
             {activeTab.browser || 'Chrome'}
           </span>
         </div>
@@ -144,7 +144,7 @@ Features:
                 `Summarize this Chrome tab in 3 bullet points: "${activeTab.title}" (${activeTab.url})\n\nContent:\n${activeTab.text_sample.slice(0, 1500)}`
               )
             }
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[#00E5FF]/30 bg-[#00E5FF]/10 text-[10px] font-mono text-[#00E5FF] hover:bg-[#00E5FF]/20 transition-all"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[#00E5FF]/30 bg-[#00E5FF]/10 text-[11px] font-mono text-[#00E5FF] hover:bg-[#00E5FF]/20 transition-all"
           >
             <Sparkles size={11} />
             <span>Summarize Page</span>
@@ -156,7 +156,7 @@ Features:
                 `Extract all code snippets, technical commands, and configs from this page: "${activeTab.title}" (${activeTab.url})\n\nContent:\n${activeTab.text_sample.slice(0, 2000)}`
               )
             }
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[#C084FC]/30 bg-[#C084FC]/10 text-[10px] font-mono text-[#C084FC] hover:bg-[#C084FC]/20 transition-all"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[#7FA6FF]/30 bg-[#7FA6FF]/10 text-[11px] font-mono text-[#7FA6FF] hover:bg-[#7FA6FF]/20 transition-all"
           >
             <Code2 size={11} />
             <span>Extract Code Blocks</span>
@@ -164,7 +164,7 @@ Features:
 
           <button
             onClick={() => onDeepScrape && onDeepScrape(activeTab.url)}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[#3DFFA8]/30 bg-[#3DFFA8]/10 text-[10px] font-mono text-[#3DFFA8] hover:bg-[#3DFFA8]/20 transition-all"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[#3DFFA8]/30 bg-[#3DFFA8]/10 text-[11px] font-mono text-[#3DFFA8] hover:bg-[#3DFFA8]/20 transition-all"
           >
             <RefreshCw size={11} />
             <span>Deep CDP Scrape</span>
@@ -175,7 +175,7 @@ Features:
       {/* DOM Sample Search & Code Area */}
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-dust flex items-center gap-1.5">
+          <span className="text-[11px] font-mono uppercase tracking-wider text-dust flex items-center gap-1.5">
             <FileText size={12} className="text-[#00E5FF]" />
             Extracted DOM Text Sample
           </span>
@@ -187,13 +187,13 @@ Features:
               value={filterQuery}
               onChange={(e) => setFilterQuery(e.target.value)}
               placeholder="Filter page text..."
-              className="rounded-md border border-white/10 bg-black/50 pl-6 pr-2 py-0.5 text-[10px] font-mono text-starlight placeholder:text-dust/50 focus:outline-none focus:border-[#00E5FF]/50"
+              className="rounded-md border border-white/10 bg-black/50 pl-6 pr-2 py-0.5 text-[11px] font-mono text-starlight placeholder:text-dust/55 focus:outline-none focus:border-[#00E5FF]/50"
             />
           </div>
         </div>
 
         {/* Text Container with Monospace Terminal Style */}
-        <div className="rounded-xl border border-white/5 bg-black/60 p-3 max-h-48 overflow-y-auto font-mono text-[11px] text-dust leading-relaxed selectable">
+        <div className="rounded-xl border border-white/5 bg-black/60 p-3 max-h-48 overflow-y-auto font-mono text-[11.5px] text-dust leading-relaxed selectable">
           <pre className="whitespace-pre-wrap">{filteredText || 'No text found matching query.'}</pre>
         </div>
       </div>

@@ -27,9 +27,9 @@ interface DeskStatus { backend: string; identity: boolean; input: string | null;
 const post = (base: string, path: string, body?: unknown) =>
   fetch(`${base}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body ?? {}) });
 
-const box: React.CSSProperties = { background: 'rgba(255,255,255,0.04)', border: '1px solid #262D50', borderRadius: 12, padding: 10, marginTop: 8 };
-const btn: React.CSSProperties = { background: '#1B2142', border: '1px solid #343C6E', color: '#D8DEFF', borderRadius: 8, padding: '4px 10px', cursor: 'pointer', font: 'inherit', marginRight: 6, marginTop: 6 };
-const input: React.CSSProperties = { background: '#0B0F1E', border: '1px solid #262D50', color: '#D8DEFF', borderRadius: 6, padding: '4px 6px', font: 'inherit', width: '100%', boxSizing: 'border-box' };
+const box: React.CSSProperties = { background: 'rgba(255,255,255,0.04)', border: '1px solid #2F3744', borderRadius: 12, padding: 10, marginTop: 8 };
+const btn: React.CSSProperties = { background: '#1B2142', border: '1px solid #343C6E', color: '#DDE5F0', borderRadius: 8, padding: '4px 10px', cursor: 'pointer', font: 'inherit', marginRight: 6, marginTop: 6 };
+const input: React.CSSProperties = { background: '#1A1F27', border: '1px solid #2F3744', color: '#DDE5F0', borderRadius: 6, padding: '4px 6px', font: 'inherit', width: '100%', boxSizing: 'border-box' };
 const tag: React.CSSProperties = { fontSize: 10, border: '1px solid #343C6E', borderRadius: 6, padding: '0 5px', marginLeft: 6, opacity: 0.8, fontWeight: 400 };
 
 function DraftCard({ draft, onDone }: { draft: Draft; onDone: () => void }) {
@@ -129,7 +129,7 @@ function Highlights({ runs }: { runs: RunView[] }) {
         if (left < 0 || top < 0 || left > window.innerWidth || top > window.innerHeight) return null;
         return (
           <div key={b.key} style={{ position: 'fixed', left, top, width: b.rect[2], height: b.rect[3], border: '2px solid #7C8CFF', borderRadius: 6, pointerEvents: 'none', zIndex: 60 }}>
-            <span style={{ position: 'absolute', top: -16, left: 0, fontSize: 10, background: '#7C8CFF', color: '#0B0F1E', borderRadius: 4, padding: '0 4px' }}>{b.n}</span>
+            <span style={{ position: 'absolute', top: -16, left: 0, fontSize: 10, background: '#7C8CFF', color: '#1A1F27', borderRadius: 4, padding: '0 4px' }}>{b.n}</span>
           </div>
         );
       })}
@@ -141,7 +141,7 @@ function Highlights({ runs }: { runs: RunView[] }) {
 function RecordingPill({ rec, onStop }: { rec: Recording; onStop: () => void }) {
   const where = rec.surface === 'desktop' ? (rec.app || 'the desktop') : 'Chrome';
   return (
-    <div role="status" style={{ position: 'fixed', top: 10, left: '50%', transform: 'translateX(-50%)', zIndex: 70, background: 'rgba(11,15,30,0.92)', border: `1px solid ${rec.paused ? '#F5A524' : '#FF5C8A'}`, borderRadius: 999, padding: '4px 6px 4px 12px', display: 'flex', alignItems: 'center', gap: 8, font: '12px/1.4 system-ui, sans-serif', color: '#D8DEFF' }}>
+    <div role="status" style={{ position: 'fixed', top: 10, left: '50%', transform: 'translateX(-50%)', zIndex: 70, background: 'rgba(26,31,39,0.92)', border: `1px solid ${rec.paused ? '#F5A524' : '#FF5C8A'}`, borderRadius: 999, padding: '4px 6px 4px 12px', display: 'flex', alignItems: 'center', gap: 8, font: '12px/1.4 system-ui, sans-serif', color: '#DDE5F0' }}>
       <span style={{ width: 8, height: 8, borderRadius: 999, background: rec.paused ? '#F5A524' : '#FF5C8A' }} />
       <span>{rec.paused ? (rec.reason || 'Paused') : `Recording in ${where} · ${rec.events} steps`}</span>
       <button style={{ ...btn, marginTop: 0, marginRight: 0, borderRadius: 999 }} onClick={onStop}>Stop</button>
@@ -186,7 +186,7 @@ export default function SkillCards() {
   const attention = state ? state.drafts.length + state.runs.length + state.suggestions.length + (state.recording ? 1 : 0) : 0;
   useEffect(() => setMenuBadge('skills', attention), [attention]);
 
-  if (!state) return open ? <div role="status" style={{ position: 'fixed', right: 16, bottom: 64, zIndex: 55, ...box, background: 'rgba(11,15,30,0.95)', color: '#D8DEFF' }}>Skills need Orion's brain running. <button style={btn} onClick={() => setOpen(false)}>Close</button></div> : null;
+  if (!state) return open ? <div role="status" style={{ position: 'fixed', right: 16, bottom: 64, zIndex: 55, ...box, background: 'rgba(26,31,39,0.95)', color: '#DDE5F0' }}>Skills need Orion's brain running. <button style={btn} onClick={() => setOpen(false)}>Close</button></div> : null;
   const rec = state.recording;
   const stopRecording = () => (rec?.surface === 'desktop' ? post(DESK, '/record/stop') : post(API, '/record/stop')).then(refresh);
   const recordDesktop = async () => {
@@ -222,9 +222,9 @@ export default function SkillCards() {
     <>
       {rec && <RecordingPill rec={rec} onStop={stopRecording} />}
       <Highlights runs={state.runs} />
-      <div role={open ? 'dialog' : undefined} aria-label="Skills" style={{ position: 'fixed', right: 16, bottom: 64, zIndex: 55, font: '12px/1.4 system-ui, sans-serif', color: '#D8DEFF' }}>
+      <div role={open ? 'dialog' : undefined} aria-label="Skills" style={{ position: 'fixed', right: 16, bottom: 64, zIndex: 55, font: '12px/1.4 system-ui, sans-serif', color: '#DDE5F0' }}>
         {open && (
-          <div style={{ width: 380, maxHeight: '70vh', overflowY: 'auto', background: 'rgba(11,15,30,0.95)', border: '1px solid #262D50', borderRadius: 16, padding: 12, marginBottom: 8, backdropFilter: 'blur(8px)' }}>
+          <div style={{ width: 380, maxHeight: '70vh', overflowY: 'auto', background: 'rgba(26,31,39,0.95)', border: '1px solid #2F3744', borderRadius: 16, padding: 12, marginBottom: 8, backdropFilter: 'blur(8px)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
               <strong>Skills</strong>
               <div>

@@ -1,7 +1,8 @@
 /**
  * Agent swarm: every coding agent Orion can see becomes a small robot orbiting the black hole core,
- * with a plain-words status bubble. Click a robot for its recent steps, the files it touched and the
- * Open / Pause / Stop buttons (Pause and Stop only for agents Orion started itself).
+ * with a plain-words status bubble. Click a robot and its window grows out of it in the middle of the screen:
+ * recent steps, the files it touched and Open / Pause / Stop (Pause and Stop only for agents Orion started).
+ * Look pass: hovering a robot makes it bigger and holds the orbit still until the pointer leaves.
  * Built from the same star-bot as the coding pet (widgets/AgentPet.tsx).
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -11,12 +12,13 @@ import { useCalmMotion } from '../../lib/hudPrefs';
 import '../../styles/glass.css';
 import { ago, swarmAction, usd, useDaemonPoll, type SwarmAgent, type SwarmSnapshot, type SwarmState } from '../../lib/swarmCompute';
 import { missionsApi } from '../../lib/missions';
+import { useOrbit } from '../../lib/orbit';
 
 const TOOL_COLORS: Record<string, string> = {
   claude: '#C792FF',
   codex: '#7DF0FF',
   gemini: '#6FA8FF',
-  antigravity: '#9B8CFF',
+  antigravity: '#7FA0FF',
   cursor: '#E4E8FF',
   aider: '#3DFFA8',
 };
@@ -31,7 +33,7 @@ type ToolkitSwarmSnapshot = SwarmSnapshot & { collisions?: Collision[] };
 
 export function toolColor(tool: string): string {
   const key = tool.toLowerCase().split(/\s+/)[0];
-  return TOOL_COLORS[key] ?? '#9FB0FF';
+  return TOOL_COLORS[key] ?? '#9FB8FF';
 }
 
 const STATE_LABEL: Record<SwarmState, string> = {
@@ -55,7 +57,7 @@ function Robot({ agent, reduce, size = 40 }: { agent: SwarmAgent; reduce: boolea
         <radialGradient id={gid} cx="35%" cy="30%" r="75%">
           <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
           <stop offset="45%" stopColor={tint} stopOpacity="0.85" />
-          <stop offset="100%" stopColor="#3B2A8C" stopOpacity="0.95" />
+          <stop offset="100%" stopColor="#1B2D5C" stopOpacity="0.95" />
         </radialGradient>
       </defs>
       <line x1="40" y1="20" x2="40" y2="11" stroke={tint} strokeWidth="2.5" strokeLinecap="round" />
@@ -100,14 +102,23 @@ function Robot({ agent, reduce, size = 40 }: { agent: SwarmAgent; reduce: boolea
   );
 }
 
-function SwarmPanel({ agent, onClose }: { agent: SwarmAgent; onClose: () => void }) {
+/** Where a robot sits on screen, so its window can grow out of it and shrink back into it. */
+type Origin = { x: number; y: number };
+
+/**
+ * Look pass (owner feedback): clicking a robot opens a proper window in the middle of the screen, grown out of
+ * the robot, with its details, steps and actions large and readable. Closing shrinks it back into the robot.
+ */
+function AgentWindow({ agent, origin, reduce, onClose }: { agent: SwarmAgent; origin: Origin | null; reduce: boolean; onClose: () => void }) {
   const [, tick] = useState(0);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const closeBtn = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     const t = window.setInterval(() => tick((n) => n + 1), 1000);
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
+    window.setTimeout(() => closeBtn.current?.focus(), 50);
     return () => {
       window.clearInterval(t);
       window.removeEventListener('keydown', onKey);
@@ -124,123 +135,145 @@ function SwarmPanel({ agent, onClose }: { agent: SwarmAgent; onClose: () => void
   };
   const lockedTip = agent.control_note || 'Orion did not start this agent, so it will not pause or stop it.';
   const btn =
-    'px-3 py-1.5 rounded-lg text-[12px] font-semibold border transition-colors disabled:opacity-35 disabled:cursor-not-allowed';
+    'min-w-[96px] px-4 py-2.5 rounded-xl text-[15px] font-bold border transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
   const events = [...agent.events].reverse();
+  const cx = typeof window !== 'undefined' ? window.innerWidth / 2 : 0;
+  const cy = typeof window !== 'undefined' ? window.innerHeight / 2 : 0;
+  const from = origin && !reduce ? { opacity: 0, scale: 0.08, x: origin.x - cx, y: origin.y - cy } : { opacity: 0 };
+  const stateColor = alarm(agent.state) ? AMBER : agent.state === 'done' ? DONE : tint;
 
   return (
-    <div className="fixed inset-x-0 bottom-24 z-[60] flex justify-center px-4 pointer-events-none">
-    <motion.div
-      initial={{ opacity: 0, y: 12, scale: 0.97 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 12, scale: 0.97 }}
-      className="orion-glass orion-glass--dense pointer-events-auto w-full max-w-[380px] p-4 text-white"
-      style={{ borderColor: `${tint}55`, boxShadow: `0 18px 50px rgba(0,0,0,0.6), 0 0 26px ${tint}22` }}
-      role="dialog"
-      aria-label={`${agent.name} details`}
-      onClick={(e) => e.stopPropagation()}
-    >
-      <div className="flex items-start gap-3">
-        <Robot agent={agent} reduce size={44} />
-        <div className="min-w-0 flex-1">
-          <div className="text-[14px] font-bold truncate">{agent.name}</div>
-          <div className="text-[12px] text-white/70 truncate">{agent.status}</div>
-          {agent.reason && (
-            <div className="text-[11.5px] mt-0.5" style={{ color: alarm(agent.state) ? AMBER : '#FFE08A' }}>
-              {agent.reason}
-            </div>
+    <div className="fixed inset-0 z-[64] flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
+      <motion.div
+        className="absolute inset-0 bg-[#06080C]/60 backdrop-blur-[3px]"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <motion.div
+        initial={from}
+        animate={{ opacity: 1, scale: 1, x: 0, y: 0 }}
+        exit={{ ...from, transition: { duration: reduce ? 0.12 : 0.34, ease: [0.5, 0, 0.75, 0] } }}
+        transition={reduce ? { duration: 0.15 } : { type: 'spring', stiffness: 230, damping: 26 }}
+        className="orion-glass orion-glass--dense relative flex max-h-[min(86vh,780px)] w-full max-w-[720px] flex-col overflow-hidden text-ink"
+        style={{ borderColor: `${tint}66`, boxShadow: `0 40px 100px rgba(0,0,0,0.7), 0 0 40px ${tint}26` }}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${agent.name} details`}
+      >
+        <div className="flex items-start gap-4 border-b border-white/10 px-6 pb-4 pt-5">
+          <Robot agent={agent} reduce size={68} />
+          <div className="min-w-0 flex-1 pt-1">
+            <div className="truncate text-[21px] font-bold leading-tight">{agent.name}</div>
+            <div className="mt-1 text-[15.5px] font-semibold text-ink-2">{agent.status}</div>
+            {agent.reason && (
+              <div className="mt-1 text-[14.5px] font-semibold" style={{ color: alarm(agent.state) ? AMBER : '#FFE08A' }}>
+                {agent.reason}
+              </div>
+            )}
+          </div>
+          <span
+            className="mt-1 shrink-0 rounded-full border px-3 py-1 text-[13px] font-bold uppercase tracking-wide"
+            style={{ color: stateColor, borderColor: `${stateColor}66`, background: `${stateColor}1a` }}
+          >
+            {STATE_LABEL[agent.state]}
+          </span>
+          <button
+            ref={closeBtn}
+            type="button"
+            onClick={onClose}
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/15 bg-white/[0.06] text-[22px] leading-none text-ink hover:bg-white/[0.12]"
+            aria-label="Close"
+            title="Close (Esc)"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {[
+              ['Working for', agent.started ? ago(agent.started) : 'just now'],
+              ['Last move', `${ago(agent.last_activity)} ago`],
+              [
+                'Cost so far',
+                agent.cost_usd == null
+                  ? 'Not tracked'
+                  : `${usd(agent.cost_usd)}${agent.cost_estimated ? ' (estimate)' : ''}${agent.budget_usd ? ` of ${usd(agent.budget_usd)}` : ''}`,
+              ],
+            ].map(([k, v]) => (
+              <div key={k} className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                <dt className="text-[12.5px] font-bold uppercase tracking-wider text-ink-3">{k}</dt>
+                <dd className="mt-1 text-[16px] font-semibold text-ink">{v}</dd>
+              </div>
+            ))}
+          </dl>
+          {agent.cost_usd == null && <p className="mt-2 text-[13.5px] text-ink-3">Orion only tracks the cost of agents it started itself.</p>}
+
+          <h3 className="mb-2 mt-6 text-[13px] font-bold uppercase tracking-wider text-cobalt-light">Recent steps</h3>
+          {events.length ? (
+            <ol className="space-y-1.5">
+              {events.map((e, i) => (
+                <li key={i} className="flex gap-3 rounded-lg bg-white/[0.03] px-3 py-2 text-[15px]">
+                  <span className="w-16 shrink-0 text-right font-semibold text-ink-3">{e.at ? ago(e.at) : ''}</span>
+                  <span className="min-w-0 text-ink">{e.text}</span>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="text-[15px] text-ink-2">No step details for this agent yet.</p>
+          )}
+
+          {agent.files.length > 0 && (
+            <>
+              <h3 className="mb-2 mt-6 text-[13px] font-bold uppercase tracking-wider text-cobalt-light">Files it changed</h3>
+              <div className="flex flex-wrap gap-1.5">
+                {agent.files.map((f) => (
+                  <span key={f} className="rounded-lg border border-white/12 bg-white/[0.06] px-2.5 py-1 font-mono text-[13px] text-ink">
+                    {f}
+                  </span>
+                ))}
+              </div>
+            </>
           )}
         </div>
-        <span
-          className="shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide"
-          style={{
-            color: alarm(agent.state) ? AMBER : agent.state === 'done' ? DONE : tint,
-            background: 'rgba(255,255,255,0.06)',
-          }}
-        >
-          {STATE_LABEL[agent.state]}
-        </span>
-        <button type="button" onClick={onClose} className="shrink-0 text-white/50 hover:text-white text-[16px] leading-none px-1" aria-label="Close">
-          ×
-        </button>
-      </div>
 
-      <div className="mt-3 flex gap-4 text-[11.5px] text-white/55">
-        <span>Active {agent.started ? ago(agent.started) : 'just now'}</span>
-        <span>Last move {ago(agent.last_activity)} ago</span>
-      </div>
-      <div className="mt-1 text-[11.5px] text-white/55" title={agent.cost_estimated ? 'Estimated from token counts or the amount of text' : undefined}>
-        {agent.cost_usd == null ? (
-          <span className="text-white/40">Cost: not tracked for agents Orion didn't start</span>
-        ) : (
-          <span>
-            Cost so far <span className="text-white/85">{usd(agent.cost_usd)}</span>
-            {agent.cost_estimated ? ' (estimate)' : ''}
-            {agent.budget_usd ? ` of ${usd(agent.budget_usd)}` : ''}
-          </span>
-        )}
-      </div>
-
-      <div className="mt-3">
-        <div className="text-[10.5px] font-bold uppercase tracking-wider text-white/40 mb-1">Recent steps</div>
-        {events.length ? (
-          <ul className="max-h-[132px] overflow-y-auto space-y-1 pr-1">
-            {events.map((e, i) => (
-              <li key={i} className="flex gap-2 text-[12px]">
-                <span className="w-12 shrink-0 text-right text-white/35">{e.at ? ago(e.at) : ''}</span>
-                <span className="text-white/85 truncate">{e.text}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <div className="text-[12px] text-white/45">No step details for this agent.</div>
-        )}
-      </div>
-
-      {agent.files.length > 0 && (
-        <div className="mt-3">
-          <div className="text-[10.5px] font-bold uppercase tracking-wider text-white/40 mb-1">Files it changed</div>
-          <div className="flex flex-wrap gap-1">
-            {agent.files.map((f) => (
-              <span key={f} className="rounded-md bg-white/[0.06] border border-white/10 px-1.5 py-0.5 text-[11px] text-white/80">
-                {f}
-              </span>
-            ))}
+        <div className="border-t border-white/10 px-6 py-4">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              className={`${btn} border-cobalt-light/50 bg-cobalt/25 text-white hover:bg-cobalt/40`}
+              disabled={busy || !agent.can_open}
+              title={agent.can_open ? 'Open the project folder' : 'No project folder is known for this agent'}
+              onClick={() => act('open')}
+            >
+              Open
+            </button>
+            <button
+              type="button"
+              className={`${btn} border-white/20 bg-white/[0.06] text-ink hover:bg-white/[0.12]`}
+              disabled={busy || !agent.controllable}
+              title={agent.controllable ? (agent.paused ? 'Let it run again' : 'Pause it for now') : lockedTip}
+              onClick={() => act(agent.paused ? 'resume' : 'pause')}
+            >
+              {agent.paused ? 'Resume' : 'Pause'}
+            </button>
+            <button
+              type="button"
+              className={`${btn} border-rose-300/45 bg-rose-400/10 text-rose-100 hover:bg-rose-400/20`}
+              disabled={busy || !agent.controllable}
+              title={agent.controllable ? 'Stop it' : lockedTip}
+              onClick={() => act('stop')}
+            >
+              Stop
+            </button>
+            {note && <span className="text-[14.5px] font-semibold text-ink-2" role="status">{note}</span>}
           </div>
+          {!agent.controllable && <p className="mt-2.5 text-[14px] text-ink-3">{lockedTip}</p>}
         </div>
-      )}
-
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          className={`${btn} border-cyan-300/40 text-cyan-100 hover:bg-cyan-300/10`}
-          disabled={busy || !agent.can_open}
-          title={agent.can_open ? 'Open the project folder' : 'No project folder is known for this agent'}
-          onClick={() => act('open')}
-        >
-          Open
-        </button>
-        <button
-          type="button"
-          className={`${btn} border-violet-300/40 text-violet-100 hover:bg-violet-300/10`}
-          disabled={busy || !agent.controllable}
-          title={agent.controllable ? (agent.paused ? 'Let it run again' : 'Pause it for now') : lockedTip}
-          onClick={() => act(agent.paused ? 'resume' : 'pause')}
-        >
-          {agent.paused ? 'Resume' : 'Pause'}
-        </button>
-        <button
-          type="button"
-          className={`${btn} border-rose-300/40 text-rose-100 hover:bg-rose-300/10`}
-          disabled={busy || !agent.controllable}
-          title={agent.controllable ? 'Stop it' : lockedTip}
-          onClick={() => act('stop')}
-        >
-          Stop
-        </button>
-        {note && <span className="text-[11.5px] text-white/60">{note}</span>}
-      </div>
-      {!agent.controllable && <div className="mt-2 text-[11px] text-white/40">{lockedTip}</div>}
-    </motion.div>
+      </motion.div>
     </div>
   );
 }
@@ -248,6 +281,12 @@ function SwarmPanel({ agent, onClose }: { agent: SwarmAgent; onClose: () => void
 export default function AgentSwarm({ size }: { size: number }) {
   const [snap] = useDaemonPoll<ToolkitSwarmSnapshot>('/agents/swarm', 2500);
   const [selected, setSelected] = useState<string | null>(null);
+  const [origin, setOrigin] = useState<Origin | null>(null);
+  // look pass: hovering a robot scales it up and holds the orbit still until the pointer leaves
+  const [hovered, setHovered] = useState<string | null>(null);
+  const orbitEl = useRef<HTMLDivElement>(null);
+  const holdRef = useRef(false);
+  holdRef.current = !!hovered || !!selected;
   const calm = useCalmMotion();
   const reduce = !!useReducedMotion() || calm;
   const agents = snap?.agents ?? [];
@@ -269,6 +308,9 @@ export default function AgentSwarm({ size }: { size: number }) {
   const current = agents.find((a) => a.id === selected) ?? null;
   const close = useCallback(() => setSelected(null), []);
 
+  // The orbit turns once every 3 minutes; it eases to a stop while a robot is hovered or its window is open.
+  useOrbit(orbitEl, holdRef, 180, reduce, [agents.length]);
+
   useEffect(() => {
     if (selected && snap && !current) setSelected(null);
   }, [selected, snap, current]);
@@ -276,9 +318,7 @@ export default function AgentSwarm({ size }: { size: number }) {
   if (!agents.length) return null;
   // Keep the orbit (and the status labels) on screen on narrow phones.
   const r = Math.min(size * 0.8, typeof window !== 'undefined' ? window.innerWidth / 2 - 72 : size * 0.8);
-  const spin = reduce ? undefined : { rotate: 360 };
-  const counter = reduce ? undefined : { rotate: -360 };
-  const spinT = { duration: 180, repeat: Infinity, ease: 'linear' as const };
+  const counterStyle = { transform: 'rotate(calc(var(--orbit, 0rad) * -1))' };
   const spot = (i: number) => {
     const angle = (i / agents.length) * Math.PI * 2 + Math.PI / 5;
     return { x: Math.cos(angle) * r, y: Math.sin(angle) * r };
@@ -292,7 +332,7 @@ export default function AgentSwarm({ size }: { size: number }) {
   return (
     <>
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-label="Coding agents">
-        <motion.div className="relative" style={{ width: 0, height: 0 }} animate={spin} transition={spinT}>
+        <div ref={orbitEl} className="relative" style={{ width: 0, height: 0, transform: 'rotate(var(--orbit, 0rad))' }}>
           {/* Faint trails behind each robot along its orbit (they turn with the orbit, so they stay behind). */}
           {!reduce && (
             <svg className="absolute overflow-visible" style={{ left: 0, top: 0, overflow: "visible" }} width={1} height={1} aria-hidden="true">
@@ -355,7 +395,7 @@ export default function AgentSwarm({ size }: { size: number }) {
                 className="absolute -translate-x-1/2 -translate-y-1/2"
                 style={{ left: Math.cos(angle) * r, top: Math.sin(angle) * r }}
               >
-                <motion.div animate={counter} transition={spinT} className="flex flex-col items-center">
+                <div style={counterStyle} className="flex flex-col items-center">
                   <motion.button
                     type="button"
                     className="pointer-events-auto relative rounded-full bg-transparent border-0 p-0 cursor-pointer"
@@ -363,11 +403,19 @@ export default function AgentSwarm({ size }: { size: number }) {
                     aria-label={`${a.name}: ${a.status}. Show details`}
                     onClick={(e) => {
                       e.stopPropagation();
+                      const r = e.currentTarget.getBoundingClientRect();
+                      setOrigin({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
                       setSelected((s) => (s === a.id ? null : a.id));
                     }}
+                    onPointerEnter={() => setHovered(a.id)}
+                    onPointerLeave={() => setHovered((h) => (h === a.id ? null : h))}
+                    onFocus={() => setHovered(a.id)}
+                    onBlur={() => setHovered((h) => (h === a.id ? null : h))}
                     animate={
                       reduce
-                        ? undefined
+                        ? { scale: hovered === a.id ? 1.3 : 1 }
+                        : hovered === a.id
+                        ? { y: 0, scale: 1.38 }
                         : a.state === 'working'
                         ? { y: [0, -3, 0] }
                         : a.state === 'done'
@@ -375,7 +423,9 @@ export default function AgentSwarm({ size }: { size: number }) {
                         : { y: [0, 1.5, 0] }
                     }
                     transition={
-                      a.state === 'done'
+                      hovered === a.id
+                        ? { type: 'spring', stiffness: 260, damping: 20 }
+                        : a.state === 'done'
                         ? { duration: 0.9, repeat: 2, ease: 'easeOut' }
                         : { duration: a.state === 'working' ? 0.7 : 3, repeat: Infinity, ease: 'easeInOut' }
                     }
@@ -414,25 +464,25 @@ export default function AgentSwarm({ size }: { size: number }) {
                     )}
                   </motion.button>
                   <div
-                    className="mt-1 max-w-[150px] rounded-lg border bg-black/60 backdrop-blur-md px-2 py-0.5 text-center"
-                    style={{ borderColor: warn ? `${AMBER}88` : 'rgba(255,255,255,0.1)' }}
+                    className="mt-1.5 max-w-[170px] rounded-lg border bg-[#11151B]/85 backdrop-blur-md px-2 py-0.5 text-center transition-transform duration-200"
+                    style={{ borderColor: warn ? `${AMBER}88` : 'rgba(255,255,255,0.14)', transform: hovered === a.id ? 'translateY(8px) scale(1.06)' : undefined }}
                   >
-                    <div className="text-[10.5px] font-semibold leading-tight text-white truncate">
+                    <div className="text-[11.5px] font-semibold leading-tight text-white truncate">
                       {a.state === 'done' ? 'Done' : a.status}
                     </div>
-                    <div className="text-[9.5px] leading-tight truncate" style={{ color: warn ? AMBER : `${tint}cc` }}>
+                    <div className="text-[10.5px] leading-tight truncate" style={{ color: warn ? AMBER : `${tint}cc` }}>
                       {warn && a.reason ? a.reason : a.name}
                     </div>
                   </div>
-                </motion.div>
+                </div>
               </div>
             );
           })}
-        </motion.div>
+        </div>
       </div>
       {typeof document !== 'undefined' &&
         createPortal(
-          <AnimatePresence>{current && <SwarmPanel key={current.id} agent={current} onClose={close} />}</AnimatePresence>,
+          <AnimatePresence>{current && <AgentWindow key={current.id} agent={current} origin={origin} reduce={reduce} onClose={close} />}</AnimatePresence>,
           document.body,
         )}
     </>

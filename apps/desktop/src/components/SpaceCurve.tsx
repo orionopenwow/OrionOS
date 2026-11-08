@@ -1,5 +1,5 @@
 /**
- * Depth layer (after-1.0 plan §3, Phase 4): a faint violet grid that is straight at the screen edges and bends
+ * Depth layer (after-1.0 plan §3, Phase 4): a faint cobalt grid that is straight at the screen edges and bends
  * toward the black hole, with a soft vignette down the slope, so the screen reads as the rim of a gravity well.
  * Now and then a faint ring of light slides down the well into the core ("space falls inward").
  *
@@ -40,7 +40,7 @@ function drawGrid(ctx: CanvasRenderingContext2D, w: number, h: number, well: Wel
       const [x1, y1] = pts[i];
       const a = lineAlpha(Math.hypot((x0 + x1) / 2 - well.x, (y0 + y1) / 2 - well.y), well);
       if (a < 0.004) continue;
-      ctx.strokeStyle = `rgba(124,92,255,${a.toFixed(3)})`;
+      ctx.strokeStyle = `rgba(70,120,255,${(a * 0.8).toFixed(3)})`;
       ctx.beginPath();
       ctx.moveTo(x0, y0);
       ctx.lineTo(x1, y1);
@@ -112,7 +112,7 @@ export default function SpaceCurve() {
         const d = flat - pull(flat, well);
         const a = Math.sin(Math.PI * ph) * 0.07 * Math.min(1, (d - well.r) / well.r);
         if (a <= 0.003 || d <= well.r) continue;
-        ctx.strokeStyle = `rgba(157,133,255,${a.toFixed(3)})`;
+        ctx.strokeStyle = `rgba(110,150,255,${a.toFixed(3)})`;
         ctx.lineWidth = 1.5 + 2.5 * ph;
         ctx.beginPath();
         ctx.arc(well.x, well.y, d, 0, Math.PI * 2);
@@ -162,5 +162,5 @@ export default function SpaceCurve() {
   }, [on]);
 
   if (!on) return null;
-  return <canvas ref={ref} className="fixed inset-0 pointer-events-none z-0" aria-hidden="true" data-orion-depth="" />;
+  return <canvas ref={ref} className="orion-gravity-soft fixed inset-0 pointer-events-none z-0" aria-hidden="true" data-orion-depth="" />;
 }

@@ -24,6 +24,7 @@ import {
   subscribeBlackHoleSignals,
   type BlackHoleSignals,
 } from './signals';
+import { getParallax } from '../parallax';
 
 export interface UseBlackHoleOptions {
   preset: BlackHoleUniforms;
@@ -81,6 +82,20 @@ export function useBlackHole(opts: UseBlackHoleOptions) {
     setQuality(r.quality);
     const unsubBodies = subscribeBlackHoleBodies((b) => r.setBodies(b));
 
+    // look pass: the lensed stars around the hole follow the pointer a little (same smoothed value as the sky;
+    // it stays 0 with parallax off, calm motion or reduced motion). Never on the Still tier.
+    let praf = 0;
+    let lastP = { x: 0, y: 0 };
+    const followPointer = () => {
+      praf = requestAnimationFrame(followPointer);
+      if (r.quality === 0 || paused) return;
+      const p = getParallax();
+      if (Math.abs(p.x - lastP.x) + Math.abs(p.y - lastP.y) < 0.0005) return;
+      lastP = { x: p.x, y: p.y };
+      r.set({ parallaxX: p.x * 7, parallaxY: -p.y * 7 });
+    };
+    praf = requestAnimationFrame(followPointer);
+
     let lastSlow = '';
     const unsub = subscribeBlackHoleSignals((s) => {
       followPause(s);
@@ -121,6 +136,7 @@ export function useBlackHole(opts: UseBlackHoleOptions) {
     });
 
     return () => {
+      cancelAnimationFrame(praf);
       unsub();
       unsubBodies();
       mq?.removeEventListener?.('change', reevaluate);

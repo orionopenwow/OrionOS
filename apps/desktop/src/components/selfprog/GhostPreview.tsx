@@ -16,7 +16,7 @@ const POLL_MS = 4000;
 
 function DiffView({ diff }: { diff: string }) {
   return (
-    <pre className="selectable emboss-well max-h-56 overflow-auto rounded-xl p-2 text-[10.5px] leading-[1.35]">
+    <pre className="selectable emboss-well max-h-56 overflow-auto rounded-xl p-2 text-[11.5px] leading-[1.35]">
       {diff.split('\n').slice(0, 600).map((ln, i) => (
         <div
           key={i}
@@ -27,7 +27,7 @@ function DiffView({ diff }: { diff: string }) {
                 ? 'text-[#FF9BB3]'
                 : ln.startsWith('@@')
                   ? 'text-[#A5B4FC]'
-                  : 'text-white/55'
+                  : 'text-white/78'
           }
         >
           {ln || ' '}
@@ -38,12 +38,12 @@ function DiffView({ diff }: { diff: string }) {
 }
 
 function CheckRow({ c }: { c: SelfChange['checks'][number] }) {
-  const color = c.skipped ? 'text-white/45' : c.ok ? 'text-[#9AF5C2]' : 'text-[#FF9BB3]';
+  const color = c.skipped ? 'text-white/74' : c.ok ? 'text-[#9AF5C2]' : 'text-[#FF9BB3]';
   return (
-    <li className="flex gap-2 text-[11.5px]" title={c.detail}>
+    <li className="flex gap-2 text-[12px]" title={c.detail}>
       <span className={`${color} mt-0.5 shrink-0`}>{c.skipped ? <Minus size={11} /> : c.ok ? <Check size={11} /> : <X size={11} />}</span>
       <span className="text-white/80">{c.label}</span>
-      <span className="truncate text-white/40">{c.skipped ? `skipped: ${c.detail}` : c.ok ? '' : c.detail.split('\n').slice(-1)[0]}</span>
+      <span className="truncate text-white/72">{c.skipped ? `skipped: ${c.detail}` : c.ok ? '' : c.detail.split('\n').slice(-1)[0]}</span>
     </li>
   );
 }
@@ -164,36 +164,36 @@ export default function GhostPreview() {
           >
             <div className={`glass flex flex-col gap-2.5 p-3.5 ${layout === 'side' ? 'w-[400px] shrink-0 overflow-y-auto' : ''}`}>
               <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-1.5 text-[12.5px] font-bold text-[#C4B5FD]">
+                <div className="flex items-center gap-1.5 text-[12.5px] font-bold text-[#B7CBFF]">
                   <Sparkles size={14} />
                   {open.status === 'building' ? 'Orion is building and testing a change to itself…' : 'Orion changed a copy of itself'}
                 </div>
-                <button aria-label="Hide" className="text-white/50 hover:text-white" onClick={() => setHidden((h) => [...h, open.id])}>
+                <button aria-label="Hide" className="text-white/76 hover:text-white" onClick={() => setHidden((h) => [...h, open.id])}>
                   <X size={14} />
                 </button>
               </div>
               <p className="selectable text-[12.5px] text-white/90">{open.summary}</p>
-              {open.reason && <p className="selectable text-[11.5px] text-white/55">Why: {open.reason}</p>}
-              <p className="text-[11px] text-white/45">
+              {open.reason && <p className="selectable text-[12px] text-white/78">Why: {open.reason}</p>}
+              <p className="text-[11.5px] text-white/74">
                 {open.files.length} file{open.files.length === 1 ? '' : 's'} ·{' '}
                 {open.kind === 'ui_code' ? 'screen' : open.kind === 'daemon_code' ? "Orion's brain (restarts in about a second)" : 'protected core'}
                 {open.mode === 'layer' ? ' · kept in the Orion layer' : ''}
               </p>
               {open.status === 'building' ? (
-                <div className="flex items-center gap-2 text-[11.5px] text-white/60">
+                <div className="flex items-center gap-2 text-[12px] text-white/80">
                   <Loader2 size={13} className="animate-spin" /> Running Orion's tests in a separate copy
                 </div>
               ) : (
                 <ul className="space-y-1">{open.checks.map((c) => <CheckRow key={c.name} c={c} />)}</ul>
               )}
               {isProtected && (
-                <div className="emboss-well flex gap-2 rounded-xl p-2 text-[11.5px] text-[#FDE68A]">
+                <div className="emboss-well flex gap-2 rounded-xl p-2 text-[12px] text-[#FDE68A]">
                   <Fingerprint size={14} className="mt-0.5 shrink-0" />
                   <span>{open.protected_words} {open.decision ? 'Waiting for your phone.' : ''}</span>
                 </div>
               )}
               {open.diff && (
-                <button className="flex items-center gap-1 text-[11px] text-white/55 hover:text-white" onClick={() => setShowDiff((v) => !v)}>
+                <button className="flex items-center gap-1 text-[11.5px] text-white/78 hover:text-white" onClick={() => setShowDiff((v) => !v)}>
                   {showDiff ? <ChevronUp size={12} /> : <ChevronDown size={12} />} {showDiff ? 'Hide' : 'Show'} the exact change
                 </button>
               )}
@@ -204,18 +204,18 @@ export default function GhostPreview() {
                     shots[w] ? (
                       <figure key={w} className="emboss-well overflow-hidden rounded-lg">
                         <img src={shots[w]} alt={`Screen ${w} the change`} className="w-full" />
-                        <figcaption className="px-1.5 py-0.5 text-[10px] text-white/45">{w === 'before' ? 'Now' : 'After'}</figcaption>
+                        <figcaption className="px-1.5 py-0.5 text-[11px] text-white/74">{w === 'before' ? 'Now' : 'After'}</figcaption>
                       </figure>
                     ) : null,
                   )}
                 </div>
               )}
               {open.touches_ui && (ghostUrl || shots.after) && (
-                <button className="emboss-pill self-start rounded-full px-3 py-1 text-[11px]" onClick={() => setLayout((l) => (l === 'corner' ? 'side' : 'corner'))}>
+                <button className="emboss-pill self-start rounded-full px-3 py-1 text-[11.5px]" onClick={() => setLayout((l) => (l === 'corner' ? 'side' : 'corner'))}>
                   {layout === 'corner' ? 'Side by side' : 'Back to the corner'}
                 </button>
               )}
-              {note && <p className="selectable text-[11px] text-[#A5F3FC]">{note}</p>}
+              {note && <p className="selectable text-[11.5px] text-[#A5F3FC]">{note}</p>}
               {open.status === 'ready' && (
                 <div className="flex flex-wrap gap-1.5 pt-1">
                   {isProtected ? (
@@ -230,7 +230,7 @@ export default function GhostPreview() {
                   <button disabled={busy} className="emboss-pill rounded-full px-3 py-1.5 text-[12px]" onClick={() => act(() => selfprog.reject(open.id), 'Thrown away.')}>
                     Not this
                   </button>
-                  <button disabled={busy} className="emboss-pill flex items-center gap-1 rounded-full px-3 py-1.5 text-[12px] text-white/70" title="Makes a branch ready for a pull request. Nothing is sent." onClick={() => act(() => selfprog.upstream(open.id))}>
+                  <button disabled={busy} className="emboss-pill flex items-center gap-1 rounded-full px-3 py-1.5 text-[12px] text-white/85" title="Makes a branch ready for a pull request. Nothing is sent." onClick={() => act(() => selfprog.upstream(open.id))}>
                     <GitBranch size={13} /> Offer upstream
                   </button>
                 </div>
@@ -240,11 +240,11 @@ export default function GhostPreview() {
               <div className="glass flex min-w-0 flex-1 flex-col gap-2 p-2">
                 <div className="grid min-h-0 flex-1 grid-cols-2 gap-2">
                   <div className="emboss-well flex flex-col overflow-hidden rounded-xl">
-                    <span className="px-2 py-1 text-[10.5px] text-white/45">Now</span>
-                    {shots.before ? <img src={shots.before} alt="The screen now" className="w-full object-contain" /> : <span className="p-3 text-[11px] text-white/40">No screenshot of the current screen.</span>}
+                    <span className="px-2 py-1 text-[11.5px] text-white/74">Now</span>
+                    {shots.before ? <img src={shots.before} alt="The screen now" className="w-full object-contain" /> : <span className="p-3 text-[11.5px] text-white/72">No screenshot of the current screen.</span>}
                   </div>
                   <div className="emboss-well flex flex-col overflow-hidden rounded-xl">
-                    <span className="px-2 py-1 text-[10.5px] text-white/45">Ghost: after the change</span>
+                    <span className="px-2 py-1 text-[11.5px] text-white/74">Ghost: after the change</span>
                     {ghostUrl ? (
                       <iframe title="Ghost preview of the changed screen" src={ghostUrl} sandbox="allow-scripts" className="h-full w-full flex-1 border-0" />
                     ) : shots.after ? (
@@ -261,10 +261,10 @@ export default function GhostPreview() {
       <AnimatePresence>
         {!open && (probationSwap || lastRolledBack) && (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="fixed bottom-20 right-4 z-[84]">
-            <div className="glass flex max-w-[380px] items-center gap-2 rounded-full px-3 py-1.5 text-[11.5px] text-white/80">
+            <div className="glass flex max-w-[380px] items-center gap-2 rounded-full px-3 py-1.5 text-[12px] text-white/80">
               {probationSwap ? (
                 <>
-                  <Sparkles size={13} className="text-[#C4B5FD]" />
+                  <Sparkles size={13} className="text-[#B7CBFF]" />
                   <span className="truncate">Changed: {probationSwap.summary}</span>
                   <button disabled={busy} className="emboss-pill flex items-center gap-1 rounded-full px-2 py-0.5" onClick={() => act(() => selfprog.undo())}>
                     <RotateCcw size={12} /> Undo

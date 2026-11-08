@@ -15,23 +15,23 @@ export default function DemoBanner() {
     <div
       role="note"
       aria-label="Preview with sample data"
-      className={`fixed left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2.5 rounded-full border border-white/10 bg-[#05070E]/70 backdrop-blur-xl text-[#D8DEFF]/70 ${
-        mobile ? 'top-[max(8px,env(safe-area-inset-top))] max-w-[calc(100vw-24px)] px-3 py-1 text-[11px]' : 'top-2.5 max-w-[calc(100vw-32px)] px-3.5 py-1 text-[11.5px]'
+      className={`fixed left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2.5 rounded-full border border-white/10 bg-[#05070E]/70 backdrop-blur-xl text-[#DDE5F0]/85 ${
+        mobile ? 'top-[max(8px,env(safe-area-inset-top))] max-w-[calc(100vw-24px)] px-3 py-1 text-[11.5px]' : 'top-2.5 max-w-[calc(100vw-32px)] px-3.5 py-1 text-[12px]'
       }`}
       style={{ fontFamily: 'Figtree Variable, Figtree, system-ui, sans-serif' }}
     >
-      <span className="w-1.5 h-1.5 rounded-full bg-[#7C5CFF] shadow-[0_0_8px_#7C5CFF] shrink-0" aria-hidden="true" />
+      <span className="w-1.5 h-1.5 rounded-full bg-[#2E6BFF] shadow-[0_0_8px_#2E6BFF] shrink-0" aria-hidden="true" />
       <span className="truncate">
         Preview — sample data
-        {!mobile && <span className="text-[#D8DEFF]/45"> · runs only in your browser · open the menu at the bottom left</span>}
+        {!mobile && <span className="text-[#DDE5F0]/74"> · runs only in your browser · click the round Orion button to start</span>}
       </span>
-      <button type="button" onClick={startTour} className="shrink-0 font-semibold text-[#D8DEFF] hover:text-[#00E5FF] bg-transparent border-0">
+      <button type="button" onClick={startTour} className="shrink-0 font-semibold text-[#DDE5F0] hover:text-[#00E5FF] bg-transparent border-0">
         Tour
       </button>
       <a href="../" className="shrink-0 font-semibold text-[#00E5FF] hover:text-white">
         About OrionOS
       </a>
-      <button type="button" onClick={() => setOpen(false)} aria-label="Hide label" className="shrink-0 text-[#D8DEFF]/35 hover:text-white bg-transparent border-0">
+      <button type="button" onClick={() => setOpen(false)} aria-label="Hide label" className="shrink-0 text-[#DDE5F0]/68 hover:text-white bg-transparent border-0">
         ✕
       </button>
     </div>

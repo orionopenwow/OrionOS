@@ -81,14 +81,14 @@ function BodyCard({ bible, send }: { bible: BibleState; send: BibleSend }) {
               }}
             />
           ))}
-          <span className="ml-2 text-[11px] font-mono text-white/60">
+          <span className="ml-2 text-[11.5px] font-mono text-white/80">
             {h.today}/{h.goal} today
           </span>
         </div>
       )}
       {c && (
-        <div className="flex items-center gap-2 text-[11px] text-white/70">
-          <Moon size={12} className={c.phase === 'normal' ? 'text-white/40' : 'text-[#FFB300]'} />
+        <div className="flex items-center gap-2 text-[11.5px] text-white/85">
+          <Moon size={12} className={c.phase === 'normal' ? 'text-white/72' : 'text-[#FFB300]'} />
           {c.phase === 'normal' && <>Bedtime {c.bedtime} · wind-down starts {c.wind_down_starts}</>}
           {c.phase === 'wind_down' && <span className="text-[#FFB300]">Wind-down — screen warmed, bedtime {c.bedtime}</span>}
           {c.phase === 'night' && <span className="text-[#FFB300]">Past bedtime ({c.bedtime}). Orion is in night mode.</span>}
@@ -117,19 +117,19 @@ function XpCard({ bible, send }: { bible: BibleState; send: BibleSend }) {
   return (
     <Section
       title={`Architect · Level ${x.level}`}
-      color="#B388FF"
+      color="#8DB0FF"
       icon={<Sparkles size={14} />}
-      right={<span className="text-[10px] font-mono text-[#B388FF]">+{x.today} XP today</span>}
+      right={<span className="text-[11px] font-mono text-[#8DB0FF]">+{x.today} XP today</span>}
     >
-      <Bar value={frac} color="#B388FF" />
-      <div className="mt-1 text-[10.5px] font-mono text-white/50">
+      <Bar value={frac} color="#8DB0FF" />
+      <div className="mt-1 text-[11.5px] font-mono text-white/76">
         {x.xp} / {x.next_level} XP to level {x.level + 1}
       </div>
       <div className="mt-2 flex flex-wrap gap-1.5">
         {x.skins.map((s) => (
           <PillButton
             key={s.id}
-            color="#B388FF"
+            color="#8DB0FF"
             active={x.skin === s.id}
             disabled={!s.unlocked}
             title={s.unlocked ? `Use the ${s.name} core` : `Unlocks at level ${s.level}`}
@@ -142,9 +142,9 @@ function XpCard({ bible, send }: { bible: BibleState; send: BibleSend }) {
       {x.recent.length > 0 && (
         <div className="mt-2 space-y-0.5">
           {x.recent.slice(0, 4).map((r) => (
-            <div key={r.at} className="flex justify-between text-[11px] text-white/60">
+            <div key={r.at} className="flex justify-between text-[11.5px] text-white/80">
               <span>{XP_LABEL[r.kind] ?? r.kind}{r.note ? ` · ${r.note}` : ''}</span>
-              <span className="font-mono text-[#B388FF]">+{r.xp}</span>
+              <span className="font-mono text-[#8DB0FF]">+{r.xp}</span>
             </div>
           ))}
         </div>
@@ -187,11 +187,11 @@ function SunMoonCard({ bible, send }: { bible: BibleState; send: BibleSend }) {
 
   return (
     <Section title="Sun & Moon" color="#FFB300" icon={<Sun size={14} />}>
-      <div className="text-[11px] text-white/70">
+      <div className="text-[11.5px] text-white/85">
         {sun ? (
           <>
             {sun.is_day ? 'Sun is up' : 'Sun is down'} · sunset {sun.sunset ?? '—'} · sunrise {sun.sunrise ?? '—'}
-            <div className="text-white/45 mt-0.5">After sunset the HUD warms, the voice softens and work alerts wait until morning.</div>
+            <div className="text-white/74 mt-0.5">After sunset the HUD warms, the voice softens and work alerts wait until morning.</div>
           </>
         ) : (
           <>Set your location so Orion can follow the real sunset (it stays on this PC).</>
@@ -199,13 +199,13 @@ function SunMoonCard({ bible, send }: { bible: BibleState; send: BibleSend }) {
       </div>
       <div className="mt-2 flex gap-1.5 items-center">
         <input value={lat} onChange={(e) => setLat(e.target.value)} placeholder="Latitude" aria-label="Latitude"
-          className="w-24 rounded-lg bg-white/5 border border-white/10 px-2 py-1 text-[11px] text-white outline-none focus:border-[#FFB300]/60" />
+          className="w-24 rounded-lg bg-white/5 border border-white/10 px-2 py-1 text-[11.5px] text-white outline-none focus:border-[#FFB300]/60" />
         <input value={lon} onChange={(e) => setLon(e.target.value)} placeholder="Longitude" aria-label="Longitude"
-          className="w-24 rounded-lg bg-white/5 border border-white/10 px-2 py-1 text-[11px] text-white outline-none focus:border-[#FFB300]/60" />
+          className="w-24 rounded-lg bg-white/5 border border-white/10 px-2 py-1 text-[11.5px] text-white outline-none focus:border-[#FFB300]/60" />
         <PillButton color="#FFB300" onClick={() => save(parseFloat(lat), parseFloat(lon))}>Save</PillButton>
         <PillButton color="#FFB300" onClick={detect}>Detect</PillButton>
       </div>
-      {msg && <div className="mt-1 text-[10.5px] text-white/50">{msg}</div>}
+      {msg && <div className="mt-1 text-[11.5px] text-white/76">{msg}</div>}
     </Section>
   );
 }
@@ -229,13 +229,13 @@ function SoundscapeCard() {
           </PillButton>
         ))}
       </div>
-      <label className="mt-2 flex items-center gap-2 text-[11px] text-white/60">
+      <label className="mt-2 flex items-center gap-2 text-[11.5px] text-white/80">
         Volume
         <input type="range" min={0} max={1} step={0.05} value={vol} aria-label="Soundscape volume"
           onChange={(e) => { const v = parseFloat(e.target.value); soundscape.setVolume(v); setVol(v); }}
           className="flex-1 accent-[#7DF0FF]" />
       </label>
-      <div className="text-[10.5px] text-white/40 mt-1">Quiets itself while Orion talks and follows the core's mode.</div>
+      <div className="text-[11.5px] text-white/72 mt-1">Quiets itself while Orion talks and follows the core's mode.</div>
     </Section>
   );
 }
@@ -263,7 +263,7 @@ function ProducerCard({ bible, send }: { bible: BibleState; send: BibleSend }) {
     >
       {p ? (
         <div className="space-y-2">
-          <div className="flex items-center justify-between text-[11px]">
+          <div className="flex items-center justify-between text-[11.5px]">
             <span className="text-starlight font-semibold truncate">{p.title}</span>
             <span className="font-mono text-[#FF2A85]">
               <Timer size={11} className="inline mr-1" />
@@ -271,7 +271,7 @@ function ProducerCard({ bible, send }: { bible: BibleState; send: BibleSend }) {
             </span>
           </div>
           {p.topics.length > 0 && (
-            <div className="text-[11px] text-white/70">
+            <div className="text-[11.5px] text-white/85">
               Topic: <b className="text-white">{p.topics[p.topics.length - 1].title}</b> ·{' '}
               {fmtDuration(p.elapsed - p.topics[p.topics.length - 1].at)}
             </div>
@@ -287,7 +287,7 @@ function ProducerCard({ bible, send }: { bible: BibleState; send: BibleSend }) {
                 }
               }}
               placeholder="Next topic…"
-              className="flex-1 rounded-lg bg-black/40 border border-white/10 px-2 py-1 text-[11px] text-starlight outline-none select-text"
+              className="flex-1 rounded-lg bg-black/40 border border-white/10 px-2 py-1 text-[11.5px] text-starlight outline-none select-text"
             />
             <PillButton color="#FFB300" onClick={() => send('PRODUCER', { action: 'highlight' })} title="Say “mark that”">
               <Star size={11} /> Mark ({p.highlights.length})
@@ -369,7 +369,7 @@ function RunwayCard({ runway, send }: { runway: RunwaySummary | null; send: Bibl
             />
           </div>
           <div className="space-y-1">
-            <div className="flex justify-between text-[10px] font-mono text-white/55">
+            <div className="flex justify-between text-[11px] font-mono text-white/78">
               <span>Lv · costs covered by supporters</span>
               <span>{Math.round(covered * 100)}%</span>
             </div>
@@ -377,15 +377,15 @@ function RunwayCard({ runway, send }: { runway: RunwaySummary | null; send: Bibl
           </div>
           {runway.milestone_progress.map((m) => (
             <div key={m.name} className="space-y-1">
-              <div className="flex justify-between text-[10px] font-mono text-white/55">
+              <div className="flex justify-between text-[11px] font-mono text-white/78">
                 <span className="truncate">{m.name}</span>
                 <span>{Math.round(m.progress * 100)}%</span>
               </div>
-              <Bar value={m.progress} color="#C084FC" />
+              <Bar value={m.progress} color="#7FA6FF" />
             </div>
           ))}
           {runway.monthly_costs.length > 0 && (
-            <div className="text-[10px] text-white/50">
+            <div className="text-[11px] text-white/76">
               Bills:{' '}
               {runway.monthly_costs
                 .map((c) => `${c.name} ${money(c.amount)}${c.due_day ? ` (day ${c.due_day})` : ''}`)
@@ -406,15 +406,15 @@ function RunwayCard({ runway, send }: { runway: RunwaySummary | null; send: Bibl
               onChange={(rows) => setDraft({ ...draft, [key]: rows })}
             />
           ))}
-          <label className="block text-[10px] font-mono text-white/55">
+          <label className="block text-[11px] font-mono text-white/78">
             Open Collective slug (public balance, optional)
             <input
               value={draft.slug}
               onChange={(e) => setDraft({ ...draft, slug: e.target.value })}
-              className="mt-1 w-full rounded-lg bg-black/40 border border-white/10 px-2 py-1 text-[11px] text-starlight outline-none select-text"
+              className="mt-1 w-full rounded-lg bg-black/40 border border-white/10 px-2 py-1 text-[11.5px] text-starlight outline-none select-text"
             />
           </label>
-          <p className="text-[10px] text-white/40">Stored only on this PC. No bank logins — just the numbers you type.</p>
+          <p className="text-[11px] text-white/72">Stored only on this PC. No bank logins — just the numbers you type.</p>
         </div>
       )}
     </Section>
@@ -435,7 +435,7 @@ function RowEditor({
   const set = (i: number, patch: Partial<Row>) => onChange(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   return (
     <div className="space-y-1">
-      <div className="flex items-center justify-between text-[10px] font-mono text-white/55">
+      <div className="flex items-center justify-between text-[11px] font-mono text-white/78">
         <span>{label}</span>
         <button type="button" className="text-[#3DFFA8]" onClick={() => onChange([...rows, { name: '', amount: 0 }])}>
           + add
@@ -447,13 +447,13 @@ function RowEditor({
             value={r.name}
             placeholder="name"
             onChange={(e) => set(i, { name: e.target.value })}
-            className="flex-1 min-w-0 rounded bg-black/40 border border-white/10 px-1.5 py-0.5 text-[11px] text-starlight outline-none select-text"
+            className="flex-1 min-w-0 rounded bg-black/40 border border-white/10 px-1.5 py-0.5 text-[11.5px] text-starlight outline-none select-text"
           />
           <input
             type="number"
             value={r.amount}
             onChange={(e) => set(i, { amount: Number(e.target.value) })}
-            className="w-20 rounded bg-black/40 border border-white/10 px-1.5 py-0.5 text-[11px] text-starlight outline-none select-text"
+            className="w-20 rounded bg-black/40 border border-white/10 px-1.5 py-0.5 text-[11.5px] text-starlight outline-none select-text"
           />
           {withDay && (
             <input
@@ -463,10 +463,10 @@ function RowEditor({
               value={r.due_day ?? ''}
               placeholder="day"
               onChange={(e) => set(i, { due_day: e.target.value ? Number(e.target.value) : undefined })}
-              className="w-12 rounded bg-black/40 border border-white/10 px-1.5 py-0.5 text-[11px] text-starlight outline-none select-text"
+              className="w-12 rounded bg-black/40 border border-white/10 px-1.5 py-0.5 text-[11.5px] text-starlight outline-none select-text"
             />
           )}
-          <button type="button" onClick={() => onChange(rows.filter((_, j) => j !== i))} className="text-white/40 hover:text-[#FF5C8A]">
+          <button type="button" onClick={() => onChange(rows.filter((_, j) => j !== i))} className="text-white/72 hover:text-[#FF5C8A]">
             <Trash2 size={12} />
           </button>
         </div>
@@ -481,7 +481,7 @@ function Stat({ label, value, color = '#FFFFFF' }: { label: string; value: strin
       <div className="text-[13px] font-bold" style={{ color }}>
         {value}
       </div>
-      <div className="text-[9px] font-mono uppercase text-white/45">{label}</div>
+      <div className="text-[10.5px] font-mono uppercase text-white/74">{label}</div>
     </div>
   );
 }
@@ -494,12 +494,12 @@ function IdeasCard({ bible }: { bible: BibleState }) {
       {ideas.length ? (
         <div className="space-y-1.5">
           {ideas.map((i) => (
-            <div key={i.id} className="rounded-lg bg-black/35 px-2 py-1.5 text-[11px]">
-              <span className="font-mono text-[10px] text-[#FFB300] mr-1.5">
+            <div key={i.id} className="rounded-lg bg-black/35 px-2 py-1.5 text-[11.5px]">
+              <span className="font-mono text-[11px] text-[#FFB300] mr-1.5">
                 {i.kind} · {i.project}
               </span>
               <span className="text-white/80">{i.text}</span>
-              <span className="text-white/30 ml-1.5">{timeAgo(i.at)}</span>
+              <span className="text-white/65 ml-1.5">{timeAgo(i.at)}</span>
             </div>
           ))}
         </div>
@@ -519,32 +519,32 @@ function RulesCard({ bible, send }: { bible: BibleState; send: BibleSend }) {
     setText('');
   };
   return (
-    <Section title={`Standing rules (${bible.rules.length})`} color="#C084FC" icon={<Scale size={14} />}>
+    <Section title={`Standing rules (${bible.rules.length})`} color="#7FA6FF" icon={<Scale size={14} />}>
       <div className="flex gap-1.5">
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && add()}
           placeholder="e.g. Keep Discord announcements casual, no corporate tone"
-          className="flex-1 rounded-lg bg-black/40 border border-white/10 px-2 py-1 text-[11px] text-starlight outline-none select-text"
+          className="flex-1 rounded-lg bg-black/40 border border-white/10 px-2 py-1 text-[11.5px] text-starlight outline-none select-text"
         />
-        <PillButton color="#C084FC" onClick={add}>
+        <PillButton color="#7FA6FF" onClick={add}>
           <Plus size={11} />
         </PillButton>
       </div>
       <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
         {bible.rules.map((r) => (
-          <div key={r.id} className="flex items-start gap-2 rounded-lg bg-black/35 px-2 py-1.5 text-[11px]">
+          <div key={r.id} className="flex items-start gap-2 rounded-lg bg-black/35 px-2 py-1.5 text-[11.5px]">
             <span
-              className="text-[9px] font-mono uppercase px-1 rounded shrink-0 mt-px"
-              style={{ color: r.tier === 0 ? '#3DFFA8' : '#C084FC', background: r.tier === 0 ? '#3DFFA81f' : '#C084FC1f' }}
+              className="text-[10.5px] font-mono uppercase px-1 rounded shrink-0 mt-px"
+              style={{ color: r.tier === 0 ? '#3DFFA8' : '#7FA6FF', background: r.tier === 0 ? '#3DFFA81f' : '#C084FC1f' }}
               title={r.tier === 0 ? 'From identity_and_rules.md — edit the file to change' : 'Learned from you'}
             >
               {r.tier === 0 ? 'core' : 'learned'}
             </span>
             <span className="flex-1 text-white/80">{r.text}</span>
             {r.tier !== 0 && (
-              <button type="button" onClick={() => send('RULE_DELETE', { id: r.id })} className="text-white/35 hover:text-[#FF5C8A]">
+              <button type="button" onClick={() => send('RULE_DELETE', { id: r.id })} className="text-white/68 hover:text-[#FF5C8A]">
                 <Trash2 size={11} />
               </button>
             )}
@@ -571,15 +571,15 @@ function VaultCard({ bible, send }: { bible: BibleState; send: BibleSend }) {
       }
     >
       <Empty>
-        Drop manuals, wikis and PDFs into <code className="text-white/70 select-text">{v?.dir ?? '~/.orion/vault'}</code> —
+        Drop manuals, wikis and PDFs into <code className="text-white/85 select-text">{v?.dir ?? '~/.orion/vault'}</code> —
         Orion answers from them offline.
       </Empty>
       {v && v.files.length > 0 && (
         <div className="space-y-0.5 max-h-32 overflow-y-auto pr-1">
           {v.files.map((f) => (
-            <div key={f.name} className="flex justify-between text-[10px] font-mono text-white/60">
+            <div key={f.name} className="flex justify-between text-[11px] font-mono text-white/80">
               <span className="truncate">{f.name}</span>
-              <span className={f.indexed ? 'text-[#3DFFA8]' : 'text-white/35'}>{f.indexed ? 'indexed' : 'pending'}</span>
+              <span className={f.indexed ? 'text-[#3DFFA8]' : 'text-white/68'}>{f.indexed ? 'indexed' : 'pending'}</span>
             </div>
           ))}
         </div>

@@ -33,9 +33,9 @@ function Body() {
   }, [load]);
   const changes = state?.changes ?? [];
   return (
-    <div className="max-h-[60vh] space-y-2 overflow-y-auto p-3 text-[#D8DEFF]">
+    <div className="max-h-[60vh] space-y-2 overflow-y-auto p-3 text-[#DDE5F0]">
       {state?.probation && (
-        <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: 'rgba(124,92,255,0.14)' }}>
+        <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: 'rgba(46,107,255,0.14)' }}>
           <span className="flex-1 text-[12.5px]">The newest change is on its 2-minute watch.</span>
           <button
             type="button"
@@ -47,7 +47,7 @@ function Body() {
         </div>
       )}
       {note && <div role="status" className="px-1 text-[12px] text-[#FFC66B]">{note}</div>}
-      {state && changes.length === 0 && <div className="px-1 py-3 text-[12.5px] text-white/50">Orion hasn't changed itself yet.</div>}
+      {state && changes.length === 0 && <div className="px-1 py-3 text-[12.5px] text-white/76">Orion hasn't changed itself yet.</div>}
       {changes.map((c) => {
         const w = WORDS[c.status] ?? { text: c.status, color: '#8A90B8' };
         return (
@@ -55,10 +55,10 @@ function Body() {
             <div className="flex items-center gap-2 text-[12.5px] font-semibold">
               <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ background: w.color }} />
               <span className="min-w-0 flex-1 truncate">{c.summary || c.request}</span>
-              <span className="shrink-0 text-[11px] font-normal" style={{ color: w.color }}>{w.text}</span>
+              <span className="shrink-0 text-[11.5px] font-medium" style={{ color: w.color }}>{w.text}</span>
             </div>
-            {c.reason && <div className="mt-0.5 text-[11.5px] text-white/50">{c.reason}</div>}
-            {c.kind === 'protected_core' && <div className="text-[11px] text-white/40">Protected core: needs your phone.</div>}
+            {c.reason && <div className="mt-0.5 text-[12px] text-white/76">{c.reason}</div>}
+            {c.kind === 'protected_core' && <div className="text-[11.5px] text-white/72">Protected core: needs your phone.</div>}
           </div>
         );
       })}
@@ -78,7 +78,7 @@ export default function SelfHistory({ mobile }: { mobile?: boolean }) {
           id="selfchanges"
           title="Self-changes"
           subtitle="What Orion changed in itself"
-          icon={<History size={14} className="text-[#C4B5FD]" />}
+          icon={<History size={14} className="text-[#B7CBFF]" />}
           onClose={() => setOpen(false)}
           maximisable={false}
           mobile={mobile}

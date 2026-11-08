@@ -205,7 +205,7 @@ export default function BrainMemoryMap({ memories, searchResults, onSearch, conn
     <div className="glass flex h-full flex-col p-4">
       <div className="mb-2 flex items-center justify-between">
         <div className="panel-title">Brain & Memory Map</div>
-        <div className="text-[10px] text-dust">{memories.length} nodes</div>
+        <div className="text-[11px] text-dust">{memories.length} nodes</div>
       </div>
       <form
         className="mb-2 flex items-center gap-2 rounded-lg border border-glass bg-white/[0.03] px-2.5 py-1.5"
@@ -233,7 +233,7 @@ export default function BrainMemoryMap({ memories, searchResults, onSearch, conn
           </div>
         )}
         {hover && (
-          <div className="glass-strong pointer-events-none absolute bottom-2 left-2 right-2 rounded-lg p-2 text-[11px]">
+          <div className="glass-strong pointer-events-none absolute bottom-2 left-2 right-2 rounded-lg p-2 text-[11.5px]">
             <div className="mb-0.5 flex justify-between">
               <span style={{ color: sourceColors[hover.source] }}>{hover.source}</span>
               <span className="text-dust">{new Date(hover.ts * 1000).toLocaleTimeString()}</span>
@@ -245,7 +245,7 @@ export default function BrainMemoryMap({ memories, searchResults, onSearch, conn
       {searchResults && searchResults.results.length > 0 && (
         <ul className="mt-2 max-h-28 space-y-1 overflow-y-auto">
           {searchResults.results.map((r) => (
-            <li key={r.id} className="selectable flex gap-2 text-[11px]">
+            <li key={r.id} className="selectable flex gap-2 text-[11.5px]">
               <span className="font-mono text-pulse">{(r.score ?? 0).toFixed(2)}</span>
               <span className="truncate text-dust">{r.content.replace(/\s+/g, ' ')}</span>
             </li>

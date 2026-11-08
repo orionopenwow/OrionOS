@@ -27,7 +27,7 @@ export default function SystemAnalyticsDial({ telemetry }: Props) {
   ];
 
   return (
-    <div className="w-full rounded-2xl border border-white/10 bg-[#0B0D17]/80 p-5 backdrop-blur-2xl shadow-2xl">
+    <div className="w-full rounded-2xl border border-white/10 bg-[#151A21]/80 p-5 backdrop-blur-2xl shadow-2xl">
       {/* Header */}
       <div className="flex items-center justify-between mb-4 border-b border-white/10 pb-3">
         <div className="flex items-center gap-2">
@@ -36,12 +36,12 @@ export default function SystemAnalyticsDial({ telemetry }: Props) {
             SYSTEM ANALYTICS & WAVEFORM TELEMETRY
           </span>
         </div>
-        <div className="flex items-center gap-3 text-[10px] font-mono text-dust">
+        <div className="flex items-center gap-3 text-[11px] font-mono text-dust">
           <span className="flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 rounded-full bg-[#3DFFA8] shadow-[0_0_6px_#3DFFA8]" />
             RADAR: ACTIVE #{ticker}
           </span>
-          <span className="text-[#C084FC]">SAMPLE RATE: 48kHz</span>
+          <span className="text-[#7FA6FF]">SAMPLE RATE: 48kHz</span>
         </div>
       </div>
 
@@ -67,7 +67,7 @@ export default function SystemAnalyticsDial({ telemetry }: Props) {
                 cy="100"
                 r="84"
                 fill="none"
-                stroke="rgba(192, 132, 252, 0.35)"
+                stroke="rgba(127, 166, 255, 0.35)"
                 strokeWidth="3"
                 strokeDasharray="60 40 20 50"
               />
@@ -102,7 +102,7 @@ export default function SystemAnalyticsDial({ telemetry }: Props) {
                 cy="100"
                 r="44"
                 fill="none"
-                stroke="rgba(192, 132, 252, 0.7)"
+                stroke="rgba(127, 166, 255, 0.7)"
                 strokeWidth="5"
                 strokeDasharray="30 20 50 10"
               />
@@ -121,20 +121,20 @@ export default function SystemAnalyticsDial({ telemetry }: Props) {
               <div className="h-10 w-10 rounded-full border border-[#00E5FF]/50 bg-[#00E5FF]/10 flex items-center justify-center shadow-[0_0_15px_rgba(0,229,255,0.4)]">
                 <Radio size={16} className="text-[#00E5FF] animate-pulse" />
               </div>
-              <span className="text-[9px] font-mono font-bold text-starlight mt-1">420.8 GHz</span>
+              <span className="text-[10.5px] font-mono font-bold text-starlight mt-1">420.8 GHz</span>
             </div>
 
             {/* Corner Markings */}
-            <div className="absolute top-1 left-1 text-[8px] font-mono text-dust/60">┌ [SYS.01]</div>
-            <div className="absolute top-1 right-1 text-[8px] font-mono text-dust/60">[SYNC] ┐</div>
-            <div className="absolute bottom-1 left-1 text-[8px] font-mono text-dust/60">└ 0x7E3A</div>
-            <div className="absolute bottom-1 right-1 text-[8px] font-mono text-dust/60">DIAL.OK ┘</div>
+            <div className="absolute top-1 left-1 text-[8px] font-mono text-dust/80">┌ [SYS.01]</div>
+            <div className="absolute top-1 right-1 text-[8px] font-mono text-dust/80">[SYNC] ┐</div>
+            <div className="absolute bottom-1 left-1 text-[8px] font-mono text-dust/80">└ 0x7E3A</div>
+            <div className="absolute bottom-1 right-1 text-[8px] font-mono text-dust/80">DIAL.OK ┘</div>
           </div>
         </div>
 
         {/* Center Column: Live Hex / Code Matrix Stream (matching reference asset sheet) */}
-        <div className="lg:col-span-3 font-mono text-[10px] space-y-1 bg-black/40 p-3 rounded-xl border border-white/5">
-          <div className="text-[9px] uppercase tracking-wider text-[#C084FC] mb-2 flex items-center justify-between">
+        <div className="lg:col-span-3 font-mono text-[11px] space-y-1 bg-black/40 p-3 rounded-xl border border-white/5">
+          <div className="text-[10.5px] uppercase tracking-wider text-[#7FA6FF] mb-2 flex items-center justify-between">
             <span>Hex Telemetry</span>
             <span className="text-[#3DFFA8]">SYNCED</span>
           </div>
@@ -142,8 +142,8 @@ export default function SystemAnalyticsDial({ telemetry }: Props) {
             {hexLines.map((row, idx) => (
               <div key={idx} className="flex justify-between text-dust hover:text-starlight transition-colors">
                 <span className="text-[#00E5FF]/80">{row[0]}</span>
-                <span className="text-dust/70">{row[1]}</span>
-                <span className="text-[#C084FC]/80">{row[2]}</span>
+                <span className="text-dust/85">{row[1]}</span>
+                <span className="text-[#7FA6FF]/80">{row[2]}</span>
                 <span className="text-[#3DFFA8]">{row[3]}</span>
               </div>
             ))}
@@ -155,7 +155,7 @@ export default function SystemAnalyticsDial({ telemetry }: Props) {
           
           {/* Waveform Graph 1: Sine / Frequency Curve */}
           <div className="rounded-xl border border-white/10 bg-black/40 p-3">
-            <div className="flex items-center justify-between text-[10px] font-mono mb-2">
+            <div className="flex items-center justify-between text-[11px] font-mono mb-2">
               <span className="text-[#00E5FF] font-semibold">NETWORK RESPONSE</span>
               <span className="text-[#3DFFA8]">Ping: 25 ms</span>
             </div>
@@ -166,7 +166,7 @@ export default function SystemAnalyticsDial({ telemetry }: Props) {
                 <defs>
                   <linearGradient id="waveGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#00E5FF" stopOpacity="0.45" />
-                    <stop offset="100%" stopColor="#C084FC" stopOpacity="0.02" />
+                    <stop offset="100%" stopColor="#7FA6FF" stopOpacity="0.02" />
                   </linearGradient>
                 </defs>
                 {/* Horizontal Coordinate Grid Lines */}
@@ -191,7 +191,7 @@ export default function SystemAnalyticsDial({ telemetry }: Props) {
                 <path
                   d="M 0 35 Q 40 55, 80 25 T 160 40 T 220 25 T 300 45"
                   fill="none"
-                  stroke="#C084FC"
+                  stroke="#7FA6FF"
                   strokeWidth="1.5"
                   strokeDasharray="4 2"
                   opacity="0.8"
@@ -201,7 +201,7 @@ export default function SystemAnalyticsDial({ telemetry }: Props) {
           </div>
 
           {/* Diagnostics Telemetry Metrics Box */}
-          <div className="grid grid-cols-3 gap-2 text-[10px] font-mono">
+          <div className="grid grid-cols-3 gap-2 text-[11px] font-mono">
             <div className="rounded-lg border border-white/5 bg-white/[0.02] p-2">
               <span className="text-dust block text-[8px]">DIAGNOSTICS</span>
               <span className="text-starlight font-bold">Fling 39ms</span>

@@ -65,7 +65,7 @@ function Dot({ on }: { on: boolean }) {
 function Stat({ label, value, accent }: { label: string; value: string; accent?: string }) {
   return (
     <div className="rounded-lg border border-glass bg-white/[0.02] px-3 py-2">
-      <div className="text-[10px] uppercase tracking-wider text-dust">{label}</div>
+      <div className="text-[11px] uppercase tracking-wider text-dust">{label}</div>
       <div className="font-display text-sm" style={{ color: accent ?? colors.starlight }}>{value}</div>
     </div>
   );
@@ -93,7 +93,7 @@ export default function ControlDrawer({ open, onClose, connected, agents, onTogg
           <header className="flex items-center justify-between border-b border-glass px-5 py-4">
             <div>
               <div className="font-display text-sm tracking-[0.2em] text-starlight">BROWSER & AGENT HUB</div>
-              <div className="text-[11px] text-dust">Ctrl + Space to toggle</div>
+              <div className="text-[11.5px] text-dust">Ctrl + Space to toggle</div>
             </div>
             <button onClick={onClose} className="rounded-md p-1.5 text-dust hover:bg-white/5 hover:text-starlight">
               <X size={16} />
@@ -114,7 +114,7 @@ export default function ControlDrawer({ open, onClose, connected, agents, onTogg
                   return (
                     <div key={id} className="flex items-center justify-between rounded-lg border border-glass bg-white/[0.02] px-3 py-2 text-sm">
                       <span className="flex items-center gap-2"><Icon size={14} className="text-nebula" /> {name}</span>
-                      <span className="flex items-center gap-2 text-[11px] text-dust">
+                      <span className="flex items-center gap-2 text-[11.5px] text-dust">
                         {count > 0 ? `${count} WS link${count > 1 ? 's' : ''}` : 'offline'} <Dot on={count > 0} />
                       </span>
                     </div>
@@ -135,7 +135,7 @@ export default function ControlDrawer({ open, onClose, connected, agents, onTogg
                     <Icon size={16} style={{ color: agents[id] ? colors.cyan : colors.dust }} />
                     <div className="min-w-0 flex-1">
                       <div className="text-sm text-starlight">{name}</div>
-                      <div className="truncate text-[11px] text-dust">{desc}</div>
+                      <div className="truncate text-[11.5px] text-dust">{desc}</div>
                     </div>
                     <Switch on={agents[id]} disabled={!connected} onChange={(v) => onToggleAgent(id, v)} />
                   </div>
@@ -155,7 +155,7 @@ export default function ControlDrawer({ open, onClose, connected, agents, onTogg
                 <Stat label="Vector rows" value={t ? `${fmt(t.memory_rows)}` : '—'} />
               </div>
               {t && (
-                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-dust">
+                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-dust">
                   <span className="flex items-center gap-1"><Database size={10} /> embed: {t.embedding_backend}</span>
                   <span className="flex items-center gap-1"><ScanEye size={10} /> OCR {t.ocr_available ? 'ready' : 'unavailable'}</span>
                   <span className="flex items-center gap-1"><Zap size={10} /> capture {t.capture_running ? 'live' : 'paused'}</span>
@@ -181,7 +181,7 @@ export default function ControlDrawer({ open, onClose, connected, agents, onTogg
                       initial={{ opacity: 0, y: -8 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0 }}
-                      className="flex gap-2 rounded-md px-2 py-1.5 text-[11px] hover:bg-white/[0.03]"
+                      className="flex gap-2 rounded-md px-2 py-1.5 text-[11.5px] hover:bg-white/[0.03]"
                     >
                       <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: item.color, boxShadow: `0 0 6px ${item.color}` }} />
                       <div className="min-w-0 flex-1">

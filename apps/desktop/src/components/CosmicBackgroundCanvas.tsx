@@ -10,6 +10,7 @@ import { useEffect, useRef } from 'react';
 import { stepParallax } from '../lib/parallax';
 import { calmMotionNow, hudPrefs } from '../lib/hudPrefs';
 import { coreGeometry } from '../lib/coreGeometry';
+import { resolveQuality } from '../lib/blackhole/quality';
 
 interface Star {
   x: number;
@@ -37,7 +38,7 @@ type SkyEvent =
 export const SKY_EVENT = 'orion:sky-event';
 
 const DEPTH_SHIFT = [3, 9, 18]; // px of travel at full parallax, far → near
-const STAR_COLORS = ['#FFFFFF', '#D8DEFF', '#C2B3FF', '#9D85FF', '#7FF2FF'];
+const STAR_COLORS = ['#FFFFFF', '#E6ECF5', '#C9D8FF', '#9FBCFF', '#BFF6FF'];
 const MIN = 60_000;
 const MAX_PER_HOUR = 4;
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
@@ -58,7 +59,10 @@ export default function CosmicBackgroundCanvas() {
     const initStars = () => {
       width = canvas.width = window.innerWidth;
       height = canvas.height = window.innerHeight;
-      const count = Math.floor((width * height) / 3000);
+      // look pass ("less random dust"): about a third of the old count (one star per ~9,500 px²), fewer again on
+      // the Battery and Still tiers; what is left twinkles slowly
+      const q = resolveQuality();
+      const count = Math.floor((width * height) / (q <= 1 ? 14000 : 9500));
       stars = [];
       for (let i = 0; i < count; i++) {
         const r = Math.random();
@@ -70,7 +74,7 @@ export default function CosmicBackgroundCanvas() {
           depth,
           baseAlpha: depth === 0 ? rand(0.18, 0.5) : depth === 1 ? rand(0.3, 0.7) : rand(0.5, 0.9),
           phase: Math.random() * Math.PI * 2,
-          speed: rand(0.3, 1.4),
+          speed: rand(0.12, 0.45),
           color: STAR_COLORS[Math.floor(Math.random() * STAR_COLORS.length)],
         });
       }
@@ -153,7 +157,7 @@ export default function CosmicBackgroundCanvas() {
     const drawStars = (t: number, still: boolean) => {
       const p = still ? { x: 0, y: 0 } : stepParallax();
       for (const s of stars) {
-        const tw = still ? 0.8 : 0.55 + 0.45 * Math.sin(s.phase + t * 0.001 * s.speed);
+        const tw = still ? 0.85 : 0.78 + 0.22 * Math.sin(s.phase + t * 0.001 * s.speed);
         const a = s.baseAlpha * tw;
         const shift = DEPTH_SHIFT[s.depth];
         const x = s.x - p.x * shift;
@@ -179,7 +183,7 @@ export default function CosmicBackgroundCanvas() {
 
     const drawNebula = () => {
       const g = ctx.createRadialGradient(width * 0.5, height * 0.45, 10, width * 0.5, height * 0.45, width * 0.5);
-      g.addColorStop(0, 'rgba(124, 92, 255, 0.04)');
+      g.addColorStop(0, 'rgba(46, 107, 255, 0.05)');
       g.addColorStop(0.6, 'rgba(0, 229, 255, 0.015)');
       g.addColorStop(1, 'transparent');
       ctx.fillStyle = g;
@@ -203,8 +207,8 @@ export default function CosmicBackgroundCanvas() {
           const ty = hy - Math.sin(e.angle) * len;
           const fade = p < 0.7 ? 1 : 1 - (p - 0.7) / 0.3;
           const g = ctx.createLinearGradient(tx, ty, hx, hy);
-          g.addColorStop(0, 'rgba(216, 222, 255, 0)');
-          g.addColorStop(0.75, 'rgba(194, 179, 255, 0.35)');
+          g.addColorStop(0, 'rgba(221, 229, 240, 0)');
+          g.addColorStop(0.75, 'rgba(183, 203, 255, 0.35)');
           g.addColorStop(1, 'rgba(255, 255, 255, 0.95)');
           ctx.globalAlpha = fade;
           ctx.strokeStyle = g;
@@ -236,7 +240,7 @@ export default function CosmicBackgroundCanvas() {
           const f = k / STEPS;
           const pt = at(Math.max(0, p - TAIL * (1 - f)));
           ctx.globalAlpha = fade * f * 0.6;
-          ctx.strokeStyle = f > 0.75 ? '#D8DEFF' : '#9D85FF';
+          ctx.strokeStyle = f > 0.75 ? '#DDE5F0' : '#8DB0FF';
           ctx.lineWidth = 0.5 + f * 2.2;
           ctx.lineCap = 'round';
           ctx.beginPath();
@@ -264,8 +268,8 @@ export default function CosmicBackgroundCanvas() {
         // head
         const hg = ctx.createRadialGradient(x, y, 0, x, y, 9);
         hg.addColorStop(0, 'rgba(255, 255, 255, 1)');
-        hg.addColorStop(0.35, 'rgba(194, 179, 255, 0.55)');
-        hg.addColorStop(1, 'rgba(124, 92, 255, 0)');
+        hg.addColorStop(0.35, 'rgba(183, 203, 255, 0.55)');
+        hg.addColorStop(1, 'rgba(46, 107, 255, 0)');
         ctx.fillStyle = hg;
         ctx.beginPath();
         ctx.arc(x, y, 9, 0, Math.PI * 2);

@@ -32,7 +32,7 @@ function Cost({ m }: { m: Mission }) {
   const pct = m.budget_usd > 0 ? Math.min(100, (m.cost_usd / m.budget_usd) * 100) : 0;
   return (
     <div className="mt-1.5">
-      <div className="flex justify-between text-[10.5px] text-white/55">
+      <div className="flex justify-between text-[11.5px] text-white/78">
         <span title={m.cost_note}>
           {usd(m.cost_usd)}
           {m.cost_estimated ? ' (estimate)' : ''}
@@ -60,16 +60,16 @@ function Card({ m, active, onClick }: { m: Mission; active: boolean; onClick: ()
         <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: tint }} />
         <span className="truncate text-[12px] font-semibold text-white/90">{m.title}</span>
       </div>
-      <div className="mt-0.5 truncate text-[10.5px] text-white/50">
+      <div className="mt-0.5 truncate text-[11.5px] text-white/76">
         {m.agent_label} · {m.repo_name}
         {m.race_group ? ' · race' : m.swarm_id ? ' · swarm' : ''}
       </div>
       {tag && (
-        <span className="mt-1 inline-block rounded-full px-1.5 py-px text-[9.5px] font-bold uppercase" style={{ color: m.state === 'failed' ? BAD : AMBER, background: 'rgba(255,255,255,0.06)' }}>
+        <span className="mt-1 inline-block rounded-full px-1.5 py-px text-[10.5px] font-bold uppercase" style={{ color: m.state === 'failed' ? BAD : AMBER, background: 'rgba(255,255,255,0.06)' }}>
           {tag}
         </span>
       )}
-      <div className="mt-1 line-clamp-2 text-[10.5px] text-white/60">{m.summary}</div>
+      <div className="mt-1 line-clamp-2 text-[11.5px] text-white/80">{m.summary}</div>
       <Cost m={m} />
     </button>
   );
@@ -111,7 +111,7 @@ function NewMissionForm({ board, onDone }: { board: MissionBoard; onDone: (msg: 
             key={t.id}
             type="button"
             onClick={() => pickTemplate(t.id)}
-            className={`rounded-full border px-2.5 py-1 text-[11px] ${f.template === t.id ? 'border-cyan-300/60 bg-cyan-300/10 text-cyan-100' : 'border-white/10 text-white/70 hover:text-white'}`}
+            className={`rounded-full border px-2.5 py-1 text-[11.5px] ${f.template === t.id ? 'border-cyan-300/60 bg-cyan-300/10 text-cyan-100' : 'border-white/10 text-white/85 hover:text-white'}`}
           >
             {t.label}
           </button>
@@ -121,7 +121,7 @@ function NewMissionForm({ board, onDone }: { board: MissionBoard; onDone: (msg: 
       <textarea className={`${field} h-24 resize-none`} placeholder="Details (optional)" value={f.description} onChange={(e) => set('description', e.target.value)} />
       <input className={field} placeholder="Repo folder (blank = Orion itself)" value={f.repo} onChange={(e) => set('repo', e.target.value)} />
       <div className="grid grid-cols-2 gap-2">
-        <label className="text-[10.5px] text-white/50">
+        <label className="text-[11.5px] text-white/76">
           Agent
           <select className={field} value={f.agent} onChange={(e) => set('agent', e.target.value)}>
             <option value="">Let Orion pick</option>
@@ -132,15 +132,15 @@ function NewMissionForm({ board, onDone }: { board: MissionBoard; onDone: (msg: 
             ))}
           </select>
         </label>
-        <label className="text-[10.5px] text-white/50">
+        <label className="text-[11.5px] text-white/76">
           Budget (US$)
           <input className={field} inputMode="decimal" placeholder="Orion's default" value={budget} onChange={(e) => setBudget(e.target.value.replace(/[^0-9.]/g, ''))} />
         </label>
-        <label className="text-[10.5px] text-white/50">
+        <label className="text-[11.5px] text-white/76">
           Time limit (minutes)
           <input className={field} inputMode="numeric" value={f.time_limit_min ?? ''} onChange={(e) => set('time_limit_min', Number(e.target.value.replace(/\D/g, '')) || undefined)} />
         </label>
-        <label className="text-[10.5px] text-white/50" title="Several agents get the same task; you pick the best result.">
+        <label className="text-[11.5px] text-white/76" title="Several agents get the same task; you pick the best result.">
           Race (agents)
           <select className={field} value={f.race} onChange={(e) => set('race', Number(e.target.value))}>
             {[1, 2, 3, 4, 5].map((n) => (
@@ -151,9 +151,9 @@ function NewMissionForm({ board, onDone }: { board: MissionBoard; onDone: (msg: 
           </select>
         </label>
       </div>
-      {!installed.length && <div className="text-[11px]" style={{ color: AMBER }}>No coding agent is installed yet (Claude Code, Codex or Gemini CLI).</div>}
-      {err && <div className="text-[11px]" style={{ color: BAD }}>{err}</div>}
-      <div className="text-[10.5px] text-white/40">
+      {!installed.length && <div className="text-[11.5px]" style={{ color: AMBER }}>No coding agent is installed yet (Claude Code, Codex or Gemini CLI).</div>}
+      {err && <div className="text-[11.5px]" style={{ color: BAD }}>{err}</div>}
+      <div className="text-[11.5px] text-white/72">
         Each mission works in its own copy of the repo. It can't merge, push, spend money or touch secrets; finished work comes back for your review.
       </div>
       <button
@@ -205,7 +205,7 @@ function Detail({ id, onNote }: { id: string; onNote: (s: string) => void }) {
     logEl.current?.scrollTo({ top: logEl.current.scrollHeight });
   }, [lines]);
 
-  if (!d) return <div className="p-4 text-[12px] text-white/50">Loading...</div>;
+  if (!d) return <div className="p-4 text-[12px] text-white/76">Loading...</div>;
   const act = async (op: MissionOp) => {
     setBusy(true);
     const r = await missionsApi.act(d.id, op);
@@ -217,36 +217,36 @@ function Detail({ id, onNote }: { id: string; onNote: (s: string) => void }) {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="text-[14px] font-bold text-white">{d.title}</div>
-      <div className="text-[11px] text-white/55">
+      <div className="text-[11.5px] text-white/78">
         {d.agent_label}
         {d.model ? ` (${d.model})` : ''} · {d.repo_name} · <span className="font-mono">{d.branch}</span>
       </div>
       <div className="mt-1 text-[12px] text-white/80">{d.summary}</div>
-      {d.why && <div className="mt-0.5 text-[10.5px] text-white/40">Why this agent: {d.why}</div>}
-      <div className="mt-2 grid grid-cols-3 gap-2 text-[11px] text-white/60">
+      {d.why && <div className="mt-0.5 text-[11.5px] text-white/72">Why this agent: {d.why}</div>}
+      <div className="mt-2 grid grid-cols-3 gap-2 text-[11.5px] text-white/80">
         <div>
-          <div className="text-white/35">Cost so far</div>
+          <div className="text-white/68">Cost so far</div>
           <div className="text-white/90" title={d.cost_note}>
-            {usd(d.cost_usd)} {d.cost_estimated && <span className="text-white/45">(estimate)</span>}
+            {usd(d.cost_usd)} {d.cost_estimated && <span className="text-white/74">(estimate)</span>}
           </div>
         </div>
         <div>
-          <div className="text-white/35">Budget</div>
+          <div className="text-white/68">Budget</div>
           <div className="text-white/90">{usd(d.budget_usd)}</div>
         </div>
         <div>
-          <div className="text-white/35">Time</div>
+          <div className="text-white/68">Time</div>
           <div className="text-white/90">
             {Math.round(d.active_s / 60)} of {Math.round(d.time_limit_min)} min
           </div>
         </div>
       </div>
       {(d.checks || d.review) && (
-        <div className="mt-2 space-y-1 rounded-lg border border-white/10 bg-white/[0.03] p-2 text-[11.5px]">
+        <div className="mt-2 space-y-1 rounded-lg border border-white/10 bg-white/[0.03] p-2 text-[12px]">
           {d.checks && (
             <div>
               <span style={{ color: verdictColor(d.checks.verdict) }}>Build and tests: {d.checks.verdict}</span>
-              <span className="text-white/50"> {d.checks.reason}</span>
+              <span className="text-white/76"> {d.checks.reason}</span>
             </div>
           )}
           {d.review && (
@@ -254,42 +254,42 @@ function Detail({ id, onNote }: { id: string; onNote: (s: string) => void }) {
               <span style={{ color: verdictColor(d.review.verdict) }}>
                 Second review ({d.review.reviewer || 'none'}): {d.review.verdict}
               </span>
-              {d.review.notes && <div className="mt-0.5 line-clamp-4 text-white/55">{d.review.notes}</div>}
+              {d.review.notes && <div className="mt-0.5 line-clamp-4 text-white/78">{d.review.notes}</div>}
             </div>
           )}
         </div>
       )}
       <div className="mt-2 flex gap-1">
-        <button type="button" onClick={() => setTab('log')} className={`rounded-full px-2 py-0.5 text-[11px] ${tab === 'log' ? 'bg-white/10 text-white' : 'text-white/50'}`}>
+        <button type="button" onClick={() => setTab('log')} className={`rounded-full px-2 py-0.5 text-[11.5px] ${tab === 'log' ? 'bg-white/10 text-white' : 'text-white/76'}`}>
           Live log
         </button>
-        <button type="button" onClick={() => setTab('diff')} className={`rounded-full px-2 py-0.5 text-[11px] ${tab === 'diff' ? 'bg-white/10 text-white' : 'text-white/50'}`}>
+        <button type="button" onClick={() => setTab('diff')} className={`rounded-full px-2 py-0.5 text-[11.5px] ${tab === 'diff' ? 'bg-white/10 text-white' : 'text-white/76'}`}>
           Changes ({d.changed_files.length})
         </button>
       </div>
       {tab === 'log' ? (
-        <div ref={logEl} className="mt-1 min-h-0 flex-1 overflow-y-auto rounded-lg bg-black/40 p-2 font-mono text-[10.5px] leading-snug text-white/75">
-          {lines.length ? lines.map((l, i) => <div key={i} className="whitespace-pre-wrap break-words">{l}</div>) : <div className="text-white/40">Nothing yet.</div>}
+        <div ref={logEl} className="mt-1 min-h-0 flex-1 overflow-y-auto rounded-lg bg-black/40 p-2 font-mono text-[11.5px] leading-snug text-white/88">
+          {lines.length ? lines.map((l, i) => <div key={i} className="whitespace-pre-wrap break-words">{l}</div>) : <div className="text-white/72">Nothing yet.</div>}
         </div>
       ) : (
-        <pre className="mt-1 min-h-0 flex-1 overflow-auto rounded-lg bg-black/40 p-2 font-mono text-[10.5px] leading-snug">
+        <pre className="mt-1 min-h-0 flex-1 overflow-auto rounded-lg bg-black/40 p-2 font-mono text-[11.5px] leading-snug">
           {d.diff
             ? d.diff.split('\n').map((l, i) => (
                 <div key={i} style={{ color: l.startsWith('+') && !l.startsWith('+++') ? GOOD : l.startsWith('-') && !l.startsWith('---') ? BAD : l.startsWith('@@') ? '#7DF0FF' : 'rgba(255,255,255,0.7)' }}>
                   {l || ' '}
                 </div>
               ))
-            : <span className="text-white/40">No changes saved yet.</span>}
+            : <span className="text-white/72">No changes saved yet.</span>}
         </pre>
       )}
       <div className="mt-2 flex flex-wrap items-center gap-2">
         {d.state === 'running' && (
-          <button type="button" disabled={busy} className={`${btn} border-violet-300/40 text-violet-100 hover:bg-violet-300/10`} onClick={() => act('pause')}>
+          <button type="button" disabled={busy} className={`${btn} border-blue-300/40 text-blue-100 hover:bg-blue-300/10`} onClick={() => act('pause')}>
             Pause
           </button>
         )}
         {(d.state === 'needs_you' || d.state === 'failed' || d.state === 'stopped') && (
-          <button type="button" disabled={busy} className={`${btn} border-violet-300/40 text-violet-100 hover:bg-violet-300/10`} onClick={() => act('resume')}>
+          <button type="button" disabled={busy} className={`${btn} border-blue-300/40 text-blue-100 hover:bg-blue-300/10`} onClick={() => act('resume')}>
             {d.paused ? 'Resume' : 'Try again'}
           </button>
         )}
@@ -374,7 +374,7 @@ export default function MissionControl() {
               <Rocket size={15} className="text-[#7DF0FF]" />
               <span className="text-[13px] font-semibold text-white/90">Mission Control</span>
               {running > 0 && <Loader2 size={12} className="animate-spin text-[#00E5FF]" aria-label={`${running} running`} />}
-              <span className="text-[10.5px] text-white/40">
+              <span className="text-[11.5px] text-white/72">
                 {board.agents.filter((a) => a.installed && a.mode === 'headless').map((a) => a.label).join(', ') || 'No agents installed'}
               </span>
               <button
@@ -383,22 +383,22 @@ export default function MissionControl() {
                   setCreating(true);
                   setSelected(null);
                 }}
-                className="ml-auto flex items-center gap-1 rounded-lg border border-cyan-300/40 px-2.5 py-1 text-[11.5px] text-cyan-100 hover:bg-cyan-300/10"
+                className="ml-auto flex items-center gap-1 rounded-lg border border-cyan-300/40 px-2.5 py-1 text-[12px] text-cyan-100 hover:bg-cyan-300/10"
               >
                 <Plus size={12} /> New mission
               </button>
-              <button type="button" onClick={() => setOpen(false)} className="rounded-lg p-1 text-white/40 hover:bg-white/10 hover:text-white" title="Close">
+              <button type="button" onClick={() => setOpen(false)} className="rounded-lg p-1 text-white/72 hover:bg-white/10 hover:text-white" title="Close">
                 <X size={14} />
               </button>
             </div>
-            {note && <div className="border-b border-white/5 px-4 py-1.5 text-[11.5px] text-white/70">{note}</div>}
+            {note && <div className="border-b border-white/5 px-4 py-1.5 text-[12px] text-white/85">{note}</div>}
             <div className="flex min-h-0 flex-1 flex-col gap-3 p-3 md:flex-row">
               <div className="flex min-h-0 flex-1 gap-2 overflow-x-auto">
                 {COLUMNS.map((col) => {
                   const items = ms.filter((m) => col.states.includes(m.state));
                   return (
                     <div key={col.id} className="flex min-h-0 w-[190px] shrink-0 flex-col">
-                      <div className="mb-1.5 flex items-center justify-between px-1 text-[10.5px] font-bold uppercase tracking-wider text-white/45">
+                      <div className="mb-1.5 flex items-center justify-between px-1 text-[11.5px] font-bold uppercase tracking-wider text-white/74">
                         <span style={{ color: col.id === 'needs_you' && items.length ? AMBER : undefined }}>{col.label}</span>
                         <span>{items.length}</span>
                       </div>
@@ -432,9 +432,9 @@ export default function MissionControl() {
                 ) : selected ? (
                   <Detail key={selected} id={selected} onNote={(s) => { setNote(s); refresh(); }} />
                 ) : (
-                  <div className="text-[12px] text-white/50">
+                  <div className="text-[12px] text-white/76">
                     Pick a mission to see its live log, changes and cost, or start a new one.
-                    {ms[0] && <div className="mt-2 text-white/35">Latest: {ms[0].title} ({ago(ms[0].created)} ago)</div>}
+                    {ms[0] && <div className="mt-2 text-white/68">Latest: {ms[0].title} ({ago(ms[0].created)} ago)</div>}
                   </div>
                 )}
               </div>

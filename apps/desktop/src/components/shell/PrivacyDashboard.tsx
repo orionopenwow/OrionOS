@@ -78,8 +78,8 @@ export default function PrivacyDashboard({ onClose, mobile }: { onClose: () => v
       className="left-4 bottom-[88px] w-[420px] max-w-[calc(100vw-32px)]"
     >
       <div className="p-3 space-y-2 max-h-[64vh] overflow-y-auto">
-        <div className="flex items-center gap-3 rounded-xl px-3 py-2" style={{ background: 'rgba(216,222,255,0.05)' }}>
-          <span className="flex-1 text-[13px] text-[#D8DEFF]">{d ? d.words : 'Checking…'}</span>
+        <div className="flex items-center gap-3 rounded-xl px-3 py-2" style={{ background: 'rgba(221,229,240,0.05)' }}>
+          <span className="flex-1 text-[13px] text-[#DDE5F0]">{d ? d.words : 'Checking…'}</span>
           <button
             type="button"
             disabled={busy || !d || d.on === 0}
@@ -100,15 +100,15 @@ export default function PrivacyDashboard({ onClose, mobile }: { onClose: () => v
                        boxShadow: s.on ? '0 0 8px #FF5C8A' : 'none' }}
             />
             <span className="min-w-0 flex-1">
-              <span className="block text-[13px] font-semibold text-[#D8DEFF]">
+              <span className="block text-[13px] font-semibold text-[#DDE5F0]">
                 {s.label}
-                <span className="ml-2 text-[11px] font-normal text-[#D8DEFF]/60">
+                <span className="ml-2 text-[11.5px] font-medium text-[#DDE5F0]/80">
                   {s.on ? 'On' : s.available ? 'Off' : 'Not on this computer'}
                 </span>
               </span>
-              <span className="block text-[11.5px] leading-snug text-[#D8DEFF]/55">{s.what}</span>
+              <span className="block text-[12px] leading-snug text-[#DDE5F0]/78">{s.what}</span>
               {!s.on && s.available && s.how_on && (
-                <span className="block text-[11px] text-[#D8DEFF]/40">To turn on: {s.how_on}</span>
+                <span className="block text-[11.5px] text-[#DDE5F0]/72">To turn on: {s.how_on}</span>
               )}
             </span>
             {s.can_off && (
@@ -118,7 +118,7 @@ export default function PrivacyDashboard({ onClose, mobile }: { onClose: () => v
                 aria-label={`Turn off ${s.label}`}
                 onClick={() => void call('/privacy/off', { id: s.id })}
                 className="shrink-0 rounded-full px-3 py-1 text-[12px] font-semibold text-white"
-                style={{ background: 'rgba(124,92,255,0.25)', border: '1px solid #3A3F6B' }}
+                style={{ background: 'rgba(46,107,255,0.25)', border: '1px solid #3A4352' }}
               >
                 Turn off
               </button>

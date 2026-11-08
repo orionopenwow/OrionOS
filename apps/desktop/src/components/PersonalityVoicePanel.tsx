@@ -83,17 +83,17 @@ export default function PersonalityVoicePanel({
       {/* Column 1: Personality & Tone */}
       <div className="flex w-1/2 flex-col rounded-2xl border border-white/10 bg-[#070913]/80 p-5 backdrop-blur-xl shadow-2xl">
         <div className="flex items-center gap-2 pb-3 border-b border-white/10">
-          <span className="p-1.5 rounded-lg bg-[#C084FC]/20 text-[#C084FC] border border-[#C084FC]/30">
+          <span className="p-1.5 rounded-lg bg-[#7FA6FF]/20 text-[#7FA6FF] border border-[#7FA6FF]/30">
             <Bot size={16} />
           </span>
           <div>
             <div className="font-display text-sm font-bold tracking-wider text-white">ORION PERSONALITY & TONE</div>
-            <div className="text-[10px] font-mono text-white/50">Adaptive LLM demeanor & speech behavior</div>
+            <div className="text-[11px] font-mono text-white/76">Adaptive LLM demeanor & speech behavior</div>
           </div>
         </div>
 
         <div className="mt-4 space-y-3">
-          <div className="text-[11px] font-mono uppercase tracking-wider text-white/40">
+          <div className="text-[11.5px] font-mono uppercase tracking-wider text-white/72">
             Select Tone
           </div>
 
@@ -114,12 +114,12 @@ export default function PersonalityVoicePanel({
                 <span className="text-sm font-bold text-white">Concise Companion</span>
               </div>
               {personality === 'concise_companion' && (
-                <span className="px-2 py-0.5 rounded-full bg-[#00E5FF]/20 border border-[#00E5FF]/40 text-[10px] font-mono text-[#00E5FF]">
+                <span className="px-2 py-0.5 rounded-full bg-[#00E5FF]/20 border border-[#00E5FF]/40 text-[11px] font-mono text-[#00E5FF]">
                   ACTIVE
                 </span>
               )}
             </div>
-            <p className="mt-2 text-xs text-white/70 leading-relaxed">
+            <p className="mt-2 text-xs text-white/85 leading-relaxed">
               Fast, friendly, punchy desktop partner. Delivers direct answers, avoids filler text, and focuses on quick action execution.
             </p>
           </button>
@@ -129,24 +129,24 @@ export default function PersonalityVoicePanel({
             onClick={() => onSetPersonality('detailed_researcher')}
             className={`w-full text-left p-4 rounded-xl border transition-all ${
               personality === 'detailed_researcher'
-                ? 'border-[#C084FC]/60 bg-[#C084FC]/10 shadow-[0_0_20px_rgba(192,132,252,0.15)]'
+                ? 'border-[#7FA6FF]/60 bg-[#7FA6FF]/10 shadow-[0_0_20px_rgba(127,166,255,0.15)]'
                 : 'border-white/5 bg-white/[0.02] hover:bg-white/[0.05]'
             }`}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="p-1.5 rounded-lg bg-[#C084FC]/20 text-[#C084FC]">
+                <span className="p-1.5 rounded-lg bg-[#7FA6FF]/20 text-[#7FA6FF]">
                   <GraduationCap size={16} />
                 </span>
                 <span className="text-sm font-bold text-white">Detailed Researcher</span>
               </div>
               {personality === 'detailed_researcher' && (
-                <span className="px-2 py-0.5 rounded-full bg-[#C084FC]/20 border border-[#C084FC]/40 text-[10px] font-mono text-[#C084FC]">
+                <span className="px-2 py-0.5 rounded-full bg-[#7FA6FF]/20 border border-[#7FA6FF]/40 text-[11px] font-mono text-[#7FA6FF]">
                   ACTIVE
                 </span>
               )}
             </div>
-            <p className="mt-2 text-xs text-white/70 leading-relaxed">
+            <p className="mt-2 text-xs text-white/85 leading-relaxed">
               Analytical, academic precision. Provides deep architectural breakdowns, explores edge cases, and provides structured explanations with code snippets.
             </p>
           </button>
@@ -156,7 +156,7 @@ export default function PersonalityVoicePanel({
         <div className="mt-auto pt-4 border-t border-white/10">
           <div className="flex items-center gap-2 mb-2">
             <SendHorizontal size={14} className="text-[#00E5FF]" />
-            <span className="text-xs font-mono uppercase tracking-wider text-white/70">
+            <span className="text-xs font-mono uppercase tracking-wider text-white/85">
               Telegram Output Dispatch
             </span>
           </div>
@@ -191,11 +191,11 @@ export default function PersonalityVoicePanel({
             </span>
             <div>
               <div className="font-display text-sm font-bold tracking-wider text-white">TTS VOICE SELECTION</div>
-              <div className="text-[10px] font-mono text-white/50">Native offline desktop speech synthesizer</div>
+              <div className="text-[11px] font-mono text-white/76">Native offline desktop speech synthesizer</div>
             </div>
           </div>
 
-          <label className="text-[11px] font-mono text-white/60 block mb-1.5">Installed System Voices</label>
+          <label className="text-[11.5px] font-mono text-white/80 block mb-1.5">Installed System Voices</label>
           <select
             value={selectedVoice}
             onChange={(e) => handleApplyVoice(e.target.value)}
@@ -214,7 +214,7 @@ export default function PersonalityVoicePanel({
 
           {/* Rate Slider */}
           <div className="mt-3">
-            <div className="flex justify-between text-xs font-mono text-white/60 mb-1">
+            <div className="flex justify-between text-xs font-mono text-white/80 mb-1">
               <span>Speech Rate (WPM)</span>
               <span className="text-[#3DFFA8]">{speechRate}</span>
             </div>
@@ -230,7 +230,7 @@ export default function PersonalityVoicePanel({
 
           {/* Volume Slider */}
           <div className="mt-3">
-            <div className="flex justify-between text-xs font-mono text-white/60 mb-1">
+            <div className="flex justify-between text-xs font-mono text-white/80 mb-1">
               <span>Speech Volume</span>
               <span className="text-[#3DFFA8]">{Math.round(speechVolume * 100)}%</span>
             </div>
@@ -250,12 +250,12 @@ export default function PersonalityVoicePanel({
         <div>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-[#E9D5FF]/20 text-[#E9D5FF] border border-[#E9D5FF]/30">
+              <span className="p-1.5 rounded-lg bg-[#DCE7FF]/20 text-[#DCE7FF] border border-[#DCE7FF]/30">
                 <Music size={16} />
               </span>
               <div>
                 <div className="font-display text-sm font-bold tracking-wider text-white">COSMIC SOUND EFFECTS</div>
-                <div className="text-[10px] font-mono text-white/50">Celestial chimes for cues & events</div>
+                <div className="text-[11px] font-mono text-white/76">Celestial chimes for cues & events</div>
               </div>
             </div>
             <button
@@ -271,12 +271,12 @@ export default function PersonalityVoicePanel({
             </button>
           </div>
 
-          <div className="space-y-2 text-xs font-mono text-white/70">
+          <div className="space-y-2 text-xs font-mono text-white/85">
             <div className="flex justify-between items-center p-2 rounded-lg bg-white/[0.02] border border-white/5">
               <span>Listening Chime</span>
               <button
                 onClick={() => cosmicAudio.playListenStart()}
-                className="px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-[10px] text-white"
+                className="px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-[11px] text-white"
               >
                 Preview
               </button>
@@ -285,7 +285,7 @@ export default function PersonalityVoicePanel({
               <span>Command Detected Chime</span>
               <button
                 onClick={() => cosmicAudio.playCommandDetected()}
-                className="px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-[10px] text-white"
+                className="px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-[11px] text-white"
               >
                 Preview
               </button>
@@ -294,7 +294,7 @@ export default function PersonalityVoicePanel({
               <span>Task Finished Chime</span>
               <button
                 onClick={() => cosmicAudio.playTaskFinished()}
-                className="px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-[10px] text-white"
+                className="px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-[11px] text-white"
               >
                 Preview
               </button>
@@ -303,7 +303,7 @@ export default function PersonalityVoicePanel({
               <span>Proactive Insight Chime</span>
               <button
                 onClick={() => cosmicAudio.playProactiveInsight()}
-                className="px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-[10px] text-white"
+                className="px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-[11px] text-white"
               >
                 Preview
               </button>
@@ -312,9 +312,9 @@ export default function PersonalityVoicePanel({
 
           {/* Audio Chime Volume */}
           <div className="mt-3">
-            <div className="flex justify-between text-xs font-mono text-white/60 mb-1">
+            <div className="flex justify-between text-xs font-mono text-white/80 mb-1">
               <span>Chime Volume</span>
-              <span className="text-[#C084FC]">{Math.round(audioVolume * 100)}%</span>
+              <span className="text-[#7FA6FF]">{Math.round(audioVolume * 100)}%</span>
             </div>
             <input
               type="range"
@@ -323,7 +323,7 @@ export default function PersonalityVoicePanel({
               step={0.05}
               value={audioVolume}
               onChange={(e) => handleAudioVolumeChange(parseFloat(e.target.value))}
-              className="w-full accent-[#C084FC] cursor-pointer"
+              className="w-full accent-[#7FA6FF] cursor-pointer"
             />
           </div>
         </div>

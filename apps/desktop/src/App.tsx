@@ -14,15 +14,15 @@ import AgentPet from './components/widgets/AgentPet';
 import AgentSwarm from './components/swarm/AgentSwarm';
 import ComputeMeter from './components/widgets/ComputeMeter';
 import MobileGlance from './components/widgets/MobileGlance';
-import { detectMobile, useIsMobile } from './lib/device';
+import { useIsMobile } from './lib/device';
 import Taskbar, { type TaskbarTile } from './components/glass/Taskbar';
-import OrionMark from './components/glass/OrionMark';
 import HudSettingsWindow from './components/glass/HudSettingsWindow';
 import { taskbarClick, useWindowManager } from './lib/windowManager';
 import { useArrival } from './lib/arrival';
+import { startPointerVars } from './lib/parallax';
 import { useCalmMotion } from './lib/hudPrefs';
 import { useHudAccess } from './lib/hudAccess';
-import { Activity, Bot, Chrome, Gamepad2, Layers, MessageCircle, MousePointer, Settings2, Users } from 'lucide-react';
+import { Activity, Bot, Chrome, Gamepad2, Layers, Inbox, MousePointer, Settings2, Users } from 'lucide-react';
 import { TOUR_EVENT, type TourCommand } from './demo/tourBus';
 import { dropToVault, isPipelineAsset, uploadAsset } from './lib/assets';
 import ProactiveInsightCard from './components/ProactiveInsightCard';
@@ -40,7 +40,9 @@ import { appColor, focusAppWindow, useAppWindows } from './lib/appWindows'; // O
 import SkillCards from './components/shell/SkillCards';
 import V1Shell from './components/shell/V1Shell'; // [v1gaps] Guide Mode + privacy dashboard
 import TestCenter from './components/testcenter/TestCenter'; // [testcenter] Orion Test Center
-import MainMenu, { MENU_EVENT_ID, MENU_STATE_EVENT, menuIcon } from './components/menu/MainMenu'; // [simple-menu]
+import CommandConsole, { menuIcon } from './components/console/CommandConsole'; // [look] the one console (was the menu + chat)
+import OrionButton, { useOrionButtonPos } from './components/console/OrionButton'; // [look]
+import { inTaskbarCorner } from './lib/orionButton';
 import StatusStrip from './components/menu/StatusStrip'; // [simple-menu]
 import ProjectsWindow from './components/projects/ProjectsWindow'; // [simple-menu] Start a project with Claude
 import SelfHistory from './components/selfprog/SelfHistory'; // [simple-menu] More > Self-changes history
@@ -117,12 +119,22 @@ export default function App() {
     personality: false,
   });
 
-  // Desktop opens on the Orion window (the Art Update "windows" look); phones start on the bare core.
-  const [dialogueOpen, setDialogueOpen] = useState(() => !detectMobile());
+  // [look] The chat lives in the command console now; the Orion window (messages, queue, projects, tools, life)
+  // opens from the console, so every screen starts on the bare core with the one Orion button.
+  const [dialogueOpen, setDialogueOpen] = useState(false);
+  /** [look] Open the console's chat (it is the chat). */
+  const openChat = () => openOrion('chat');
+  /** [look] Open a tab of the Orion window; 'chat' goes to the console. */
+  const showTab = (f: { tab: ContextTab; nonce: number; threadKey?: string; draft?: string }) => {
+    if (f.tab === 'chat') return openChat();
+    setDialogueOpen(true);
+    setFocusTab(f);
+  };
   const [settingsOpen, setSettingsOpen] = useState(false);
   const wm = useWindowManager();
   const orionShown = dialogueOpen && !wm.minimised.orion;
   useArrival(connected);
+  useEffect(() => startPointerVars(), []); // [look] pointer-reactive background
   useHudAccess(); // high contrast, bigger text, zoom (Settings > Accessibility)
   const calmMotion = useCalmMotion();
   useEffect(() => {
@@ -154,8 +166,11 @@ export default function App() {
       const c = (e as CustomEvent<TourCommand>).detail;
       if (c.speaking !== undefined) setTourSpeaking(c.speaking);
       if (c.open === false) setDialogueOpen(false);
-      if (c.open === true || c.tab) setDialogueOpen(true);
-      if (c.tab) setFocusTab({ tab: c.tab, nonce: Date.now() });
+      if (c.tab === 'chat' || (c.open === true && !c.tab)) openOrion('chat');
+      else if (c.tab) {
+        setDialogueOpen(true);
+        setFocusTab({ tab: c.tab, nonce: Date.now() });
+      }
     };
     window.addEventListener(TOUR_EVENT, onTour);
     return () => window.removeEventListener(TOUR_EVENT, onTour);
@@ -205,7 +220,7 @@ export default function App() {
   // Handle Drag & Drop of Images, Videos, or Documents
   const handleIngestFile = (fileName: string, fileType: string, contentPreview?: string) => {
     setCurrentTaskText(`Analyzing document: ${fileName}`);
-    setDialogueOpen(true);
+    openChat();
     const prompt = contentPreview
       ? `[FILE INGEST: ${fileName} (${fileType})]\nContent preview:\n${contentPreview}\n\nTask: Analyze and inspect this file.`
       : `[FILE INGEST: ${fileName} (${fileType})]\nTask: Analyze this media file and summarize key findings.`;
@@ -239,7 +254,7 @@ export default function App() {
         const instruction = isLog
           ? 'Diagnose this error log: give the root cause, the exact fix, and a short bug report I can paste into an issue.'
           : 'Review this file and propose a cleaner refactor as a unified diff, with a two-line explanation of what changed and why.';
-        setDialogueOpen(true);
+        openChat();
         handleSendPrompt(`[DROPPED FILE: ${file.name}]\n${text.slice(0, 12000)}\n\nTask: ${instruction}`);
       });
       return true;
@@ -256,7 +271,7 @@ export default function App() {
   // Handle Clipboard Paste (Ctrl+V)
   const handlePasteText = (text: string) => {
     setCurrentTaskText('Analyzing pasted content...');
-    setDialogueOpen(true);
+    openChat();
     send({
       event: 'USER_PROMPT',
       text: `[PASTED TEXT]\n${text.slice(0, 3000)}\n\nTask: Review and process this input.`,
@@ -351,7 +366,7 @@ export default function App() {
     } else if (cmd === 'telegram') {
       handleToggleWidget('personality');
     } else if (cmd === 'dialogue') {
-      setDialogueOpen(true);
+      openChat();
     } else {
       handleToggleWidget(cmd as keyof WidgetState);
     }
@@ -392,10 +407,7 @@ export default function App() {
   // Keyboard shortcut: Ctrl+Space toggles Earth Context Window, Escape hides it and all open widgets
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && !e.altKey && !e.metaKey && e.code === 'Space') { // [simple-menu] Super/Alt+Space is the menu
-        e.preventDefault();
-        setDialogueOpen((prev) => !prev);
-      }
+      // [look] Ctrl+Space, Super+Space and Alt+Space all open the command console (CommandConsole handles them)
       if (e.key === 'Escape') {
         if (escapeLeavesField(e)) return;
         handleDismissAll();
@@ -418,7 +430,6 @@ export default function App() {
   // [simple-menu] The one menu (lib/menu.ts) opens things with `orion:open`. App owns the chat tabs, Settings, the
   // floating widgets and the side widgets; other windows (projects, missions, scout, skills, privacy, guide,
   // selfchanges, camera, and the "phone" and "tests" windows) listen for their own id.
-  const [menuOpen, setMenuOpen] = useState(false);
   const [sideWidgets, setSideWidgets] = useState(() => {
     try {
       return localStorage.getItem('orion.sideWidgets') === '1';
@@ -434,12 +445,7 @@ export default function App() {
     }
   }, [sideWidgets]);
   useEffect(() => {
-    const onMenu = (e: Event) => setMenuOpen(Boolean((e as CustomEvent<boolean>).detail));
-    window.addEventListener(MENU_STATE_EVENT, onMenu);
-    return () => window.removeEventListener(MENU_STATE_EVENT, onMenu);
-  }, []);
-  useEffect(() => {
-    const tabs: Record<string, ContextTab> = { chat: 'chat', messages: 'comms', queue: 'queue', tools: 'tools', life: 'life' };
+    const tabs: Record<string, ContextTab> = { messages: 'comms', queue: 'queue', tools: 'tools', life: 'life' }; // [look] 'chat' is the console
     const widgetIds = Object.keys(WIDGET_META) as Array<keyof WidgetState>;
     return onOrionOpen([...Object.keys(tabs), 'settings', 'widgets', ...widgetIds], (id) => {
       if (tabs[id]) {
@@ -458,28 +464,22 @@ export default function App() {
       }
     });
   }, []);
-  const appWindows = useAppWindows(!mobile); // OrionOS H13: the apps open in the Sway session
+  const appWindows = useAppWindows(!mobile);
+  const orionPos = useOrionButtonPos(); // [look] the taskbar steps aside when the button rests in its corner // OrionOS H13: the apps open in the Sway session
   const taskbarTiles = (): TaskbarTile[] => {
-    // [simple-menu] Calm taskbar: the Orion mark opens the menu, then Chat, then only what's open.
-    const tiles: TaskbarTile[] = [
-      {
-        id: 'menu',
-        label: 'Menu',
-        icon: <OrionMark size={28} />,
-        open: menuOpen,
-        popup: true,
-        onClick: () => openOrion(MENU_EVENT_ID),
-      },
-      {
+    // [look] The taskbar only lists what is open; the one Orion button (console) sits on its own.
+    const tiles: TaskbarTile[] = [];
+    if (dialogueOpen) {
+      tiles.push({
         id: 'orion',
-        label: 'Chat',
-        icon: <MessageCircle size={19} />,
-        color: '#B09CFF',
+        label: 'Messages, queue and tools',
+        icon: <Inbox size={19} />,
+        color: '#8DB0FF',
         open: dialogueOpen,
         minimised: !!wm.minimised.orion,
         onClick: () => taskbarClick('orion', dialogueOpen, setDialogueOpen),
-      },
-    ];
+      });
+    }
     (Object.keys(widgets) as Array<keyof WidgetState>)
       .filter((k) => widgets[k])
       .forEach((k, i) => {
@@ -522,7 +522,7 @@ export default function App() {
       });
     }
     // Other glass windows (Projects, Privacy, Self-changes, Test Center, Phone...) get a tile while open or minimised.
-    const known = new Set(tiles.map((t) => t.id).concat('menu'));
+    const known = new Set(tiles.map((t) => t.id).concat('menu', 'orion'));
     const others = Array.from(new Set([...wm.order, ...Object.keys(wm.minimised)])).filter(
       (id) => !known.has(id) && !id.startsWith('widget:') && !id.startsWith('app:'),
     );
@@ -533,7 +533,7 @@ export default function App() {
         id,
         label,
         icon: <Icon size={18} />,
-        color: '#C4B5FD',
+        color: '#B7CBFF',
         open: true,
         minimised: !!wm.minimised[id],
         separated: i === 0,
@@ -616,7 +616,7 @@ export default function App() {
           onDismiss={dismissInsight}
           onAskOrion={(prompt) => {
             handleSendPrompt(prompt);
-            setDialogueOpen(true);
+            openChat();
           }}
         />
 
@@ -631,6 +631,8 @@ export default function App() {
           {/* Exact Orion Cosmic Core with Integrated Arc Waveform & Luminescent Telemetry Jewels */}
           {/* Arrival: the camera eases in on the core. `data-orion-core` lets glass windows find the hole. */}
           <div className="orion-arrive-camera relative flex items-center justify-center my-auto">
+          {/* [look] the core leans a few pixels toward the pointer (lib/parallax startPointerVars) */}
+          <div className="orion-gravity">
           <motion.div
             data-orion-core
             className="relative flex flex-col items-center justify-center"
@@ -651,8 +653,7 @@ export default function App() {
               swarm={bible.momentum?.swarm ?? 0}
               debris={bible.momentum?.debris ?? []}
               onDebrisClick={(tab) => {
-                setDialogueOpen(true);
-                setFocusTab({ tab: (tab === 'life' ? 'life' : tab === 'tools' ? 'tools' : 'queue') as ContextTab, nonce: Date.now() });
+                showTab({ tab: (tab === 'life' ? 'life' : tab === 'tools' ? 'tools' : 'queue') as ContextTab, nonce: Date.now() });
               }}
               swallow={swallow}
             />
@@ -660,12 +661,12 @@ export default function App() {
               threads={commsThreads}
               size={coreSize}
               onOpen={(threadKey) => {
-                setDialogueOpen(true);
-                setFocusTab({ tab: 'comms', nonce: Date.now(), threadKey });
+                showTab({ tab: 'comms', nonce: Date.now(), threadKey });
               }}
             />
             <AgentSwarm size={coreSize} />
           </motion.div>
+          </div>
           </div>
 
           {mobile && !dialogueOpen && (
@@ -676,8 +677,7 @@ export default function App() {
                 threads={commsThreads}
                 approvals={approvals}
                 onOpen={(tab) => {
-                  setDialogueOpen(true);
-                  setFocusTab({ tab, nonce: Date.now() });
+                  showTab({ tab, nonce: Date.now() });
                 }}
               />
             </div>
@@ -745,10 +745,27 @@ export default function App() {
           />
         </div>
 
-        {/* Glass taskbar (desktop only): the Orion mark (menu) first, then Chat and whatever is open. */}
-        {!mobile && <Taskbar tiles={taskbarTiles()} />}
-        {/* [simple-menu] the one menu and the slim status strip */}
-        <MainMenu mobile={mobile} badges={{ queue: approvals.filter((a) => a.status === 'pending').length, messages: commsThreads.filter((t) => !t.muted).reduce((n, t) => n + (t.unread || 0), 0) }} />
+        {/* Glass taskbar (desktop only): just the windows that are open; it moves aside for the Orion button. */}
+        {!mobile && taskbarTiles().length > 0 && <Taskbar tiles={taskbarTiles()} style={{ left: inTaskbarCorner(orionPos, window.innerHeight) ? 86 : 16 }} />}
+        {/* [look] the one Orion button and the full-screen command console (menu + chat in one) */}
+        <CommandConsole
+          mobile={mobile}
+          badges={{ queue: approvals.filter((a) => a.status === 'pending').length, messages: commsThreads.filter((t) => !t.muted).reduce((n, t) => n + (t.unread || 0), 0) }}
+          responses={responses}
+          onSendMessage={handleSendPrompt}
+          isProcessing={pending.length > 0}
+          currentTask={currentTaskText}
+          micActive={micActive}
+          onToggleMic={handleToggleMic}
+          activePersonality={personalityMode}
+          onSetPersonality={setPersonality}
+          onSendTelegram={sendTelegram}
+          onConsolidateMemories={() => {
+            setCurrentTaskText('Consolidating memories & exporting fine-tune dataset...');
+            consolidateMemories();
+          }}
+        />
+        <OrionButton badge={approvals.filter((a) => a.status === 'pending').length} />
         <StatusStrip waiting={approvals.filter((a) => a.status === 'pending').length} camera={!mobile} />
         <div onClick={(e) => e.stopPropagation()}>
           <AnimatePresence>
@@ -777,8 +794,7 @@ export default function App() {
                 pacing={pacing}
                 connected={connected}
                 onOpen={(t) => {
-                  setDialogueOpen(true);
-                  setFocusTab({ tab: t.tab, nonce: Date.now(), threadKey: t.threadKey, draft: t.draft });
+                  showTab({ tab: t.tab, nonce: Date.now(), threadKey: t.threadKey, draft: t.draft });
                 }}
               />
             </motion.div>

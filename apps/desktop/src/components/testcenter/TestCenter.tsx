@@ -16,6 +16,7 @@
  * /tests/reset, GET /tests/report). Requests carry Orion's key through lib/daemonAuth.ts.
  */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { cosmicAudio } from '../../lib/cosmicAudio';
 import { AnimatePresence } from 'framer-motion';
 import { CheckCircle2, ChevronDown, ChevronRight, ClipboardCopy, Eye, Loader2, Play, RotateCcw, Smartphone, Monitor, Wand2, XCircle } from 'lucide-react';
 import GlassWindow from '../glass/GlassWindow';
@@ -69,11 +70,11 @@ interface TestView {
 }
 
 const C = {
-  text: '#D8DEFF',
+  text: '#DDE5F0',
   good: '#5CFFB0',
   bad: '#FF5C8A',
   warn: '#FFC66B',
-  violet: '#7C5CFF',
+  violet: '#2E6BFF',
   dim: '#5A6088',
 };
 const statusColor: Record<Status, string> = { todo: C.dim, running: C.warn, pass: C.good, fail: C.bad, skip: '#8A90B8' };
@@ -114,7 +115,7 @@ async function reportCoreLook() {
 function WhereBadge({ where }: { where: TestItem['where'] }) {
   const label = where === 'pc' ? 'On this PC' : where === 'phone' ? 'On your phone' : 'PC and phone';
   return (
-    <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] text-[#D8DEFF]/70" style={{ background: 'rgba(216,222,255,0.07)' }}>
+    <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11.5px] text-[#DDE5F0]/85" style={{ background: 'rgba(221,229,240,0.07)' }}>
       {where === 'pc' ? <Monitor size={11} /> : where === 'phone' ? <Smartphone size={11} /> : (<><Monitor size={11} /><Smartphone size={11} /></>)}
       {label}
     </span>
@@ -128,34 +129,14 @@ function Dot({ s }: { s: Status }) {
   return <span aria-hidden className="mt-[3px] h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: statusColor[s] }} />;
 }
 
-/** A soft two-note chime when an item ticks itself off (quiet, short, never on the first load). */
+/** A soft low hum when an item ticks itself off (quiet, short, never on the first load; follows the sound setting). */
 function chime() {
-  try {
-    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctx) return;
-    const ctx = new Ctx();
-    const now = ctx.currentTime;
-    [880, 1320].forEach((f, i) => {
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.type = 'sine';
-      o.frequency.value = f;
-      g.gain.setValueAtTime(0.0001, now + i * 0.12);
-      g.gain.exponentialRampToValueAtTime(0.05, now + i * 0.12 + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.12 + 0.35);
-      o.connect(g).connect(ctx.destination);
-      o.start(now + i * 0.12);
-      o.stop(now + i * 0.12 + 0.4);
-    });
-    window.setTimeout(() => void ctx.close().catch(() => undefined), 900);
-  } catch {
-    /* no sound here: the green flash still shows it */
-  }
+  cosmicAudio.playSoftTick();
 }
 
 function Btn({ children, onClick, tone = 'plain', big, disabled }: { children: ReactNode; onClick: () => void; tone?: 'main' | 'good' | 'bad' | 'plain'; big?: boolean; disabled?: boolean }) {
-  const bg = tone === 'main' ? 'rgba(124,92,255,0.35)' : tone === 'good' ? 'rgba(92,255,176,0.18)' : tone === 'bad' ? 'rgba(255,92,138,0.18)' : 'rgba(216,222,255,0.06)';
-  const border = tone === 'main' ? C.violet : tone === 'good' ? 'rgba(92,255,176,0.55)' : tone === 'bad' ? 'rgba(255,92,138,0.55)' : '#3A3F6B';
+  const bg = tone === 'main' ? 'rgba(46,107,255,0.35)' : tone === 'good' ? 'rgba(92,255,176,0.18)' : tone === 'bad' ? 'rgba(255,92,138,0.18)' : 'rgba(221,229,240,0.06)';
+  const border = tone === 'main' ? C.violet : tone === 'good' ? 'rgba(92,255,176,0.55)' : tone === 'bad' ? 'rgba(255,92,138,0.55)' : '#3A4352';
   return (
     <button
       type="button"
@@ -344,19 +325,19 @@ export default function TestCenter({ mobile }: { mobile?: boolean }) {
                     type="button"
                     onClick={() => setExpanded((x) => ({ ...x, [p.id]: !x[p.id] }))}
                     title={`${p.title}: ${p.pass} of ${p.total} work${p.fail ? `, ${p.fail} didn't` : ''}`}
-                    className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]"
+                    className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11.5px]"
                     style={{
-                      background: p.done ? 'rgba(92,255,176,0.14)' : p.fail ? 'rgba(255,92,138,0.14)' : 'rgba(216,222,255,0.06)',
-                      border: `1px solid ${p.done ? 'rgba(92,255,176,0.45)' : p.fail ? 'rgba(255,92,138,0.45)' : 'rgba(216,222,255,0.12)'}`,
+                      background: p.done ? 'rgba(92,255,176,0.14)' : p.fail ? 'rgba(255,92,138,0.14)' : 'rgba(221,229,240,0.06)',
+                      border: `1px solid ${p.done ? 'rgba(92,255,176,0.45)' : p.fail ? 'rgba(255,92,138,0.45)' : 'rgba(221,229,240,0.12)'}`,
                     }}
                   >
                     {p.busy ? <Loader2 size={10} className="animate-spin" /> : p.done ? <CheckCircle2 size={10} style={{ color: C.good }} /> : null}
-                    {p.title} <span className="text-[#D8DEFF]/55">{p.pass}/{p.total}</span>
+                    {p.title} <span className="text-[#DDE5F0]/78">{p.pass}/{p.total}</span>
                   </button>
                 ))}
               </div>
               {s && (
-                <div className="flex justify-between text-[11.5px] text-[#D8DEFF]/60">
+                <div className="flex justify-between text-[12px] text-[#DDE5F0]/80">
                   <span>{s.pass} work · {s.fail} didn't · {s.skip} skipped</span>
                   <span>{v?.running ? 'Checking…' : `${s.todo} to go`}</span>
                 </div>
@@ -372,16 +353,16 @@ export default function TestCenter({ mobile }: { mobile?: boolean }) {
 
             {/* the one Next card */}
             {v && (
-              <div className="rounded-2xl p-4" style={{ background: 'rgba(216,222,255,0.06)', border: '1px solid rgba(216,222,255,0.10)' }}>
+              <div className="rounded-2xl p-4" style={{ background: 'rgba(221,229,240,0.06)', border: '1px solid rgba(221,229,240,0.10)' }}>
                 {nx && buttons ? (
                   <>
                     <div className="mb-1 flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-semibold uppercase tracking-wider text-[#D8DEFF]/50">Next</span>
+                      <span className="text-[11.5px] font-semibold uppercase tracking-wider text-[#DDE5F0]/76">Next</span>
                       <WhereBadge where={nx.where} />
                     </div>
                     <div className="text-[16px] font-semibold">{nx.title}</div>
                     <div className="mt-1 text-[14px] leading-snug">{nx.next}</div>
-                    {nx.detail && nx.detail !== nx.next && !nx.ask && <div className="mt-1 text-[12px] leading-snug text-[#D8DEFF]/55">{nx.detail}</div>}
+                    {nx.detail && nx.detail !== nx.next && !nx.ask && <div className="mt-1 text-[12px] leading-snug text-[#DDE5F0]/78">{nx.detail}</div>}
                     {nx.id === 'ghost_preview' && <div className="mt-2"><PracticeBanner /></div>}
                     {(nx.armed || nx.status === 'running') && !nx.ask && (
                       <div className="mt-2 flex items-center gap-1.5 text-[12px]" style={{ color: C.warn }}>
@@ -401,7 +382,7 @@ export default function TestCenter({ mobile }: { mobile?: boolean }) {
                         </Btn>
                       )}
                       {buttons.primary === 'wait' && (
-                        <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px]" style={{ background: 'rgba(216,222,255,0.06)' }}>
+                        <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px]" style={{ background: 'rgba(221,229,240,0.06)' }}>
                           <Smartphone size={13} /> Waiting for your phone
                         </span>
                       )}
@@ -419,7 +400,7 @@ export default function TestCenter({ mobile }: { mobile?: boolean }) {
                     <div className="flex items-center gap-2 text-[18px] font-semibold" style={{ color: C.good }}>
                       <CheckCircle2 size={20} /> All done
                     </div>
-                    <div className="text-[13px] text-[#D8DEFF]/70">Everything worked or was skipped. Orion is ready. Copy the report if you want to keep or share it.</div>
+                    <div className="text-[13px] text-[#DDE5F0]/85">Everything worked or was skipped. Orion is ready. Copy the report if you want to keep or share it.</div>
                     <button
                       ref={copyRef}
                       type="button"
@@ -445,7 +426,7 @@ export default function TestCenter({ mobile }: { mobile?: boolean }) {
                 const fail = g.items.filter((i) => i.status === 'fail').length;
                 const isOpen = !!expanded[g.id];
                 return (
-                  <div key={g.id} className="rounded-xl" style={{ background: 'rgba(216,222,255,0.03)' }}>
+                  <div key={g.id} className="rounded-xl" style={{ background: 'rgba(221,229,240,0.03)' }}>
                     <button
                       type="button"
                       onClick={() => setExpanded((x) => ({ ...x, [g.id]: !isOpen }))}
@@ -453,8 +434,8 @@ export default function TestCenter({ mobile }: { mobile?: boolean }) {
                     >
                       {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                       <span className="flex-1">{g.title}</span>
-                      {fail > 0 && <span className="text-[11px]" style={{ color: C.bad }}>{fail} didn't work</span>}
-                      <span className="text-[11px] font-normal text-[#D8DEFF]/50">{pass}/{g.items.length}</span>
+                      {fail > 0 && <span className="text-[11.5px]" style={{ color: C.bad }}>{fail} didn't work</span>}
+                      <span className="text-[11.5px] font-medium text-[#DDE5F0]/76">{pass}/{g.items.length}</span>
                     </button>
                     {isOpen && (
                       <div className="space-y-1 px-3 pb-2">
@@ -464,17 +445,17 @@ export default function TestCenter({ mobile }: { mobile?: boolean }) {
                             <span className="min-w-0 flex-1">
                               <span className="block text-[12.5px]">
                                 {i.title}
-                                <span className="ml-2 text-[10.5px]" style={{ color: statusColor[i.status] }}>{statusWord[i.status]}</span>
+                                <span className="ml-2 text-[11.5px]" style={{ color: statusColor[i.status] }}>{statusWord[i.status]}</span>
                               </span>
-                              <span className="block text-[11px] leading-snug text-[#D8DEFF]/50">{i.status === 'todo' || i.status === 'fail' ? i.next : i.detail}</span>
+                              <span className="block text-[11.5px] leading-snug text-[#DDE5F0]/76">{i.status === 'todo' || i.status === 'fail' ? i.next : i.detail}</span>
                             </span>
                             {(i.status === 'fail' || i.status === 'todo') && (i.do || (i.kind === 'manual' && !i.by_phone)) && (
                               <button
                                 type="button"
                                 disabled={busy}
                                 onClick={() => void act(i, i.do ? 'run' : 'pass')}
-                                className="shrink-0 rounded-full px-2 py-0.5 text-[11px] text-white"
-                                style={{ background: 'rgba(124,92,255,0.22)', border: '1px solid #3A3F6B' }}
+                                className="shrink-0 rounded-full px-2 py-0.5 text-[11.5px] text-white"
+                                style={{ background: 'rgba(46,107,255,0.22)', border: '1px solid #3A4352' }}
                               >
                                 {i.do ? 'Do it' : 'Done'}
                               </button>
@@ -485,7 +466,7 @@ export default function TestCenter({ mobile }: { mobile?: boolean }) {
                                 aria-label={`Check ${i.title} again`}
                                 disabled={busy}
                                 onClick={() => void act(i, 'todo')}
-                                className="shrink-0 text-[#D8DEFF]/40 hover:text-[#D8DEFF]"
+                                className="shrink-0 text-[#DDE5F0]/72 hover:text-[#DDE5F0]"
                               >
                                 <RotateCcw size={12} />
                               </button>
@@ -510,7 +491,7 @@ export default function TestCenter({ mobile }: { mobile?: boolean }) {
                   </Btn>
                 )}
               </div>
-              <button type="button" disabled={busy} onClick={() => void reset()} className="text-[11.5px] text-[#D8DEFF]/45 hover:text-[#D8DEFF]">
+              <button type="button" disabled={busy} onClick={() => void reset()} className="text-[12px] text-[#DDE5F0]/74 hover:text-[#DDE5F0]">
                 Start over
               </button>
             </div>

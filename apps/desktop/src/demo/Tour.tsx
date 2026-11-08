@@ -35,8 +35,8 @@ const STEPS: Step[] = [
     ui: { open: false },
   },
   {
-    title: 'One simple menu',
-    text: 'Everything lives in one menu at the bottom left. Six main things, and More for the rest. You can also just type what you want.',
+    title: 'One Orion button',
+    text: 'Everything starts from the round Orion button. It opens a console: talk to me in the middle, with every feature laid out around it. Type a feature’s name to find it, and drag the button anywhere you like.',
     ui: { open: false },
     orion: 'menu',
   },
@@ -72,7 +72,7 @@ const STEPS: Step[] = [
   },
   {
     title: 'Your turn',
-    text: 'That’s me. Open the menu and try anything: this preview uses sample data and nothing leaves your browser. When you’re ready, try OrionOS in a virtual machine or from a USB stick.',
+    text: 'That’s me. Open the Orion button and try anything: this preview uses sample data and nothing leaves your browser. When you’re ready, try OrionOS in a virtual machine or from a USB stick.',
     ui: { tab: 'chat' },
     daemon: 'wake',
   },
@@ -241,9 +241,9 @@ export default function Tour() {
             role="dialog"
             aria-label="Take the tour"
           >
-            <div className="text-[11px] uppercase tracking-[0.2em] text-[#B388FF]">Guided tour · 90 seconds</div>
+            <div className="text-[11.5px] uppercase tracking-[0.2em] text-[#8DB0FF]">Guided tour · 90 seconds</div>
             <div className="mt-1 text-[18px] font-extrabold">Let Orion show you around</div>
-            <p className="mt-1 text-[13px] text-white/65">
+            <p className="mt-1 text-[13px] text-white/82">
               She’ll talk you through what she does and open each menu as she goes. Turn your sound on.
             </p>
             <div className="mt-4 flex gap-2">
@@ -265,7 +265,7 @@ export default function Tour() {
                   setOffer(false);
                   markSeen();
                 }}
-                className="rounded-full border border-white/15 px-4 py-2.5 text-[13.5px] text-white/75 active:scale-95 transition-transform"
+                className="rounded-full border border-white/15 px-4 py-2.5 text-[13.5px] text-white/88 active:scale-95 transition-transform"
               >
                 Explore myself
               </button>
@@ -287,9 +287,9 @@ export default function Tour() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#B388FF] shadow-[0_0_10px_#B388FF] animate-pulse" aria-hidden="true" />
+              <span className="w-2 h-2 rounded-full bg-[#8DB0FF] shadow-[0_0_10px_#8DB0FF] animate-pulse" aria-hidden="true" />
               <span className="text-[13px] font-bold">{s.title}</span>
-              <span className="ml-auto text-[11px] font-mono text-white/40">
+              <span className="ml-auto text-[11.5px] font-mono text-white/72">
                 {step + 1}/{STEPS.length}
               </span>
             </div>
@@ -305,7 +305,7 @@ export default function Tour() {
             <div className="mt-3 flex items-center gap-1.5">
               <div className="flex gap-1 mr-auto" aria-hidden="true">
                 {STEPS.map((_, i) => (
-                  <span key={i} className={`h-1 rounded-full transition-all ${i === step ? 'w-5 bg-[#B388FF]' : i < step ? 'w-2 bg-white/50' : 'w-2 bg-white/15'}`} />
+                  <span key={i} className={`h-1 rounded-full transition-all ${i === step ? 'w-5 bg-[#8DB0FF]' : i < step ? 'w-2 bg-white/50' : 'w-2 bg-white/15'}`} />
                 ))}
               </div>
               <TourBtn label={muted ? 'Turn voice on' : 'Mute voice'} onClick={() => { stopSpeech(); setMuted((m) => !m); }}>

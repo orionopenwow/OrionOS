@@ -12,7 +12,7 @@ interface Props {
 
 const KIND_COLOR: Record<string, string> = {
   shell: '#00E5FF',
-  workflow: '#C084FC',
+  workflow: '#7FA6FF',
   internal: '#3DFFA8',
   snippet: '#FFB300',
   userscript: '#FF2A85',
@@ -38,7 +38,7 @@ export default function GrimoirePanel({ bible, send }: Props) {
     <div className="space-y-3">
       <Section
         title={`Living Grimoire (${bible.grimoire.length})`}
-        color="#C084FC"
+        color="#7FA6FF"
         icon={<BookOpen size={14} />}
         right={
           bible.recording ? (
@@ -53,29 +53,29 @@ export default function GrimoirePanel({ bible, send }: Props) {
         }
       >
         {bible.recordingMessage && !bible.recording && (
-          <div className="text-[10px] text-[#FFB86B]">{bible.recordingMessage}</div>
+          <div className="text-[11px] text-[#FFB86B]">{bible.recordingMessage}</div>
         )}
         <label className="flex items-center gap-2 rounded-xl bg-black/40 border border-white/10 px-2.5 py-1.5">
-          <Search size={13} className="text-white/40" />
+          <Search size={13} className="text-white/72" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search scripts, macros & snippets… (or just say “run …”)"
-            className="flex-1 bg-transparent text-xs text-starlight placeholder:text-white/35 outline-none select-text"
+            className="flex-1 bg-transparent text-xs text-starlight placeholder:text-white/55 outline-none select-text"
           />
         </label>
         <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
           {entries.map((e) => (
             <div key={e.id} className="flex items-center gap-2 rounded-xl bg-black/35 border border-white/5 px-2.5 py-2">
               <span
-                className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded shrink-0"
+                className="text-[10.5px] font-mono uppercase px-1.5 py-0.5 rounded shrink-0"
                 style={{ color: KIND_COLOR[e.kind] ?? '#fff', background: `${KIND_COLOR[e.kind] ?? '#fff'}1f` }}
               >
                 {e.kind}
               </span>
               <div className="min-w-0 flex-1">
-                <div className="text-[11px] text-starlight truncate">{e.description}</div>
-                <div className="text-[10px] font-mono text-white/40 truncate">
+                <div className="text-[11.5px] text-starlight truncate">{e.description}</div>
+                <div className="text-[11px] font-mono text-white/72 truncate">
                   {e.voice_triggers?.[0] ? `“${e.voice_triggers[0]}”` : e.command ?? e.path ?? ''}
                 </div>
               </div>
@@ -101,7 +101,7 @@ export default function GrimoirePanel({ bible, send }: Props) {
         title="Run console"
         color="#00E5FF"
         icon={<Terminal size={14} />}
-        right={<span className="text-[10px] font-mono text-white/45">{bible.runs.filter((r) => r.running).length} running</span>}
+        right={<span className="text-[11px] font-mono text-white/74">{bible.runs.filter((r) => r.running).length} running</span>}
       >
         {bible.runs.length ? (
           <div className="space-y-2">
@@ -135,10 +135,10 @@ function RunCard({ run, send }: { run: RunInfo; send: BibleSend }) {
       >
         <div className="min-w-0 flex items-center gap-2">
           <span className={`w-2 h-2 rounded-full shrink-0 ${run.running ? 'animate-pulse' : ''}`} style={{ background: color, boxShadow: `0 0 6px ${color}` }} />
-          <span className="text-[11px] text-starlight truncate">{run.label || run.command}</span>
-          {run.kind === 'service' && <span className="text-[9px] font-mono text-white/40">service</span>}
+          <span className="text-[11.5px] text-starlight truncate">{run.label || run.command}</span>
+          {run.kind === 'service' && <span className="text-[10.5px] font-mono text-white/72">service</span>}
         </div>
-        <span className="text-[10px] font-mono shrink-0" style={{ color }}>
+        <span className="text-[11px] font-mono shrink-0" style={{ color }}>
           {run.running ? timeAgo(run.started_at) : failed ? `exit ${run.exit_code}` : 'done'}
           {run.restarts ? ` · ↻${run.restarts}` : ''}
         </span>
@@ -147,18 +147,18 @@ function RunCard({ run, send }: { run: RunInfo; send: BibleSend }) {
         <div className="px-2.5 pb-2.5 space-y-2">
           <pre
             ref={ref}
-            className="max-h-40 overflow-y-auto rounded-lg bg-black/60 p-2 text-[10px] leading-snug font-mono text-white/70 whitespace-pre-wrap break-all select-text"
+            className="max-h-40 overflow-y-auto rounded-lg bg-black/60 p-2 text-[11px] leading-snug font-mono text-white/85 whitespace-pre-wrap break-all select-text"
           >
             {run.tail.join('\n') || run.command}
           </pre>
           {failed && run.diagnosis && (
-            <div className="rounded-lg border border-[#FF5C8A]/30 bg-[#FF5C8A]/10 p-2 text-[11px] text-white/85 space-y-1">
+            <div className="rounded-lg border border-[#FF5C8A]/30 bg-[#FF5C8A]/10 p-2 text-[11.5px] text-white/85 space-y-1">
               <div className="flex items-center gap-1.5 text-[#FF5C8A] font-semibold">
                 <Wand2 size={12} /> Self-healing diagnosis
               </div>
               <p>{run.diagnosis.diagnosis}</p>
               {run.diagnosis.fix_command && (
-                <code className="block text-[10px] font-mono text-[#3DFFA8] break-all">{run.diagnosis.fix_command}</code>
+                <code className="block text-[11px] font-mono text-[#3DFFA8] break-all">{run.diagnosis.fix_command}</code>
               )}
             </div>
           )}

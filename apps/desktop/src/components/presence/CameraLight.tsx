@@ -12,7 +12,7 @@ import { onOrionOpen } from '../../lib/menu';
  */
 const pill: React.CSSProperties = {
   display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderRadius: 999,
-  background: 'rgba(11,15,30,0.85)', border: '1px solid #262D50', color: '#D8DEFF',
+  background: 'rgba(26,31,39,0.85)', border: '1px solid #2F3744', color: '#DDE5F0',
   font: '500 12px/1.2 system-ui, sans-serif', backdropFilter: 'blur(8px)', cursor: 'pointer',
 };
 
@@ -101,7 +101,7 @@ export default function CameraLight({ inline = false }: { inline?: boolean }) {
               ? 'The camera is on (presence and gestures, all on this computer). Tap to turn it off.'
               : 'The camera is off. Tap to turn on presence and hand gestures. Nothing is recorded or sent.'
           }
-          style={{ ...pill, opacity: on ? 1 : 0.6, borderColor: on ? '#FF5C8A' : '#262D50' }}
+          style={{ ...pill, opacity: on ? 1 : 0.6, borderColor: on ? '#FF5C8A' : '#2F3744' }}
         >
           {on ? <Camera size={14} /> : <CameraOff size={14} />}
           {on && (

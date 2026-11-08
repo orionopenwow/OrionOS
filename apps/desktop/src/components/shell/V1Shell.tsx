@@ -10,6 +10,7 @@ import GuideMode, { OPEN_GUIDE_EVENT } from './GuideMode';
 import { onOrionOpen } from '../../lib/menu';
 import PrivacyDashboard, { OPEN_PRIVACY_EVENT } from './PrivacyDashboard';
 import GamesWindow from './GamesWindow'; // [games]
+import VoiceWindow from '../voice/VoiceWindow'; // [voice2] Orion's voice + first-time prompt
 
 export default function V1Shell({ mobile }: { mobile?: boolean }) {
   const [privacy, setPrivacy] = useState(false);
@@ -28,6 +29,7 @@ export default function V1Shell({ mobile }: { mobile?: boolean }) {
   return (
     <>
       <GuideMode />
+      <VoiceWindow mobile={mobile} /> {/* [voice2] */}
       <AnimatePresence>
         {privacy && <PrivacyDashboard key="privacy" mobile={mobile} onClose={() => setPrivacy(false)} />}
         {games && <GamesWindow key="games" mobile={mobile} onClose={() => setGames(false)} />}

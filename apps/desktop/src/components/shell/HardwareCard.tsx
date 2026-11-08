@@ -26,12 +26,12 @@ interface Report {
 const SEEN = 'orion.hardwareCard.closed';
 const card: React.CSSProperties = {
   position: 'fixed', right: 24, bottom: 96, zIndex: 56, width: 380, maxHeight: '60vh', overflowY: 'auto',
-  padding: '16px 18px', borderRadius: 20, background: 'rgba(11,15,30,0.86)', border: '1px solid rgba(124,92,255,0.55)',
-  color: '#D8DEFF', font: '400 13px/1.45 Figtree, system-ui, sans-serif', backdropFilter: 'blur(14px)',
+  padding: '16px 18px', borderRadius: 20, background: 'rgba(26,31,39,0.86)', border: '1px solid rgba(46,107,255,0.55)',
+  color: '#DDE5F0', font: '400 13px/1.45 Figtree, system-ui, sans-serif', backdropFilter: 'blur(14px)',
   boxShadow: '0 18px 50px rgba(2,3,10,0.6)',
 };
 const btn: React.CSSProperties = {
-  padding: '6px 14px', borderRadius: 999, border: '1px solid #3A3F6B', background: 'rgba(124,92,255,0.18)',
+  padding: '6px 14px', borderRadius: 999, border: '1px solid #3A4352', background: 'rgba(46,107,255,0.18)',
   color: '#FFFFFF', cursor: 'pointer', font: '600 12px Figtree, system-ui, sans-serif',
 };
 

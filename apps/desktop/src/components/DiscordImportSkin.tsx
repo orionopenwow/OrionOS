@@ -174,11 +174,11 @@ export default function DiscordImportSkin({
               <span className="font-display text-xs font-bold tracking-wider text-white">
                 DISCORD MEMORY IMPORTER & SKIN
               </span>
-              <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-[#5865F2]/20 border border-[#5865F2]/40 text-[#5865F2]">
+              <span className="text-[10.5px] font-mono px-2 py-0.5 rounded-full bg-[#5865F2]/20 border border-[#5865F2]/40 text-[#5865F2]">
                 GATEWAY SYNC
               </span>
             </div>
-            <p className="text-[10px] text-gray-400 font-mono">
+            <p className="text-[11px] text-gray-400 font-mono">
               Ingest channel threads, discussions, and task logs directly into Orion's neural memory
             </p>
           </div>
@@ -212,7 +212,7 @@ export default function DiscordImportSkin({
       <div className="grid grid-cols-12 min-h-[300px]">
         {/* Left Channels Column */}
         <div className="col-span-3 bg-[#2B2D31]/70 border-r border-[#1E1F22] p-3 space-y-1">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 px-2 block mb-2 font-mono">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 px-2 block mb-2 font-mono">
             TEXT CHANNELS
           </span>
           {Object.keys(channelMessages).map((ch) => (
@@ -238,7 +238,7 @@ export default function DiscordImportSkin({
             <div className="flex items-center justify-between pb-2 border-b border-white/5">
               <button
                 onClick={handleSelectAll}
-                className="flex items-center gap-1.5 text-[11px] font-mono text-gray-300 hover:text-white"
+                className="flex items-center gap-1.5 text-[11.5px] font-mono text-gray-300 hover:text-white"
               >
                 {selectedIds.size === currentList.length ? (
                   <CheckSquare size={13} className="text-[#5865F2]" />
@@ -248,7 +248,7 @@ export default function DiscordImportSkin({
                 <span>Select All ({currentList.length})</span>
               </button>
 
-              <span className="text-[10px] font-mono text-gray-400">
+              <span className="text-[11px] font-mono text-gray-400">
                 {selectedIds.size} selected for LanceDB vector ingestion
               </span>
             </div>
@@ -275,11 +275,11 @@ export default function DiscordImportSkin({
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-semibold text-white">{m.author}</span>
                       {m.isBot && (
-                        <span className="text-[9px] px-1 rounded bg-[#5865F2] text-white font-bold">
+                        <span className="text-[10.5px] px-1 rounded bg-[#5865F2] text-white font-bold">
                           BOT
                         </span>
                       )}
-                      <span className="text-[10px] text-gray-400 font-mono">{m.time}</span>
+                      <span className="text-[11px] text-gray-400 font-mono">{m.time}</span>
                     </div>
                     <p className="text-xs text-gray-200 leading-relaxed">{m.content}</p>
                   </div>

@@ -10,7 +10,7 @@ import { openOrion } from '../../lib/menu';
 
 const pill: React.CSSProperties = {
   display: 'flex', alignItems: 'center', gap: 6, padding: '6px 11px', borderRadius: 999,
-  background: 'rgba(11,15,30,0.85)', border: '1px solid #262D50', color: '#D8DEFF',
+  background: 'rgba(26,31,39,0.85)', border: '1px solid #2F3744', color: '#DDE5F0',
   font: '500 12px/1.2 Figtree, system-ui, sans-serif', backdropFilter: 'blur(8px)', cursor: 'pointer',
 };
 

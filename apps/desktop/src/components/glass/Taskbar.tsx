@@ -1,9 +1,9 @@
 /**
- * Glass taskbar at the bottom left (Art Update §4): the Orion mark first, then Orion's windows.
- * Open windows get a violet tile with a glow, minimised ones a dimmer tile with a bar; hover lifts a tile.
+ * Glass taskbar at the bottom left (Art Update §4): Orion's open windows (look pass: the Orion button now sits
+ * on its own and opens the command console). Open windows get a cobalt tile with a glow, minimised ones a dimmer tile with a bar; hover lifts a tile.
  * Not shown on phones.
  */
-import { useRef, type ReactNode } from 'react';
+import { useRef, type CSSProperties, type ReactNode } from 'react';
 import { useCoreLight } from './useCoreLight';
 import '../../styles/glass.css';
 
@@ -23,11 +23,11 @@ export interface TaskbarTile {
   popup?: boolean;
 }
 
-export default function Taskbar({ tiles }: { tiles: TaskbarTile[] }) {
+export default function Taskbar({ tiles, style }: { tiles: TaskbarTile[]; style?: CSSProperties }) {
   const ref = useRef<HTMLDivElement>(null);
   useCoreLight(ref);
   return (
-    <nav ref={ref} className="orion-taskbar orion-glass orion-lit" aria-label="Taskbar" onClick={(e) => e.stopPropagation()}>
+    <nav ref={ref} className="orion-taskbar orion-glass orion-lit" aria-label="Taskbar" style={style} onClick={(e) => e.stopPropagation()}>
       {tiles.map((t, i) => (
         <span key={t.id} className="contents">
           {t.separated && <span className="orion-taskbar__sep" aria-hidden="true" />}
@@ -43,7 +43,7 @@ export default function Taskbar({ tiles }: { tiles: TaskbarTile[] }) {
             aria-haspopup={t.popup ? 'dialog' : undefined}
             aria-expanded={t.popup ? !!t.open : undefined}
             data-menu-trigger={t.popup || undefined}
-            style={{ ['--i' as string]: i, ['--tile-c' as string]: t.color ?? '#D8DEFF' }}
+            style={{ ['--i' as string]: i, ['--tile-c' as string]: t.color ?? '#DDE5F0' }}
             onClick={t.onClick}
           >
             {t.icon}

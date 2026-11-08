@@ -78,12 +78,12 @@ export default function ScreenTasksPanel({ workflowProgress, onExecuteWorkflow, 
           </span>
           <div>
             <div className="font-display text-sm font-bold tracking-wider text-white">AUTONOMOUS SCREEN TASKS</div>
-            <div className="text-[10px] font-mono text-white/50">Desktop mouse & keyboard automation</div>
+            <div className="text-[11px] font-mono text-white/76">Desktop mouse & keyboard automation</div>
           </div>
         </div>
 
         <div className="mt-4 flex-1 space-y-3 overflow-y-auto pr-1 custom-scrollbar">
-          <div className="text-[11px] font-mono uppercase tracking-wider text-white/40">
+          <div className="text-[11.5px] font-mono uppercase tracking-wider text-white/72">
             Automated Workflows
           </div>
           {PRESET_WORKFLOWS.map((wf, idx) => (
@@ -102,8 +102,8 @@ export default function ScreenTasksPanel({ workflowProgress, onExecuteWorkflow, 
                   <span>Run</span>
                 </button>
               </div>
-              <p className="mt-1 text-[11px] text-white/50">{wf.desc}</p>
-              <div className="mt-2 text-[10px] font-mono text-[#00E5FF]">
+              <p className="mt-1 text-[11.5px] text-white/76">{wf.desc}</p>
+              <div className="mt-2 text-[11px] font-mono text-[#00E5FF]">
                 {wf.steps.length} sequential step{wf.steps.length > 1 ? 's' : ''}
               </div>
             </div>
@@ -111,13 +111,13 @@ export default function ScreenTasksPanel({ workflowProgress, onExecuteWorkflow, 
 
           {/* Quick Direct Actions */}
           <div className="mt-5 pt-3 border-t border-white/10">
-            <div className="text-[11px] font-mono uppercase tracking-wider text-white/40 mb-2">
+            <div className="text-[11.5px] font-mono uppercase tracking-wider text-white/72 mb-2">
               Direct Desktop Actions
             </div>
 
             {/* Quick Type */}
             <div className="space-y-1.5 mb-3">
-              <label className="text-[10px] font-mono text-white/60">Type Text to Active Window</label>
+              <label className="text-[11px] font-mono text-white/80">Type Text to Active Window</label>
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -139,7 +139,7 @@ export default function ScreenTasksPanel({ workflowProgress, onExecuteWorkflow, 
 
             {/* Quick Click */}
             <div className="space-y-1.5">
-              <label className="text-[10px] font-mono text-white/60">Click Coordinates (X, Y)</label>
+              <label className="text-[11px] font-mono text-white/80">Click Coordinates (X, Y)</label>
               <div className="flex gap-2">
                 <input
                   type="number"
@@ -173,7 +173,7 @@ export default function ScreenTasksPanel({ workflowProgress, onExecuteWorkflow, 
         <div className="flex items-center justify-between pb-3 border-b border-white/10">
           <div>
             <div className="font-display text-sm font-bold tracking-wider text-white">WORKFLOW EXECUTION MONITOR</div>
-            <div className="text-[10px] font-mono text-white/50">Failsafe: Move mouse to any screen corner to abort</div>
+            <div className="text-[11px] font-mono text-white/76">Failsafe: Move mouse to any screen corner to abort</div>
           </div>
           {workflowProgress && (
             <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#3DFFA8]/15 border border-[#3DFFA8]/30 text-xs font-mono text-[#3DFFA8] animate-pulse">
@@ -189,7 +189,7 @@ export default function ScreenTasksPanel({ workflowProgress, onExecuteWorkflow, 
                 <span className="text-sm font-semibold text-white font-mono">
                   Executing Action: <span className="text-[#3DFFA8]">{String(workflowProgress.step?.action || 'unknown')}</span>
                 </span>
-                <span className="text-xs font-mono text-white/60">
+                <span className="text-xs font-mono text-white/80">
                   {Math.round(((workflowProgress.step_index + 1) / workflowProgress.total_steps) * 100)}%
                 </span>
               </div>
@@ -206,10 +206,10 @@ export default function ScreenTasksPanel({ workflowProgress, onExecuteWorkflow, 
               </div>
             </div>
           ) : (
-            <div className="flex h-64 flex-col items-center justify-center text-center text-white/40">
+            <div className="flex h-64 flex-col items-center justify-center text-center text-white/72">
               <MousePointer size={40} className="mb-2 opacity-30" />
               <p className="text-sm font-medium">Ready to execute autonomous tasks</p>
-              <p className="text-xs text-white/30 max-w-sm mt-1">
+              <p className="text-xs text-white/65 max-w-sm mt-1">
                 You can ask Orion in voice or chat: "Click on X", "Open notepad and write a summary", or run preset workflows.
               </p>
             </div>
@@ -221,7 +221,7 @@ export default function ScreenTasksPanel({ workflowProgress, onExecuteWorkflow, 
               <AlertTriangle size={14} className="text-[#FFB74D]" />
               <span>Autonomous Safeguards & Failsafe</span>
             </div>
-            <p className="text-xs text-white/50 leading-relaxed">
+            <p className="text-xs text-white/76 leading-relaxed">
               PyAutoGUI FailSafe is strictly enforced. If an automation moves unexpectedly, slam your mouse into any corner of the screen (0, 0) to instantly abort execution.
             </p>
           </div>

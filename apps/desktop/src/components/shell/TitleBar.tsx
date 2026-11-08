@@ -15,7 +15,7 @@ export default function TitleBar() {
       className="fixed inset-x-0 top-0 z-[90] flex h-8 items-center justify-between pl-3 select-none"
       style={{ background: 'linear-gradient(180deg, rgba(5,7,14,0.85), rgba(5,7,14,0))' }}
     >
-      <div data-tauri-drag-region className="flex items-center gap-2 text-[11px] font-bold tracking-[0.18em] text-white/55">
+      <div data-tauri-drag-region className="flex items-center gap-2 text-[11.5px] font-bold tracking-[0.18em] text-white/78">
         <img src={`${import.meta.env.BASE_URL}black-hole-core.png`} alt="" className="h-4 w-4 rounded-full pointer-events-none" />
         ORION
       </div>
@@ -23,14 +23,14 @@ export default function TitleBar() {
         <button
           aria-label="Minimize"
           onClick={() => windowAction('minimize')}
-          className="flex h-full w-11 items-center justify-center text-white/60 hover:bg-white/10 hover:text-white"
+          className="flex h-full w-11 items-center justify-center text-white/80 hover:bg-white/10 hover:text-white"
         >
           <Minus size={14} />
         </button>
         <button
           aria-label="Maximize"
           onClick={() => windowAction('toggleMaximize')}
-          className="flex h-full w-11 items-center justify-center text-white/60 hover:bg-white/10 hover:text-white"
+          className="flex h-full w-11 items-center justify-center text-white/80 hover:bg-white/10 hover:text-white"
         >
           <Square size={11} />
         </button>
@@ -38,7 +38,7 @@ export default function TitleBar() {
           aria-label="Hide to tray"
           title="Orion keeps running in the tray"
           onClick={() => desktop.hideWindow()}
-          className="flex h-full w-11 items-center justify-center text-white/60 hover:bg-[#E81123] hover:text-white"
+          className="flex h-full w-11 items-center justify-center text-white/80 hover:bg-[#E81123] hover:text-white"
         >
           <X size={15} />
         </button>

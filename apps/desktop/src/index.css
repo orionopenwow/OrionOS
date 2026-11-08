@@ -19,13 +19,25 @@
   --orion-font: var(--font-ui);
   --orion-display-font: var(--font-display);
   /* Art Update palette (theme/colors.ts `brand`) */
-  --orion-void: #05070e;
-  --orion-event: #0b0f1e;
-  --orion-edge: #262d50;
-  --orion-accretion: #7c5cff;
+  --orion-void: #06080c;
+  --orion-event: #151a21;
+  --orion-edge: #2f3744;
+  --orion-accretion: #2e6bff; /* old name, now cobalt */
   --orion-photon: #00e5ff;
-  --orion-starlight: #d8deff;
+  --orion-starlight: #e6ecf5;
   --orion-ember: #ffc66b;
+  /* look pass: cobalt accent, gunmetal surfaces, readable text (AA on gunmetal) */
+  --orion-cobalt: #2e6bff;
+  --orion-cobalt-deep: #1f4fd8;
+  --orion-cobalt-light: #8db0ff;
+  --orion-gunmetal: #1a1f27;
+  --orion-gunmetal-raised: #222833;
+  --orion-steel: #2a313b;
+  --orion-text: #f2f5fa;
+  --orion-text-2: #c3ccda;
+  --orion-text-3: #a3aec2;
+  /* brushed-steel grain: generated here (no image file), tiled at 240px, a few percent strong */
+  --orion-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.02 0.7' numOctaves='2' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.86 0 0 0 0 0.9 0 0 0 0 1 0.075 0 0 0 -0.025'/%3E%3C/filter%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='1' seed='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0.08 0 0 0 -0.025'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23b)'/%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
   --emboss-highlight: inset 0 1px 1px rgba(255, 255, 255, 0.18);
   --emboss-inner-shadow: inset 0 -2px 3px rgba(0, 0, 0, 0.65);
   --emboss-depth: 0 6px 16px rgba(0, 0, 0, 0.75), 0 2px 4px rgba(0, 0, 0, 0.5);
@@ -39,8 +51,8 @@ body,
   height: 100%;
   margin: 0;
   overflow: hidden;
-  background: #05070e;
-  color: #ffffff;
+  background: #06080c;
+  color: #f2f5fa;
   font-family: var(--orion-font);
   font-weight: 500;
   letter-spacing: 0.02em;
@@ -86,8 +98,8 @@ body::before {
   position: fixed;
   inset: 0;
   background:
-    radial-gradient(circle at 50% 35%, rgba(157, 142, 199, 0.08) 0%, transparent 60%),
-    radial-gradient(circle at 80% 20%, rgba(123, 92, 255, 0.05) 0%, transparent 40%),
+    radial-gradient(circle at 50% 35%, rgba(46, 107, 255, 0.07) 0%, transparent 60%),
+    radial-gradient(circle at 80% 20%, rgba(31, 79, 216, 0.05) 0%, transparent 40%),
     radial-gradient(circle at 20% 80%, rgba(0, 229, 255, 0.04) 0%, transparent 50%);
   pointer-events: none;
   z-index: 0;
@@ -109,7 +121,7 @@ body::after {
 
 @layer components {
   .glass {
-    background: linear-gradient(180deg, rgba(26, 30, 50, 0.72) 0%, rgba(14, 17, 31, 0.78) 100%);
+    background: var(--orion-grain), linear-gradient(180deg, rgba(34, 40, 51, 0.82) 0%, rgba(24, 29, 37, 0.86) 100%);
     border: 1px solid rgba(255, 255, 255, 0.08);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
@@ -120,14 +132,14 @@ body::after {
   /* ---- V2 Tactile Cosmic Emboss ------------------------------------------ */
   /* Matte-embossed container: top/left highlight, bottom/right inner shadow, outer depth */
   .emboss {
-    background: linear-gradient(180deg, rgba(30, 34, 56, 0.92) 0%, rgba(15, 18, 32, 0.94) 100%);
+    background: var(--orion-grain), linear-gradient(180deg, rgba(38, 44, 55, 0.94) 0%, rgba(24, 29, 37, 0.95) 100%);
     border: 1px solid rgba(255, 255, 255, 0.07);
     box-shadow: var(--emboss-highlight), var(--emboss-inner-shadow), var(--emboss-depth);
   }
 
   /* Action pills & tabs (Inspect Screen, Check Game Bugs, Consolidate Memories, ...) */
   .emboss-pill {
-    background: linear-gradient(180deg, rgba(44, 48, 74, 0.95) 0%, rgba(20, 23, 40, 0.95) 100%);
+    background: linear-gradient(180deg, rgba(52, 60, 74, 0.96) 0%, rgba(30, 36, 46, 0.96) 100%);
     border: 1px solid rgba(255, 255, 255, 0.09);
     box-shadow: var(--emboss-highlight), var(--emboss-inner-shadow), 0 4px 10px rgba(0, 0, 0, 0.6),
       0 1px 3px rgba(0, 0, 0, 0.5);
@@ -136,7 +148,7 @@ body::after {
     transition: transform 120ms ease, box-shadow 160ms ease, background 160ms ease, border-color 160ms ease;
   }
   .emboss-pill:hover {
-    background: linear-gradient(180deg, rgba(54, 58, 88, 0.97) 0%, rgba(24, 27, 46, 0.97) 100%);
+    background: linear-gradient(180deg, rgba(62, 72, 90, 0.98) 0%, rgba(34, 41, 53, 0.98) 100%);
     border-color: rgba(255, 255, 255, 0.16);
   }
   .emboss-pill:active,
@@ -152,7 +164,7 @@ body::after {
 
   /* Recessed well (inputs, message lists) */
   .emboss-well {
-    background: rgba(4, 6, 14, 0.7);
+    background: rgba(8, 10, 14, 0.72);
     border: 1px solid rgba(255, 255, 255, 0.06);
     box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.75), inset 0 -1px 0 rgba(255, 255, 255, 0.06);
   }
@@ -166,13 +178,13 @@ body::after {
     text-shadow: var(--text-shadow-body);
   }
   .glass-strong {
-    background: rgba(11, 13, 23, 0.85);
+    background: rgba(22, 27, 34, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.08);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
   }
   .panel-title {
-    @apply font-display text-[11px] uppercase tracking-[0.25em] text-dust;
+    @apply font-display text-[12px] uppercase tracking-[0.2em] text-dust;
   }
 }
 
@@ -185,11 +197,11 @@ body::after {
   height: 5px;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(157, 142, 199, 0.25);
+  background: rgba(138, 154, 181, 0.25);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(157, 142, 199, 0.45);
+  background: rgba(138, 154, 181, 0.45);
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -214,8 +226,8 @@ body::after {
 .glass-ui { font-family: var(--font-ui, Nunito), 'Arial Rounded MT Bold', system-ui, sans-serif; }
 .glass-ui .emboss,
 .glass-ui .glass {
-  background: rgba(255, 255, 255, 0.045);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--orion-grain), rgba(42, 49, 59, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -236,7 +248,7 @@ body::after {
   box-shadow: none;
 }
 .glass-ui .text-emboss-header { text-shadow: none; }
-.glass-ui .font-mono { font-family: Nunito, system-ui, sans-serif; }
+.glass-ui .font-mono { font-family: var(--font-ui); }
 .glass-ui ::-webkit-scrollbar { width: 6px; }
 .glass-ui ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.14); border-radius: 999px; }
 
@@ -247,3 +259,10 @@ html[data-device='mobile'] body {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
+
+/* ---- Look pass: readable type -----------------------------------------------------------------
+   Body text is never lighter than 500 and headings 700; small text was lifted a step across the HUD.
+   High-contrast mode (Settings > Accessibility) still overrides everything below. */
+body { font-weight: 500; }
+strong, b { font-weight: 700; }
+::placeholder { color: rgba(221, 229, 240, 0.58); opacity: 1; }

@@ -73,7 +73,7 @@ export default function GestureCalibration({ status, onClose }: { status: Presen
         onClick={(e) => e.stopPropagation()}
         style={{
           width: 'min(720px, 94vw)', maxHeight: '90vh', overflowY: 'auto', padding: 20, borderRadius: 20,
-          background: 'rgba(11,15,30,0.95)', border: '1px solid rgba(124,92,255,0.55)', color: '#D8DEFF',
+          background: 'rgba(26,31,39,0.95)', border: '1px solid rgba(46,107,255,0.55)', color: '#DDE5F0',
           font: '400 13px/1.45 Figtree, system-ui, sans-serif', display: 'flex', flexWrap: 'wrap', gap: 20,
         }}
       >
@@ -82,7 +82,7 @@ export default function GestureCalibration({ status, onClose }: { status: Presen
           <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ background: '#070A16', borderRadius: 12, maxWidth: '100%' }}>
             <rect
               x={zone[0] * W} y={zone[1] * H} width={(zone[2] - zone[0]) * W} height={(zone[3] - zone[1]) * H}
-              fill="rgba(124,92,255,0.12)" stroke={cal?.armed ? '#5CFFB0' : '#7C5CFF'} strokeDasharray="6 4" rx={10}
+              fill="rgba(46,107,255,0.12)" stroke={cal?.armed ? '#5CFFB0' : '#2E6BFF'} strokeDasharray="6 4" rx={10}
             />
             {cal?.hand && (
               <circle cx={cal.hand.x * W} cy={cal.hand.y * H} r={9} fill={cal.armed ? '#5CFFB0' : '#FFB35C'} />

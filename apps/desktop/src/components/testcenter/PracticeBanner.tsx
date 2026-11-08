@@ -2,7 +2,7 @@
  * Practice banner for the Test Center's "screen change shows a preview first" test.
  * The Test Center proposes changing only the colour below; you decide whether it is applied.
  */
-export const PRACTICE_COLOUR = '#7C5CFF';
+export const PRACTICE_COLOUR = '#2E6BFF';
 
 export default function PracticeBanner() {
   return (

@@ -26,7 +26,25 @@ export const DEMO_ROUTES = [
   '/tests', '/missions', '/projects', '/phones', '/privacy', '/self', '/presence', '/hotmic', '/guide',
   '/browser-skills', '/desktop-skills', '/scout', '/health/status', '/freeze', '/access', '/linux/windows',
   '/hardware/report', '/telegram/pair', '/extension/pair', '/compute', '/agents/swarm', '/vault/drop', '/assets/upload', '/games',
+  '/voice', // [voice2]
 ] as const;
+
+// ---------------------------------------------------------------- Orion's voice [voice2]
+const voiceActive = { engine: 'kokoro', voice: 'af_nicole', speed: 0.92, warmth: 0, delivery: '', chosen: true };
+function voiceSnap() {
+  const kokoro = [['af_nicole', "Nicole and Heart (Orion's usual voice)"], ['af_heart', 'Heart'], ['af_bella', 'Bella'], ['af_sky', 'Sky'], ['am_michael', 'Michael'], ['am_adam', 'Adam']]
+    .map(([id, name]) => ({ id, name }));
+  return {
+    active: voiceActive, chosen: voiceActive.chosen,
+    engines: [
+      { id: 'kokoro', name: 'Kokoro (built in)', available: true, voices: kokoro, speed: true, warmth: true, delivery: false, design: false, about: 'Clear and quick on any computer. Apache-2.0.' },
+      { id: 'voicebox', name: 'Voicebox', available: false, voices: [], speed: true, warmth: true, delivery: true, design: false, about: 'More natural voices, voices from a description, and delivery styles. Best with a graphics card. MIT.', gpu: null },
+      { id: 'piper', name: 'Piper (tiny)', available: false, voices: [], speed: true, warmth: true, delivery: false, design: false, about: 'Very small and fast. Each voice has its own licence.' },
+    ],
+    voicebox: { reachable: false, url: '', gpu: null, error: '', how: "Voicebox isn't running. Start it, or install it (OrionOS: Settings > Orion's voice). Orion uses its built-in voice until then." },
+    note: '', consent: 'Only use your own voice or a voice you have permission to use.', sample: "Morning. I'm Orion. This is how I'll sound when we talk.",
+  };
+}
 
 // ---------------------------------------------------------------- Test Center
 type TStatus = 'todo' | 'running' | 'pass' | 'fail' | 'skip';
@@ -269,7 +287,7 @@ function guideFor(task: string): Guide {
   const low = task.toLowerCase();
   if (/phone|pair/.test(low)) {
     return { title: 'Pair my phone', index: 0, steps: [
-      { text: 'Open the menu: the Orion mark at the bottom left.', find: 'Orion menu', selector: '.orion-taskbar button' },
+      { text: 'Open the console: the round Orion button (bottom left unless you moved it).', find: 'Orion button', selector: '[data-orion-button]' },
       { text: 'Choose Phone.', find: 'Phone' },
       { text: 'On your phone, open the camera and point it at the QR code.' },
       { text: 'Check the five words match on both screens, then press Confirm.' },
@@ -361,11 +379,11 @@ const changes: Change[] = [
 const swaps: Json[] = [{ id: 's1', change_id: 'c1', summary: 'The clock on the desktop is 20% bigger.', status: 'kept', at: T0 - 7200, touches_ui: true, touches_daemon: false }];
 function practiceChange() {
   changes.unshift({
-    id: nid('c'), request: 'practice change: a softer glow on the menu', summary: 'The menu gets a softer violet glow.', reason: 'A practice change from the Test Center.',
+    id: nid('c'), request: 'practice change: a softer glow on the menu', summary: 'The menu gets a softer blue glow.', reason: 'A practice change from the Test Center.',
     kind: 'ui_code', status: 'ready', mode: 'layer', touches_ui: true, touches_daemon: false, screens: { before: true, after: true },
-    files: [{ path: 'apps/desktop/src/components/menu/MainMenu.tsx', action: 'modify', additions: 3, deletions: 1 }],
+    files: [{ path: 'apps/desktop/src/components/console/CommandConsole.tsx', action: 'modify', additions: 3, deletions: 1 }],
     checks: [{ name: 'types', label: 'Type check', ok: true, skipped: false, detail: 'No errors' }, { name: 'tests', label: 'Tests', ok: true, skipped: false, detail: '5 of 5 passed' }],
-    diff: "-  boxShadow: '0 0 24px #7C5CFF'\n+  boxShadow: '0 0 40px rgba(124,92,255,0.45)'\n",
+    diff: "-  boxShadow: '0 0 24px #2E6BFF'\n+  boxShadow: '0 0 40px rgba(46,107,255,0.45)'\n",
   });
 }
 
@@ -527,6 +545,16 @@ export async function demoRoute(method: string, path: string, body: Json, emitEv
   });
   if (p === '/games/do') return ok({ ok: true, message: 'Preview: on OrionOS this sets it up or starts the game.' });
 
+  // ---- Orion's voice [voice2] (nothing is spoken in the preview; Voicebox shows as not installed)
+  if (p === '/voice/engines') return ok(voiceSnap());
+  if (p === '/voice/set') {
+    for (const k of ['engine', 'voice', 'speed', 'warmth', 'delivery', 'chosen'] as const) if (body[k] !== undefined) (voiceActive as Record<string, unknown>)[k] = body[k];
+    return ok({ ok: true, active: voiceActive, message: 'Saved. (Preview: on your PC Orion uses this voice from now on.)' });
+  }
+  if (p === '/voice/preview') return ok({ ok: true, engine: 'kokoro', note: 'Preview: on your PC Orion says the sample out loud.', duration_s: 2.4 });
+  if (p === '/voice/design') return ok({ ok: false, message: 'Designing a voice needs Voicebox running on your PC.' });
+  if (p === '/voice/hear') return ok({ ok: true, text: 'how do I sound' });
+
   // ---- Privacy
   if (p === '/privacy/dashboard') return ok(privacySnap());
   if (p === '/privacy/off') {
@@ -661,7 +689,7 @@ export async function demoRoute(method: string, path: string, body: Json, emitEv
     return ok({ status: 'ok', words: 'Everything is working.', turbulence: 0, checks: [
       { id: 'brain', label: "Orion's brain", status: 'ok', reason: 'Answering.' },
       { id: 'disk', label: 'Disk space', status: 'ok', reason: '212 GB free.' },
-      { id: 'phone', label: 'Phone link', status: phones.length ? 'ok' : 'warn', reason: phones.length ? 'Paired.' : 'No phone paired yet.', fix_words: phones.length ? undefined : 'Open Phone in the menu.' },
+      { id: 'phone', label: 'Phone link', status: phones.length ? 'ok' : 'warn', reason: phones.length ? 'Paired.' : 'No phone paired yet.', fix_words: phones.length ? undefined : 'Open Phone from the Orion button.' },
     ] });
   }
   if (p === '/freeze' && !POST) return ok({ freeze: { frozen: false } });

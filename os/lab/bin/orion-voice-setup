@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+# Choose Orion's voice (the voice programming step of first-run; also Settings > Orion's voice).
+# Plays short samples, lets you pick one, set speed and warmth, design a voice from a description (when Voicebox
+# runs on this computer), and hear a sentence of yours said back. Everything is skippable. It only talks to Orion's
+# brain on this computer (127.0.0.1:9120); Orion only talks to Voicebox on 127.0.0.1 too.
+#   orion-voice-setup            the guided step
+#   orion-voice-setup --skip     mark the step as done without changing the voice
+set -u
+API="${ORION_API:-http://127.0.0.1:9120}"
+case "$API" in http://127.0.0.1:*) ;; *) echo "Orion only talks to its brain on this computer."; exit 1 ;; esac
+C='\033[1;36m'; W='\033[1;37m'; D='\033[2m'; N='\033[0m'
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+
+orion_token() {
+  for f in "${ORION_TOKEN_FILE:-}" "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/orion/daemon.token" \
+           "${ORION_DATA_DIR:-$HOME/.orion}/daemon.token"; do
+    if [ -n "$f" ] && [ -r "$f" ]; then cat "$f"; return 0; fi
+  done
+  return 0
+}
+# The key goes to curl on file descriptor 3, so it never shows in the process list.
+ocurl() {
+  command curl -sS --noproxy "*" -m "${OCURL_TIME:-180}" -H @/dev/fd/3 "$@" 3<<EOF
+Authorization: Bearer $(orion_token)
+EOF
+}
+post() { ocurl -X POST -H 'content-type: application/json' --data-binary "$2" "$API$1"; }
+ask() { read -rp "$1 [Y/n] " a; case "$a" in n|N|no) return 1 ;; *) return 0 ;; esac; }
+asky() { read -rp "$1 [y/N] " a; case "$a" in y|Y|yes) return 0 ;; *) return 1 ;; esac; }
+
+player() {
+  for p in pw-play paplay aplay; do command -v "$p" >/dev/null && { echo "$p"; return; }; done
+}
+PLAYER="$(player)"
+
+# say <json overrides> : Orion speaks a sample here (out=wav, played on this computer's speakers)
+say() {
+  local j
+  j="$(post /voice/preview "$(jq -c '. + {out: "wav"}' <<<"$1")")" || { echo "   Couldn't reach Orion."; return 1; }
+  if [ "$(jq -r '.ok' <<<"$j")" != true ]; then echo "   $(jq -r '.message // "Orion could not speak."' <<<"$j")"; return 1; fi
+  local note; note="$(jq -r '.note // ""' <<<"$j")"; [ -n "$note" ] && echo "   $note"
+  jq -r '.audio_base64' <<<"$j" | base64 -d > "$TMP/s.wav" 2>/dev/null
+  if [ -n "$PLAYER" ]; then "$PLAYER" "$TMP/s.wav" >/dev/null 2>&1; else echo "   (No speaker program found: install pipewire or alsa-utils.)"; fi
+}
+
+if [ "${1:-}" = "--skip" ]; then post /voice/set '{"chosen": true}' >/dev/null && echo "Skipped. Choose later: Settings > Orion's voice."; exit 0; fi
+
+printf "\n${C}Choose Orion's voice${N}\n"
+printf "   Hear a few voices and pick one. About a minute. ${D}(Skip: Settings > Orion's voice, any time.)${N}\n"
+ST="$(OCURL_TIME=8 ocurl -f "$API/voice/engines" 2>/dev/null)" || {
+  echo "   Orion's brain isn't answering yet, so this waits. Later: Settings > Orion's voice."; exit 0; }
+ask "   Choose Orion's voice now?" || { post /voice/set '{"chosen": true}' >/dev/null; echo "   Skipped."; exit 0; }
+
+KOKORO="$(jq -r '.engines[] | select(.id=="kokoro") | .available' <<<"$ST")"
+VBOX="$(jq -r '.voicebox.reachable' <<<"$ST")"
+if [ "$KOKORO" != true ] && [ "$VBOX" != true ]; then
+  echo "   Orion's voice isn't installed yet (it installs after you approve \"Install voice\" on your phone)."
+  echo "   When it's ready: Settings > Orion's voice, or run orion-voice-setup."
+  exit 0
+fi
+
+# The choices: Kokoro voices that ship with Orion, then up to 4 Voicebox voices when Voicebox is running.
+jq -r '
+  [ (.engines[] | select(.id=="kokoro" and .available) | .voices[] | {engine: "kokoro", id, name, kind: "preset"}),
+    (.engines[] | select(.id=="voicebox" and .available) | .voices[:4][] | {engine: "voicebox", id, name, kind}) ]
+  | .[] | [.engine, .id, .name, (.kind // "")] | @tsv' <<<"$ST" > "$TMP/voices"
+mapfile -t ROWS < "$TMP/voices"
+printf "\n   ${W}Voices${N}\n"
+for i in "${!ROWS[@]}"; do
+  IFS=$'\t' read -r e id name kind <<<"${ROWS[$i]}"
+  printf "   %d) %s ${D}(%s%s)${N}\n" "$((i + 1))" "$name" "$e" "$([ "$kind" = cloned ] && echo ", cloned")"
+done
+if ask "   Play a short sample of each?"; then
+  for i in "${!ROWS[@]}"; do
+    IFS=$'\t' read -r e id name kind <<<"${ROWS[$i]}"
+    printf "   %d) %s\n" "$((i + 1))" "$name"
+    say "$(jq -nc --arg e "$e" --arg v "$id" '{engine: $e, voice: $v, text: "Hi, I am Orion. This is one of my voices."}')" || true
+  done
+fi
+
+ENGINE="$(jq -r '.active.engine' <<<"$ST")"; VOICE="$(jq -r '.active.voice' <<<"$ST")"; KIND=""
+read -rp "   Which one? (number, Enter keeps the current voice) " n
+if [[ "$n" =~ ^[0-9]+$ ]] && [ "$n" -ge 1 ] && [ "$n" -le "${#ROWS[@]}" ]; then
+  IFS=$'\t' read -r ENGINE VOICE _ KIND <<<"${ROWS[$((n - 1))]}"
+fi
+
+read -rp "   Speed: s) slower  n) normal  f) faster  [n] " sp
+case "$sp" in s|S) SPEED=0.8 ;; f|F) SPEED=1.1 ;; *) SPEED=0.92 ;; esac
+read -rp "   Warmth: 0) as recorded  1) a little warmer  2) soft and warm  [0] " wm
+case "$wm" in 1) WARMTH=0.35 ;; 2) WARMTH=0.7 ;; *) WARMTH=0 ;; esac
+
+DELIVERY=""
+if [ "$VBOX" = true ]; then
+  printf "\n   ${W}Design a voice${N} (Voicebox): describe it in your own words, no recording needed.\n"
+  read -rp "   For example \"a warm, low, friendly voice\" (Enter to skip): " desc
+  if [ "${#desc}" -ge 8 ]; then
+    echo "   Designing it (the first time can take a few minutes while Voicebox gets the model)…"
+    j="$(post /voice/design "$(jq -nc --arg d "$desc" '{description: $d, use: false}')")"
+    echo "   $(jq -r '.message // .error' <<<"$j")"
+    id="$(jq -r '.voice.id // empty' <<<"$j")"
+    if [ -n "$id" ]; then
+      say "$(jq -nc --arg v "$id" '{engine: "voicebox", voice: $v}')" || true
+      ask "   Use this designed voice?" && { ENGINE=voicebox; VOICE="$id"; KIND=designed; }
+    fi
+  fi
+  if [ "$ENGINE" = voicebox ]; then
+    read -rp "   How should Orion deliver its words? (for example \"calm and unhurried\"; Enter to skip) " DELIVERY
+  fi
+fi
+
+CONSENT=false
+if [ "$KIND" = cloned ]; then
+  printf "   ${W}Only use your own voice or a voice you have permission to use.${N}\n"
+  asky "   Is this your own voice, or one you have permission to use?" && CONSENT=true
+  [ "$CONSENT" = true ] || { echo "   Keeping Orion's built-in voice instead."; ENGINE=kokoro; VOICE=af_nicole; }
+fi
+SET="$(jq -nc --arg e "$ENGINE" --arg v "$VOICE" --argjson s "$SPEED" --argjson w "$WARMTH" --arg d "$DELIVERY" \
+          --argjson c "$CONSENT" '{engine: $e, voice: $v, speed: $s, warmth: $w, delivery: $d, consent: $c}')"
+
+printf "\n   ${W}Try it${N}\n"
+read -rp "   Type a sentence for Orion to say (Enter for a sample): " line
+say "$(jq -c --arg t "${line:-Morning. I am Orion, and this is my voice now.}" '. + {text: $t}' <<<"$SET")" || true
+if command -v arecord >/dev/null && asky "   Say something and hear it back? (records 4 seconds after you press Enter)"; then
+  read -rp "   Press Enter, then speak… " _
+  echo "   Listening (4 seconds)…"
+  arecord -q -d 4 -f S16_LE -r 16000 -c 1 "$TMP/me.wav" 2>/dev/null
+  h="$(ocurl -X POST -H 'content-type: audio/wav' --data-binary @"$TMP/me.wav" "$API/voice/hear")"
+  rm -f "$TMP/me.wav"
+  if [ "$(jq -r '.ok' <<<"$h")" = true ] && [ -n "$(jq -r '.text' <<<"$h")" ]; then
+    echo "   Orion heard: $(jq -r '.text' <<<"$h")"
+    say "$(jq -c --arg t "You said: $(jq -r '.text' <<<"$h")" '. + {text: $t}' <<<"$SET")" || true
+  else
+    echo "   $(jq -r '.message // "Orion did not catch that."' <<<"$h")"
+  fi
+fi
+
+r="$(post /voice/set "$(jq -c '. + {chosen: true}' <<<"$SET")")"
+echo "   $(jq -r '.message // .error' <<<"$r")"
+
+# Voicebox: more natural voices, designed voices and delivery styles. Offered only when it isn't here yet.
+if [ "$VBOX" != true ] && [ ! -d /opt/voicebox ]; then
+  printf "\n   ${W}Want more natural voices?${N} Voicebox (free, MIT) adds voices you can describe in words and\n"
+  printf "   delivery styles. It needs about 10 GB and is much faster with a graphics card. It runs only on this\n"
+  printf "   computer; its voice models download from Hugging Face the first time you use one.\n"
+  if asky "   Install Voicebox now? (about 15 minutes)"; then
+    systemctl start orion-recipe@voicebox.service \
+      && echo "   Installed. Run orion-voice-setup again (or Settings > Orion's voice) to pick a Voicebox voice." \
+      || echo "   That didn't work; see /var/log/orion-recipes/voicebox.log. Try again from Settings."
+  fi
+fi
+exit 0

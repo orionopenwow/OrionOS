@@ -49,12 +49,12 @@ export default function BootOverlay({ connected }: { connected: boolean }) {
               transition={{ duration: failed ? 60 : 6, repeat: Infinity, ease: 'linear' }}
             />
             <h2 className="text-[15px] text-white">{status.message}</h2>
-            {status.detail && <p className="selectable text-[12px] text-white/60 break-words">{status.detail}</p>}
+            {status.detail && <p className="selectable text-[12px] text-white/80 break-words">{status.detail}</p>}
 
             {status.progress != null && !failed && (
               <div className="emboss-well h-2.5 overflow-hidden rounded-full">
                 <motion.div
-                  className="h-full rounded-full bg-gradient-to-r from-[#7B5CFF] to-[#00E5FF]"
+                  className="h-full rounded-full bg-gradient-to-r from-[#2E6BFF] to-[#00E5FF]"
                   animate={{ width: `${Math.round(status.progress * 100)}%` }}
                 />
               </div>
@@ -86,14 +86,14 @@ export default function BootOverlay({ connected }: { connected: boolean }) {
                 </button>
                 <button
                   onClick={() => desktop.openLogs()}
-                  className="emboss-pill flex items-center gap-1.5 rounded-xl px-3 py-2 text-[12px] text-white/70"
+                  className="emboss-pill flex items-center gap-1.5 rounded-xl px-3 py-2 text-[12px] text-white/85"
                 >
                   <FolderOpen size={13} /> Open logs
                 </button>
               </div>
             )}
             {failed && status.stage === 'error' && (
-              <p className="flex items-center justify-center gap-1 text-[11px] text-[#FF8FAB]">
+              <p className="flex items-center justify-center gap-1 text-[11.5px] text-[#FF8FAB]">
                 <AlertTriangle size={11} /> The HUD keeps working; voice and agents need the brain.
               </p>
             )}

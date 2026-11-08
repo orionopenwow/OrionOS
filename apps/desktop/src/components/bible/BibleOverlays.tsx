@@ -60,7 +60,7 @@ export default function BibleOverlays({ bible, send, patch }: Props) {
               e.stopPropagation();
               send('MACRO_STOP');
             }}
-            className="fixed top-12 left-1/2 -translate-x-1/2 z-[70] emboss-pill rounded-full px-3 py-1.5 text-[11px] font-semibold text-[#FF5C8A] flex items-center gap-2"
+            className="fixed top-12 left-1/2 -translate-x-1/2 z-[70] emboss-pill rounded-full px-3 py-1.5 text-[11.5px] font-semibold text-[#FF5C8A] flex items-center gap-2"
             title="Click or say “stop watching”"
           >
             <span className="w-2.5 h-2.5 rounded-full bg-[#FF5C8A] animate-pulse shadow-[0_0_10px_#FF5C8A]" />
@@ -81,12 +81,12 @@ export default function BibleOverlays({ bible, send, patch }: Props) {
             className={`fixed top-24 left-1/2 -translate-x-1/2 z-[65] ${card}`}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-[#FF2A85] mb-1">
+            <div className="flex items-center gap-1.5 text-[11px] font-mono uppercase text-[#FF2A85] mb-1">
               <Radio size={11} /> Fact card
             </div>
             <div className="text-xs font-semibold mb-1">{bible.producerCard.title}</div>
             {bible.producerCard.hits.slice(0, 2).map((h) => (
-              <p key={h.id} className="text-[11px] text-white/70 line-clamp-3">
+              <p key={h.id} className="text-[11.5px] text-white/85 line-clamp-3">
                 {h.content}
               </p>
             ))}
@@ -99,7 +99,7 @@ export default function BibleOverlays({ bible, send, patch }: Props) {
         <AnimatePresence>
           {bible.stagedReply && (
             <motion.div key="reply" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 30 }} transition={spring} className={card} onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-[#26A5E4] mb-1.5">
+              <div className="flex items-center gap-1.5 text-[11px] font-mono uppercase text-[#26A5E4] mb-1.5">
                 <Send size={11} /> Reply to {bible.stagedReply.name} · {bible.stagedReply.platform}
               </div>
               <p className="text-sm leading-snug mb-2.5 select-text">“{bible.stagedReply.text}”</p>
@@ -111,12 +111,12 @@ export default function BibleOverlays({ bible, send, patch }: Props) {
                   <Check size={11} /> Send it
                 </PillButton>
               </div>
-              <div className="text-[10px] text-white/40 mt-1.5">Or just say “send it”.</div>
+              <div className="text-[11px] text-white/72 mt-1.5">Or just say “send it”.</div>
             </motion.div>
           )}
 
           {bible.replyResult && (
-            <motion.div key="reply-result" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className={`${card} !w-auto text-[11px]`}>
+            <motion.div key="reply-result" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className={`${card} !w-auto text-[11.5px]`}>
               {bible.replyResult.sent ? (
                 <span className="text-[#3DFFA8]">✓ Sent</span>
               ) : (
@@ -128,14 +128,14 @@ export default function BibleOverlays({ bible, send, patch }: Props) {
           {bible.clipboard && (
             <motion.div key={bible.clipboard.id} initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 30 }} transition={spring} className={card} onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-1.5">
-                <span className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-[#FFB300]">
+                <span className="flex items-center gap-1.5 text-[11px] font-mono uppercase text-[#FFB300]">
                   <Clipboard size={11} /> Copied {bible.clipboard.kind.replace('_', ' ')}
                 </span>
-                <button type="button" className="text-white/40 hover:text-white" onClick={() => patch({ clipboard: null })}>
+                <button type="button" className="text-white/72 hover:text-white" onClick={() => patch({ clipboard: null })}>
                   <X size={12} />
                 </button>
               </div>
-              <pre className="text-[10px] font-mono text-white/55 line-clamp-3 whitespace-pre-wrap break-all mb-2">{bible.clipboard.preview}</pre>
+              <pre className="text-[11px] font-mono text-white/78 line-clamp-3 whitespace-pre-wrap break-all mb-2">{bible.clipboard.preview}</pre>
               <div className="flex flex-wrap gap-1.5">
                 {bible.clipboard.actions.map((a) => (
                   <PillButton
@@ -158,12 +158,12 @@ export default function BibleOverlays({ bible, send, patch }: Props) {
           {bible.snippet && (
             <motion.div key="snippet" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 30 }} className={card} onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[10px] font-mono uppercase text-[#FFB300]">Snippet · {bible.snippet.description}</span>
-                <button type="button" className="text-white/40 hover:text-white" onClick={() => patch({ snippet: null })}>
+                <span className="text-[11px] font-mono uppercase text-[#FFB300]">Snippet · {bible.snippet.description}</span>
+                <button type="button" className="text-white/72 hover:text-white" onClick={() => patch({ snippet: null })}>
                   <X size={12} />
                 </button>
               </div>
-              <pre className="max-h-40 overflow-auto text-[10px] font-mono text-white/70 bg-black/50 rounded-lg p-2 whitespace-pre-wrap select-text">
+              <pre className="max-h-40 overflow-auto text-[11px] font-mono text-white/85 bg-black/50 rounded-lg p-2 whitespace-pre-wrap select-text">
                 {bible.snippet.snippet}
               </pre>
               <div className="flex justify-end mt-2">
@@ -183,12 +183,12 @@ export default function BibleOverlays({ bible, send, patch }: Props) {
           {bible.assets.slice(0, 2).map((a) => (
             <motion.div key={a.id} initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 30 }} className={card} onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-1.5">
-                <span className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-[#C084FC] truncate">
+                <span className="flex items-center gap-1.5 text-[11px] font-mono uppercase text-[#7FA6FF] truncate">
                   <ImageIcon size={11} /> {a.name}
                 </span>
                 <button
                   type="button"
-                  className="text-white/40 hover:text-white"
+                  className="text-white/72 hover:text-white"
                   onClick={() => patch({ assets: bible.assets.filter((x) => x.id !== a.id) })}
                 >
                   <X size={12} />
@@ -198,7 +198,7 @@ export default function BibleOverlays({ bible, send, patch }: Props) {
                 {a.actions.map((act) => (
                   <PillButton
                     key={act.id}
-                    color="#C084FC"
+                    color="#7FA6FF"
                     disabled={!act.enabled}
                     title={act.reason ?? undefined}
                     onClick={() => send('ASSET_ACTION', { asset_id: a.id, action: act.id })}
@@ -206,13 +206,13 @@ export default function BibleOverlays({ bible, send, patch }: Props) {
                     <Sparkles size={11} /> {act.label}
                   </PillButton>
                 ))}
-                {!a.actions.length && <span className="text-[11px] text-white/45">No pipeline actions for this file type.</span>}
+                {!a.actions.length && <span className="text-[11.5px] text-white/74">No pipeline actions for this file type.</span>}
               </div>
-              {a.error && <div className="text-[10px] text-[#FF5C8A] mt-1.5">{a.error}</div>}
+              {a.error && <div className="text-[11px] text-[#FF5C8A] mt-1.5">{a.error}</div>}
               {a.outputs.length > 0 && (
                 <div className="mt-2 space-y-0.5">
                   {a.outputs.map((o) => (
-                    <div key={o.path} className="text-[10px] font-mono text-[#3DFFA8] truncate">
+                    <div key={o.path} className="text-[11px] font-mono text-[#3DFFA8] truncate">
                       ✓ {o.name} · {Math.round(o.bytes / 1024)} KB
                     </div>
                   ))}
@@ -227,37 +227,37 @@ export default function BibleOverlays({ bible, send, patch }: Props) {
           {bible.briefing && (
             <motion.div key={`brief-${bible.briefing.at}`} initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 30 }} className={card} onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[10px] font-mono uppercase text-[#FDE68A] truncate">Briefing · {bible.briefing.name}</span>
-                <button type="button" className="text-white/40 hover:text-white" onClick={() => patch({ briefing: null })}>
+                <span className="text-[11px] font-mono uppercase text-[#FDE68A] truncate">Briefing · {bible.briefing.name}</span>
+                <button type="button" className="text-white/72 hover:text-white" onClick={() => patch({ briefing: null })}>
                   <X size={12} />
                 </button>
               </div>
               <p className="text-[12px] text-white/85 leading-relaxed select-text">{bible.briefing.text}</p>
-              <div className="text-[10px] text-white/40 mt-1.5">Saved to your knowledge vault.</div>
+              <div className="text-[11px] text-white/72 mt-1.5">Saved to your knowledge vault.</div>
             </motion.div>
           )}
 
           {bible.digest && (
             <motion.div key={`digest-${bible.digest.at}`} initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 30 }} className={card} onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[10px] font-mono uppercase text-[#26A5E4]">
+                <span className="text-[11px] font-mono uppercase text-[#26A5E4]">
                   Muted-chat digest · {bible.digest.count} messages
                 </span>
-                <button type="button" className="text-white/40 hover:text-white" onClick={() => patch({ digest: null })}>
+                <button type="button" className="text-white/72 hover:text-white" onClick={() => patch({ digest: null })}>
                   <X size={12} />
                 </button>
               </div>
-              <p className="text-[11px] text-white/80 whitespace-pre-line">{bible.digest.summary}</p>
+              <p className="text-[11.5px] text-white/80 whitespace-pre-line">{bible.digest.summary}</p>
             </motion.div>
           )}
 
           {bible.windDownNotice && bible.circadian && (
             <motion.div key="wind" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className={card} onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-[11px] text-[#FFB300]">
+                <span className="flex items-center gap-1.5 text-[11.5px] text-[#FFB300]">
                   <Moon size={12} /> Wind-down: bedtime {bible.circadian.bedtime}
                 </span>
-                <button type="button" className="text-white/40 hover:text-white" onClick={() => patch({ windDownNotice: false })}>
+                <button type="button" className="text-white/72 hover:text-white" onClick={() => patch({ windDownNotice: false })}>
                   <X size={12} />
                 </button>
               </div>
@@ -285,21 +285,21 @@ function MacroSave({ bible, send, patch }: Props) {
   };
   return (
     <motion.div initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 30 }} className={card} onClick={(e) => e.stopPropagation()}>
-      <div className="text-[10px] font-mono uppercase text-[#C084FC] mb-1">Save recorded macro</div>
-      <p className="text-[10px] text-white/55 mb-2 line-clamp-3">{m.summary}</p>
+      <div className="text-[11px] font-mono uppercase text-[#7FA6FF] mb-1">Save recorded macro</div>
+      <p className="text-[11px] text-white/78 mb-2 line-clamp-3">{m.summary}</p>
       <input
         autoFocus
         value={name}
         onChange={(e) => setName(e.target.value)}
         placeholder="Name (e.g. Export WoW patch)"
-        className="w-full mb-1.5 rounded-lg bg-black/40 border border-white/10 px-2 py-1 text-[11px] text-starlight outline-none select-text"
+        className="w-full mb-1.5 rounded-lg bg-black/40 border border-white/10 px-2 py-1 text-[11.5px] text-starlight outline-none select-text"
       />
       <input
         value={trigger}
         onChange={(e) => setTrigger(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && save()}
         placeholder="Voice triggers, comma separated (e.g. export the patch)"
-        className="w-full mb-2 rounded-lg bg-black/40 border border-white/10 px-2 py-1 text-[11px] text-starlight outline-none select-text"
+        className="w-full mb-2 rounded-lg bg-black/40 border border-white/10 px-2 py-1 text-[11.5px] text-starlight outline-none select-text"
       />
       <div className="flex justify-end gap-1.5">
         <PillButton
@@ -311,7 +311,7 @@ function MacroSave({ bible, send, patch }: Props) {
         >
           Discard
         </PillButton>
-        <PillButton color="#C084FC" onClick={save}>
+        <PillButton color="#7FA6FF" onClick={save}>
           <Check size={11} /> Save to Grimoire
         </PillButton>
       </div>
@@ -349,21 +349,21 @@ function Breathwork({ bible, patch }: Pick<Props, 'bible' | 'patch'>) {
         className="w-56 h-56 rounded-full"
         style={{
           background:
-            'conic-gradient(from 0deg, #7B5CFF, #00E5FF, #C084FC, #7B5CFF)',
+            'conic-gradient(from 0deg, #2E6BFF, #00E5FF, #7FA6FF, #2E6BFF)',
           filter: 'blur(2px)',
-          boxShadow: '0 0 80px #7B5CFF, inset 0 0 60px #05070E',
+          boxShadow: '0 0 80px #2E6BFF, inset 0 0 60px #05070E',
           maskImage: 'radial-gradient(circle, transparent 28%, black 30%)',
           WebkitMaskImage: 'radial-gradient(circle, transparent 28%, black 30%)',
         }}
       />
       <div className="mt-10 font-display text-2xl tracking-wide text-starlight">{label}</div>
-      <div className="mt-2 text-xs font-mono text-white/50">
+      <div className="mt-2 text-xs font-mono text-white/76">
         {routine.title} · {Math.max(0, total - t)}s left
       </div>
       <button
         type="button"
         onClick={() => patch({ breathwork: null })}
-        className="mt-8 emboss-pill rounded-full px-4 py-1.5 text-xs text-white/70 hover:text-white"
+        className="mt-8 emboss-pill rounded-full px-4 py-1.5 text-xs text-white/85 hover:text-white"
       >
         I'm done
       </button>
@@ -426,7 +426,7 @@ function Sanctuary({ bible, send, patch }: Props) {
           >
             {left === 0 ? 'Unlock the next focus block' : "I'm done"}
           </button>
-          <button type="button" onClick={() => finish(false)} className="text-[12px] text-white/45 hover:text-white/80 py-1">
+          <button type="button" onClick={() => finish(false)} className="text-[12px] text-white/74 hover:text-white/80 py-1">
             Skip this once
           </button>
         </div>

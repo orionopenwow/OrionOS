@@ -138,7 +138,7 @@ const SONGS: MediaState[] = [
 // ---------------------------------------------------------------- XP (mirrors apps/daemon/xp.py)
 const AWARDS: Record<string, number> = { focus_block: 50, recovery: 20, commit: 10, idea: 5, water: 2, approval: 3, devlog: 15 };
 const SKINS = [
-  { id: 'default', name: 'Cosmic Violet', level: 1 },
+  { id: 'default', name: 'Cosmic Cobalt', level: 1 },
   { id: 'emerald', name: 'Emerald Nebula', level: 3 },
   { id: 'supernova', name: 'Supernova Gold', level: 5 },
   { id: 'bloodmoon', name: 'Blood Moon Eclipse', level: 8 },

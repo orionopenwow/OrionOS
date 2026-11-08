@@ -463,6 +463,9 @@ class OrionDaemon:
 
     async def speak(self, text: str) -> Optional[bytes]:
         """Orion's voice as WAV for the phone, or None (the phone then reads it with its own voice)."""
+        ve = _voice_engines()  # [voice2] the chosen engine (Kokoro, Voicebox or Piper), falling back to Kokoro
+        if ve is not None:
+            return await ve.get(self).speak_wav(self, text[:600])  # [voice2]
         try:
             import kokoro  # noqa: F401
         except ImportError:
@@ -583,9 +586,13 @@ class OrionDaemon:
             await self.bus.publish({"event": "MEMORY_COMMITTED", "record": record})
         return record
 
-    async def speak_and_stream(self, text: str, voice: str = "af_nicole", speed: float = 0.92) -> None:
+    async def speak_and_stream(self, text: str, voice: Optional[str] = None, speed: Optional[float] = None) -> None:
         try:
-            await self.audio_engine.speak_and_stream(text, self.bus, voice=voice, speed=speed)
+            ve = _voice_engines()  # [voice2] Settings > Orion's voice (voice_engines.py)
+            if ve is not None:  # [voice2]
+                await ve.get(self).speak_and_stream(self, text, voice, speed)  # [voice2]
+                return  # [voice2]
+            await self.audio_engine.speak_and_stream(text, self.bus, voice=voice or "af_nicole", speed=speed or 0.92)
         except Exception as exc:
             log.warning("Kokoro audio streaming error: %s; falling back to local TTS", exc)
             if self.tts.is_available:
@@ -1398,8 +1405,8 @@ class OrionDaemon:
             elif kind == "SPEAK":
                 text = str(msg.get("text", "")).strip()
                 if text:
-                    voice = str(msg.get("voice", "af_nicole"))
-                    speed = float(msg.get("speed", 0.92))
+                    voice = str(msg["voice"]) if msg.get("voice") else None  # [voice2] None: the chosen voice
+                    speed = float(msg["speed"]) if msg.get("speed") else None  # [voice2]
                     asyncio.create_task(self.speak_and_stream(text, voice=voice, speed=speed))
             elif kind == "GET_SKILLS":
                 await self.bus.send(client, {"event": "SKILLS_LIST", "skills": list(skills_engine.skills.values())})
@@ -1455,6 +1462,15 @@ class OrionDaemon:
         except Exception as exc:
             log.exception("dispatch(%s) failed", kind)
             await self.bus.send(client, {"event": "LOG", "level": "error", "message": f"{kind} failed: {exc}"})
+
+
+def _voice_engines():  # [voice2] the voice engine layer, or None if it failed to load (Kokoro still speaks)
+    try:
+        import voice_engines
+        return voice_engines
+    except Exception as exc:
+        log.warning("voice_engines unavailable: %s", exc)
+        return None
 
 
 daemon = OrionDaemon()
@@ -1543,6 +1559,7 @@ G.router(app, "phone_app_share", lambda: __import__("phone_app_share").make_rout
 G.router(app, "hud_open", lambda: __import__("hud_open").make_router(lambda: daemon))  # [start-here] POST /hud/open
 G.router(app, "games_routes", lambda: __import__("games_routes").make_router(lambda: daemon))  # [games] GET /games, POST /games/do (os/lab/bin/orion-games)
 G.router(app, "phone_pairing_ui", lambda: __import__("phone_pairing_ui").make_router(lambda: daemon))  # [phone2] /phones/...
+G.router(app, "voice_engines", lambda: __import__("voice_engines").make_router(lambda: daemon))  # [voice2] /voice/...
 
 
 @app.middleware("http")

@@ -55,14 +55,14 @@ export default function TranslucentAgentCards({
       <div className="flex items-center justify-between mb-3 px-1">
         <div className="flex items-center gap-2">
           <div className="h-2 w-2 rounded-full bg-[#3DFFA8] shadow-[0_0_8px_#3DFFA8]" />
-          <span className="font-display text-xs font-bold tracking-[0.2em] text-[#C084FC]">
+          <span className="font-display text-xs font-bold tracking-[0.2em] text-[#7FA6FF]">
             ACTIVE PC AGENTS & DIAGNOSTICS
           </span>
-          <span className="text-[10px] font-mono text-dust">
+          <span className="text-[11px] font-mono text-dust">
             {Object.values(agents).filter(Boolean).length} RUNNING
           </span>
         </div>
-        <div className="flex items-center gap-2 text-[10px] font-mono text-dust">
+        <div className="flex items-center gap-2 text-[11px] font-mono text-dust">
           <span>UPTIME: {Math.floor(t.uptime_s / 60)}m {t.uptime_s % 60}s</span>
           <span>•</span>
           <span className="text-[#3DFFA8]">ALL SYSTEMS NOMINAL</span>
@@ -75,9 +75,9 @@ export default function TranslucentAgentCards({
         {/* CARD 1: R-Bullz (Purple / Lavender Frost) */}
         <motion.div
           whileHover={{ y: -2, transition: { duration: 0.15 } }}
-          className="relative rounded-2xl border border-[#C084FC]/30 bg-gradient-to-b from-[#C084FC]/15 via-[#9D8EC7]/10 to-transparent p-4 backdrop-blur-xl shadow-lg flex flex-col justify-between overflow-hidden group"
+          className="relative rounded-2xl border border-[#7FA6FF]/30 bg-gradient-to-b from-[#7FA6FF]/15 via-[#8A9AB5]/10 to-transparent p-4 backdrop-blur-xl shadow-lg flex flex-col justify-between overflow-hidden group"
           style={{
-            boxShadow: '0 8px 32px rgba(192, 132, 252, 0.08), inset 0 0 15px rgba(192, 132, 252, 0.05)',
+            boxShadow: '0 8px 32px rgba(127, 166, 255, 0.08), inset 0 0 15px rgba(127, 166, 255, 0.05)',
           }}
         >
           {/* Subtle Grid Lines matching reference asset */}
@@ -90,11 +90,11 @@ export default function TranslucentAgentCards({
                 <span className="font-display text-sm font-semibold tracking-wider text-starlight">
                   R-Bullz
                 </span>
-                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#C084FC]/20 text-[#C084FC] border border-[#C084FC]/30">
+                <span className="text-[10.5px] font-mono px-1.5 py-0.5 rounded bg-[#7FA6FF]/20 text-[#7FA6FF] border border-[#7FA6FF]/30">
                   SLM
                 </span>
               </div>
-              <p className="text-[10px] text-dust font-mono mt-0.5">Dual-Tier Orchestrator</p>
+              <p className="text-[11px] text-dust font-mono mt-0.5">Dual-Tier Orchestrator</p>
             </div>
 
             <div className="flex items-center gap-2">
@@ -122,14 +122,14 @@ export default function TranslucentAgentCards({
           </div>
 
           {/* Telemetry Metrics */}
-          <div className="relative z-10 my-3.5 space-y-2 text-[11px] font-mono">
+          <div className="relative z-10 my-3.5 space-y-2 text-[11.5px] font-mono">
             <div className="flex justify-between text-dust">
               <span>Local Calls (Ollama)</span>
               <span className="text-starlight font-semibold">{t.llm_calls_local}</span>
             </div>
             <div className="flex justify-between text-dust">
               <span>Cloud Failovers</span>
-              <span className="text-[#C084FC] font-semibold">{t.llm_calls_cloud}</span>
+              <span className="text-[#7FA6FF] font-semibold">{t.llm_calls_cloud}</span>
             </div>
             <div className="flex justify-between text-dust">
               <span>Tokens Synthesized</span>
@@ -138,7 +138,7 @@ export default function TranslucentAgentCards({
           </div>
 
           {/* Bottom Arc Dial Meter matching reference asset */}
-          <div className="relative z-10 flex flex-col items-center justify-center pt-1 border-t border-[#C084FC]/20">
+          <div className="relative z-10 flex flex-col items-center justify-center pt-1 border-t border-[#7FA6FF]/20">
             <div className="relative h-14 w-28 flex items-end justify-center overflow-hidden">
               <svg className="w-24 h-24 transform -rotate-90" viewBox="0 0 100 100">
                 <circle
@@ -155,7 +155,7 @@ export default function TranslucentAgentCards({
                   cy="50"
                   r="40"
                   fill="transparent"
-                  stroke="#C084FC"
+                  stroke="#7FA6FF"
                   strokeWidth="8"
                   strokeDasharray={`${(rBullzLoad / 100) * 125} 125`}
                   strokeLinecap="round"
@@ -169,7 +169,7 @@ export default function TranslucentAgentCards({
             </div>
 
             {/* Corner accent brackets matching reference */}
-            <div className="w-full flex justify-between px-1 text-[8px] text-[#C084FC]/40 font-mono">
+            <div className="w-full flex justify-between px-1 text-[8px] text-[#7FA6FF]/40 font-mono">
               <span>└</span>
               <span>┘</span>
             </div>
@@ -194,11 +194,11 @@ export default function TranslucentAgentCards({
                 <span className="font-display text-sm font-semibold tracking-wider text-starlight">
                   Mimosa Kush Mints
                 </span>
-                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#3DFFA8]/20 text-[#3DFFA8] border border-[#3DFFA8]/30">
+                <span className="text-[10.5px] font-mono px-1.5 py-0.5 rounded bg-[#3DFFA8]/20 text-[#3DFFA8] border border-[#3DFFA8]/30">
                   OCR
                 </span>
               </div>
-              <p className="text-[10px] text-dust font-mono mt-0.5">Perceptual Screen Vision</p>
+              <p className="text-[11px] text-dust font-mono mt-0.5">Perceptual Screen Vision</p>
             </div>
 
             <div className="flex items-center gap-2">
@@ -226,7 +226,7 @@ export default function TranslucentAgentCards({
           </div>
 
           {/* Telemetry Metrics */}
-          <div className="relative z-10 my-3.5 space-y-2 text-[11px] font-mono">
+          <div className="relative z-10 my-3.5 space-y-2 text-[11.5px] font-mono">
             <div className="flex justify-between text-dust">
               <span>Capture Engine</span>
               <span className="text-starlight font-semibold">
@@ -304,22 +304,22 @@ export default function TranslucentAgentCards({
                 <span className="font-display text-sm font-semibold tracking-wider text-starlight">
                   Specs
                 </span>
-                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/30">
+                <span className="text-[10.5px] font-mono px-1.5 py-0.5 rounded bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/30">
                   SYSTEM
                 </span>
               </div>
-              <p className="text-[10px] text-dust font-mono mt-0.5">PC Diagnostics & LanceDB</p>
+              <p className="text-[11px] text-dust font-mono mt-0.5">PC Diagnostics & LanceDB</p>
             </div>
 
             {/* Dual Pill Badge matching reference (purple gradient pill with green dot) */}
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-gradient-to-r from-[#C084FC]/30 to-[#00E5FF]/30 border border-[#00E5FF]/40">
-              <span className="text-[9px] font-mono text-starlight">ONLINE</span>
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-gradient-to-r from-[#7FA6FF]/30 to-[#00E5FF]/30 border border-[#00E5FF]/40">
+              <span className="text-[10.5px] font-mono text-starlight">ONLINE</span>
               <span className="h-2 w-2 rounded-full bg-[#3DFFA8] shadow-[0_0_8px_#3DFFA8]" />
             </div>
           </div>
 
           {/* Telemetry Metrics */}
-          <div className="relative z-10 my-3.5 space-y-2 text-[11px] font-mono">
+          <div className="relative z-10 my-3.5 space-y-2 text-[11.5px] font-mono">
             <div className="flex justify-between text-dust">
               <span>LanceDB Memory Vectors</span>
               <span className="text-starlight font-semibold">{t.memory_rows} vectors</span>

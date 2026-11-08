@@ -2,7 +2,7 @@
   "_about": "Everything the website shows. Edit the words here; the page (docs/index.html + docs/site/site.js) renders them with no build step. The 'commands' section is regenerated from the code by scripts/update-site.mjs (keep hand-written lines under commands.voice). Screenshots are re-captured by scripts/capture-screenshots.mjs.",
   "meta": {
     "title": "OrionOS: a desktop that is alive",
-    "description": "OrionOS is a Linux system whose whole desktop is Orion: a living black hole, calm glass windows, one simple menu, coding agents you can watch, and your phone's fingerprint for every big decision.",
+    "description": "OrionOS is a Linux system whose whole desktop is Orion: a living black hole, calm glass windows, one Orion button, coding agents you can watch, and your phone's fingerprint for every big decision.",
     "repo": "https://github.com/orionopenwow/OrionOS",
     "pages": "https://orionopenwow.github.io/OrionOS/",
     "updated": "2026-11-07"
@@ -10,7 +10,7 @@
   "hero": {
     "eyebrow": "A Linux OS · free and open source",
     "title": "Your desktop is alive.",
-    "lede": "OrionOS is Ubuntu with Orion as the whole desktop: a living black hole at the centre, calm glass windows, one simple menu, and helpers that do the work while you stay in charge.",
+    "lede": "OrionOS is Ubuntu with Orion as the whole desktop: a living black hole at the centre, calm glass windows, one Orion button, and helpers that do the work while you stay in charge.",
     "primary": {
       "label": "Preview the OS",
       "href": "#preview"
@@ -60,8 +60,8 @@
     },
     {
       "id": "glass",
-      "title": "Glass windows, one menu",
-      "text": "Soft glass windows with a violet glow on the one in focus. Everything lives in one menu at the bottom left: six main things and More for the rest. Or just type what you want."
+      "title": "Glass windows, one Orion button",
+      "text": "Gunmetal glass windows with a cobalt glow on the one in focus. One round Orion button opens a full-screen console: chat in the middle, every feature grouped around it. Type to find anything, and drag the button wherever you like."
     },
     {
       "id": "messages",
@@ -169,7 +169,7 @@
       "id": "desktop",
       "file": "os-desktop.png",
       "title": "The desktop",
-      "caption": "The living black hole with the one simple menu open.",
+      "caption": "The Orion console: chat in the middle, every feature grouped around it.",
       "size": [
         1600,
         1000
@@ -450,7 +450,7 @@
           "Super + Space",
           "Alt + Space"
         ],
-        "does": "Open the Orion menu"
+        "does": "Open the Orion console"
       },
       {
         "keys": [

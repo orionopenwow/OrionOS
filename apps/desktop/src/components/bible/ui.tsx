@@ -52,7 +52,7 @@ export function PillButton({
         e.stopPropagation();
         onClick?.();
       }}
-      className="emboss-pill inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-all hover:brightness-125 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+      className="emboss-pill inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-semibold transition-all hover:brightness-125 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
       style={{
         color: active ? '#fff' : 'rgba(255,255,255,0.85)',
         background: active ? `${color}30` : undefined,
@@ -76,7 +76,7 @@ export function Bar({ value, color, warn }: { value: number; color: string; warn
 }
 
 export function Empty({ children }: { children: ReactNode }) {
-  return <p className="text-[11px] text-white/45 leading-relaxed">{children}</p>;
+  return <p className="text-[11.5px] text-white/74 leading-relaxed">{children}</p>;
 }
 
 export function timeAgo(ts: number | null | undefined): string {

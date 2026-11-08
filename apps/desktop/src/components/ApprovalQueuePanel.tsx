@@ -29,13 +29,13 @@ interface Props {
 }
 
 const CATEGORY_STYLE: Record<string, { label: string; color: string }> = {
-  prompt: { label: 'Prompt', color: '#C084FC' },
+  prompt: { label: 'Prompt', color: '#7FA6FF' },
   realm_pitch: { label: 'Realm Pitch', color: '#3DFFA8' },
   bug: { label: 'Bug Report', color: '#FF5C8A' },
   question: { label: 'Question', color: '#00E5FF' },
   self_evolve: { label: 'Self-Evolve Patch', color: '#FFB300' },
   grimoire: { label: 'Grimoire Command', color: '#00E5FF' },
-  devlog: { label: 'Devlog Draft', color: '#C084FC' },
+  devlog: { label: 'Devlog Draft', color: '#7FA6FF' },
   boardroom: { label: 'Boardroom', color: '#FFB300' },
 };
 
@@ -53,25 +53,25 @@ function BoardroomCard({ item }: { item: ApprovalItem }) {
   const outcome = item.decision ?? (item.status === 'rejected' ? 'rejected' : 'approved');
   return (
     <div className="emboss rounded-2xl p-3.5 space-y-2.5">
-      <div className="flex items-center justify-between gap-2 text-[11px]">
+      <div className="flex items-center justify-between gap-2 text-[11.5px]">
         <span
           className="px-2 py-0.5 rounded-full font-bold shrink-0"
           style={{ color: '#FFB300', background: '#FFB30022', border: '1px solid #FFB30055' }}
         >
           Boardroom
         </span>
-        <span className="text-white/45 shrink-0">{timeAgo(item.created_at)}</span>
+        <span className="text-white/74 shrink-0">{timeAgo(item.created_at)}</span>
       </div>
       <div className="emboss-well rounded-xl p-2.5 text-[12px] leading-relaxed">
-        <div className="text-[11px] font-bold text-[#A5B4FC] mb-0.5">{item.author}</div>
+        <div className="text-[11.5px] font-bold text-[#A5B4FC] mb-0.5">{item.author}</div>
         <p className="selectable text-white/85 whitespace-pre-wrap">{item.original}</p>
       </div>
       {item.error && (
-        <div className="flex items-center gap-1.5 text-[11px] text-[#FF8FAB]">
+        <div className="flex items-center gap-1.5 text-[11.5px] text-[#FF8FAB]">
           <AlertTriangle size={12} /> {item.error}
         </div>
       )}
-      <div className="text-[11px] text-white/55">
+      <div className="text-[11.5px] text-white/78">
         {pending ? 'Waiting for a signature on the boardroom VM. It cannot be approved from here.' : `Signed: ${outcome}`}
       </div>
     </div>
@@ -112,7 +112,7 @@ function DiscordApprovalCard({ item, onDecide }: { item: ApprovalItem; onDecide:
 
   return (
     <div className="emboss rounded-2xl p-3.5 space-y-2.5">
-      <div className="flex items-center justify-between gap-2 text-[11px]">
+      <div className="flex items-center justify-between gap-2 text-[11.5px]">
         <div className="flex items-center gap-2 min-w-0">
           <span
             className="px-2 py-0.5 rounded-full font-bold shrink-0"
@@ -125,7 +125,7 @@ function DiscordApprovalCard({ item, onDecide }: { item: ApprovalItem; onDecide:
             {item.channel}
           </span>
         </div>
-        <div className="flex items-center gap-2 text-white/45 shrink-0">
+        <div className="flex items-center gap-2 text-white/74 shrink-0">
           {item.jump_url && (
             <a href={item.jump_url} target="_blank" rel="noreferrer" className="hover:text-white" title="Open in Discord">
               <ExternalLink size={12} />
@@ -136,29 +136,29 @@ function DiscordApprovalCard({ item, onDecide }: { item: ApprovalItem; onDecide:
       </div>
 
       <div className="emboss-well rounded-xl p-2.5 text-[12px] leading-relaxed">
-        <div className="text-[11px] font-bold text-[#A5B4FC] mb-0.5">{isDevlog ? item.title ?? 'Devlog' : item.author}</div>
+        <div className="text-[11.5px] font-bold text-[#A5B4FC] mb-0.5">{isDevlog ? item.title ?? 'Devlog' : item.author}</div>
         <p className="selectable text-white/85 whitespace-pre-wrap">{item.original}</p>
         {isDevlog && item.changelog && (
           <>
-            <button type="button" onClick={() => setShowChangelog(!showChangelog)} className="mt-1 text-[10px] text-[#C084FC]">
+            <button type="button" onClick={() => setShowChangelog(!showChangelog)} className="mt-1 text-[11px] text-[#7FA6FF]">
               {showChangelog ? 'Hide' : 'Show'} technical changelog
             </button>
             {showChangelog && (
-              <pre className="selectable mt-1 max-h-40 overflow-y-auto text-[10px] text-white/65 whitespace-pre-wrap">{item.changelog}</pre>
+              <pre className="selectable mt-1 max-h-40 overflow-y-auto text-[11px] text-white/82 whitespace-pre-wrap">{item.changelog}</pre>
             )}
           </>
         )}
       </div>
       {isCommand && item.destructive && (
-        <div className="flex items-center gap-1.5 text-[11px] text-[#FF8FAB]">
+        <div className="flex items-center gap-1.5 text-[11.5px] text-[#FF8FAB]">
           <AlertTriangle size={12} /> This command can delete or overwrite things. Read it before running.
         </div>
       )}
 
       <div className="space-y-1">
-        <div className="flex items-center justify-between text-[10px] text-white/45 px-0.5">
+        <div className="flex items-center justify-between text-[11px] text-white/74 px-0.5">
           <span className="flex items-center gap-1">
-            <Sparkles size={11} className="text-[#C084FC]" />
+            <Sparkles size={11} className="text-[#7FA6FF]" />
             {isCommand ? 'Command to run' : isDevlog ? 'Community post (Discord)' : 'Draft in your voice'}
             {item.examples_used ? ` · ${item.examples_used} past edits used` : ''}
           </span>
@@ -175,19 +175,19 @@ function DiscordApprovalCard({ item, onDecide }: { item: ApprovalItem; onDecide:
           rows={Math.min(8, Math.max(3, Math.ceil(text.length / 70)))}
           placeholder={item.draft ? '' : 'No draft generated — write the reply yourself with Edit & Send.'}
           className={`selectable w-full resize-none rounded-xl px-3 py-2 text-[12.5px] leading-relaxed text-starlight focus:outline-none ${
-            editing ? 'emboss-well border border-[#C084FC]/60' : 'bg-white/[0.04] border border-white/10'
+            editing ? 'emboss-well border border-[#7FA6FF]/60' : 'bg-white/[0.04] border border-white/10'
           }`}
         />
       </div>
 
       {item.error && (
-        <div className="flex items-center gap-1.5 text-[11px] text-[#FF8FAB]">
+        <div className="flex items-center gap-1.5 text-[11.5px] text-[#FF8FAB]">
           <AlertTriangle size={12} /> {item.error}
         </div>
       )}
 
       {item.status === 'sending' && (
-        <div className="flex items-center gap-1.5 text-[11px] text-white/60">
+        <div className="flex items-center gap-1.5 text-[11.5px] text-white/80">
           <Loader2 size={12} className="animate-spin" /> {isCommand ? 'Running…' : `Sending to ${item.channel}…`}
         </div>
       )}
@@ -210,7 +210,7 @@ function DiscordApprovalCard({ item, onDecide }: { item: ApprovalItem; onDecide:
             }}
             disabled={locked}
             data-active={editing}
-            className="emboss-pill flex-1 flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-[12px] text-[#E9D5FF]"
+            className="emboss-pill flex-1 flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-[12px] text-[#DCE7FF]"
           >
             <Pencil size={13} /> {editing ? (isCommand ? 'Run Edited' : 'Send Edit') : isCommand ? 'Edit & Run' : 'Edit & Send'}
           </button>
@@ -223,7 +223,7 @@ function DiscordApprovalCard({ item, onDecide }: { item: ApprovalItem; onDecide:
           </button>
         </div>
       ) : (
-        <div className="text-[11px] text-white/55">
+        <div className="text-[11.5px] text-white/78">
           {item.status === 'sent'
             ? isCommand
               ? '✓ Ran — see the Tools tab'
@@ -243,18 +243,18 @@ function DiscordApprovalCard({ item, onDecide }: { item: ApprovalItem; onDecide:
 
 function DiffView({ diff }: { diff: string }) {
   return (
-    <pre className="selectable emboss-well max-h-72 overflow-auto rounded-xl p-2.5 text-[11px] leading-[1.45] font-mono">
+    <pre className="selectable emboss-well max-h-72 overflow-auto rounded-xl p-2.5 text-[11.5px] leading-[1.45] font-mono">
       <div className="min-w-max">
       {diff.split('\n').map((line, i) => {
         const color = line.startsWith('+++') || line.startsWith('---')
-          ? 'text-white/50'
+          ? 'text-white/76'
           : line.startsWith('+')
           ? 'text-[#3DFFA8] bg-[#3DFFA8]/[0.06]'
           : line.startsWith('-')
           ? 'text-[#FF8FAB] bg-[#FF5C8A]/[0.07]'
           : line.startsWith('@@')
           ? 'text-[#00E5FF]'
-          : 'text-white/70';
+          : 'text-white/85';
         return (
           <div key={i} className={`${color} whitespace-pre px-1`}>
             {line || ' '}
@@ -288,20 +288,20 @@ function PatchCard({ item, onPatch }: { item: ApprovalItem; onPatch: Props['onPa
 
   return (
     <div className="emboss rounded-2xl p-3.5 space-y-2.5 border border-[#FFB300]/25">
-      <div className="flex items-center justify-between text-[11px]">
+      <div className="flex items-center justify-between text-[11.5px]">
         <span className="flex items-center gap-1.5 font-bold text-[#FFB300]">
           <GitPullRequestArrow size={13} /> Self-Evolve Patch
         </span>
-        <span className="text-white/45">
+        <span className="text-white/74">
           {patch.model ?? ''} · {timeAgo(patch.created_at)}
         </span>
       </div>
-      <div className="text-[11px] text-white/55 italic">“{patch.request}”</div>
+      <div className="text-[11.5px] text-white/78 italic">“{patch.request}”</div>
       <p className="selectable text-[12.5px] text-white/90 leading-relaxed">{patch.summary}</p>
 
       <div className="flex flex-wrap gap-1.5">
         {patch.files.map((f) => (
-          <span key={f.path} className="emboss-well flex items-center gap-1 rounded-lg px-2 py-0.5 text-[10.5px] text-white/80">
+          <span key={f.path} className="emboss-well flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11.5px] text-white/80">
             <FileCode2 size={11} className="text-[#00E5FF]" />
             {f.path.split('/').slice(-2).join('/')}
             <span className="text-[#3DFFA8]">+{f.additions}</span>
@@ -310,20 +310,20 @@ function PatchCard({ item, onPatch }: { item: ApprovalItem; onPatch: Props['onPa
           </span>
         ))}
       </div>
-      <div className="flex gap-1.5 text-[10px]">
-        {patch.touches_daemon && <span className="px-1.5 py-0.5 rounded bg-[#C084FC]/15 text-[#E9D5FF]">daemon restarts</span>}
+      <div className="flex gap-1.5 text-[11px]">
+        {patch.touches_daemon && <span className="px-1.5 py-0.5 rounded bg-[#7FA6FF]/15 text-[#DCE7FF]">daemon restarts</span>}
         {patch.touches_ui && <span className="px-1.5 py-0.5 rounded bg-[#00E5FF]/15 text-[#A5F3FC]">UI hot-reloads</span>}
-        {patch.touches_extension && <span className="px-1.5 py-0.5 rounded bg-white/10 text-white/70">reload extension</span>}
+        {patch.touches_extension && <span className="px-1.5 py-0.5 rounded bg-white/10 text-white/85">reload extension</span>}
       </div>
 
-      <button onClick={() => setShowDiff(!showDiff)} className="flex items-center gap-1 text-[11px] text-white/60 hover:text-white">
+      <button onClick={() => setShowDiff(!showDiff)} className="flex items-center gap-1 text-[11.5px] text-white/80 hover:text-white">
         <ChevronDown size={12} className={`transition-transform ${showDiff ? 'rotate-180' : ''}`} />
         {showDiff ? 'Hide' : 'Show'} diff preview
       </button>
       {showDiff && <DiffView diff={patch.diff} />}
 
       {item.error && (
-        <div className="flex items-center gap-1.5 text-[11px] text-[#FF8FAB]">
+        <div className="flex items-center gap-1.5 text-[11.5px] text-[#FF8FAB]">
           <AlertTriangle size={12} /> {item.error}
         </div>
       )}
@@ -349,18 +349,18 @@ function PatchCard({ item, onPatch }: { item: ApprovalItem; onPatch: Props['onPa
       )}
       {status === 'applied' && (
         <div className="flex items-center justify-between">
-          <span className="text-[11px] text-[#3DFFA8]">✓ Applied</span>
+          <span className="text-[11.5px] text-[#3DFFA8]">✓ Applied</span>
           <button
             onClick={() => act('revert')}
             disabled={submitting}
-            className="emboss-pill flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11.5px] text-white/85"
+            className="emboss-pill flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[12px] text-white/85"
           >
             <RotateCcw size={12} /> Revert
           </button>
         </div>
       )}
       {(status === 'rejected' || status === 'reverted') && (
-        <span className="text-[11px] text-white/50">{status === 'reverted' ? '↺ Reverted' : '✕ Rejected'}</span>
+        <span className="text-[11.5px] text-white/76">{status === 'reverted' ? '↺ Reverted' : '✕ Rejected'}</span>
       )}
     </div>
   );
@@ -398,14 +398,14 @@ export default function ApprovalQueuePanel({
   return (
     <div className="relative z-10 flex-1 flex flex-col min-h-0 overflow-y-auto p-4 space-y-3">
       {/* Learning status */}
-      <div className="emboss rounded-2xl px-3.5 py-2.5 flex items-center justify-between gap-3 text-[11.5px]">
+      <div className="emboss rounded-2xl px-3.5 py-2.5 flex items-center justify-between gap-3 text-[12px]">
         <span className="flex items-center gap-2 text-white/80">
-          <Brain size={14} className="text-[#C084FC]" />
+          <Brain size={14} className="text-[#7FA6FF]" />
           <span>
             <b className="text-white">{alignmentExamples ?? 0}</b> decisions learned
           </span>
         </span>
-        <span className="text-white/45 truncate" title={trainingExport?.path}>
+        <span className="text-white/74 truncate" title={trainingExport?.path}>
           {trainingExport ? `Fine-tune set: ${trainingExport.examples} examples` : 'Export runs on Consolidate Memories'}
         </span>
       </div>
@@ -420,11 +420,11 @@ export default function ApprovalQueuePanel({
         }}
         className="emboss rounded-2xl p-3 space-y-2"
       >
-        <div className="flex items-center justify-between text-[11px]">
+        <div className="flex items-center justify-between text-[11.5px]">
           <span className="flex items-center gap-1.5 font-bold text-[#FFB300] text-emboss-header">
             <Wand2 size={13} /> Talk-to-Develop
           </span>
-          <span className="text-white/45">
+          <span className="text-white/74">
             {isDeepMode ? 'Voice requests active (Deep mode)' : 'Switch to 📜 Deep for voice requests'}
           </span>
         </div>
@@ -433,14 +433,14 @@ export default function ApprovalQueuePanel({
             value={request}
             onChange={(e) => setRequest(e.target.value)}
             placeholder="Describe a feature for Orion to build into itself…"
-            className="emboss-well flex-1 rounded-xl px-3 py-2 text-[12px] text-starlight placeholder:text-white/35 focus:outline-none"
+            className="emboss-well flex-1 rounded-xl px-3 py-2 text-[12px] text-starlight placeholder:text-white/55 focus:outline-none"
           />
           <button type="submit" disabled={!request.trim() || planning} className="emboss-pill rounded-xl px-3 py-2 text-[12px] text-[#FFB300]">
             {planning ? <Loader2 size={14} className="animate-spin" /> : 'Generate'}
           </button>
         </div>
         {selfEvolveStatus && selfEvolveStatus.stage !== 'ready' && (
-          <div className={`text-[11px] flex items-center gap-1.5 ${selfEvolveStatus.stage === 'failed' ? 'text-[#FF8FAB]' : 'text-white/60'}`}>
+          <div className={`text-[11.5px] flex items-center gap-1.5 ${selfEvolveStatus.stage === 'failed' ? 'text-[#FF8FAB]' : 'text-white/80'}`}>
             {selfEvolveStatus.stage === 'planning' ? <Loader2 size={11} className="animate-spin" /> : <AlertTriangle size={11} />}
             {selfEvolveStatus.stage === 'planning'
               ? `Planning patch: “${selfEvolveStatus.request.slice(0, 80)}”`
@@ -449,13 +449,13 @@ export default function ApprovalQueuePanel({
         )}
       </form>
 
-      <div className="flex items-center justify-between px-1 text-[11px] text-white/55 uppercase tracking-wider">
+      <div className="flex items-center justify-between px-1 text-[11.5px] text-white/78 uppercase tracking-wider">
         <span>Awaiting approval ({pending.length})</span>
       </div>
 
       <AnimatePresence initial={false}>{pending.map(renderItem)}</AnimatePresence>
       {pending.length === 0 && (
-        <div className="py-8 text-center text-[12px] text-white/50 leading-relaxed px-6">
+        <div className="py-8 text-center text-[12px] text-white/76 leading-relaxed px-6">
           Nothing to review. Orion triages your community channels and drops drafted replies here — nothing is sent
           without your click.
         </div>
@@ -463,7 +463,7 @@ export default function ApprovalQueuePanel({
 
       {resolved.length > 0 && (
         <div className="space-y-2">
-          <button onClick={() => setShowResolved(!showResolved)} className="flex items-center gap-1 px-1 text-[11px] text-white/50 hover:text-white">
+          <button onClick={() => setShowResolved(!showResolved)} className="flex items-center gap-1 px-1 text-[11.5px] text-white/76 hover:text-white">
             <ChevronDown size={12} className={`transition-transform ${showResolved ? 'rotate-180' : ''}`} />
             Recently resolved ({resolved.length})
           </button>

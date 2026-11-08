@@ -37,7 +37,7 @@ export default function AssetInputBar({
           className={`relative flex-1 flex items-center gap-2 rounded-full px-4 py-2.5 backdrop-blur-2xl transition-all duration-300 ${
             micActive
               ? 'border-2 border-[#FF5C8A] bg-[#FF5C8A]/10 shadow-[0_0_20px_rgba(255,92,138,0.35)]'
-              : 'border border-cyan-400/35 bg-gradient-to-r from-[#00E5FF]/10 via-[#3DFFA8]/5 to-[#C084FC]/10 shadow-[0_0_20px_rgba(0,229,255,0.15)] focus-within:border-[#00E5FF] focus-within:shadow-[0_0_25px_rgba(0,229,255,0.35)]'
+              : 'border border-cyan-400/35 bg-gradient-to-r from-[#00E5FF]/10 via-[#3DFFA8]/5 to-[#7FA6FF]/10 shadow-[0_0_20px_rgba(0,229,255,0.15)] focus-within:border-[#00E5FF] focus-within:shadow-[0_0_25px_rgba(0,229,255,0.35)]'
           }`}
         >
           {/* Microphone Icon Button on Left */}
@@ -88,7 +88,7 @@ export default function AssetInputBar({
         <button
           type="submit"
           disabled={!value.trim()}
-          className="h-10 w-10 shrink-0 rounded-full border border-[#C084FC]/40 bg-gradient-to-b from-[#C084FC]/25 to-transparent flex items-center justify-center text-dust hover:text-[#C084FC] hover:border-[#C084FC] hover:shadow-[0_0_15px_rgba(192,132,252,0.4)] transition-all disabled:opacity-30 disabled:pointer-events-none"
+          className="h-10 w-10 shrink-0 rounded-full border border-[#7FA6FF]/40 bg-gradient-to-b from-[#7FA6FF]/25 to-transparent flex items-center justify-center text-dust hover:text-[#7FA6FF] hover:border-[#7FA6FF] hover:shadow-[0_0_15px_rgba(127,166,255,0.4)] transition-all disabled:opacity-30 disabled:pointer-events-none"
           title="Send to Orion"
         >
           <Send size={15} className="ml-0.5" />

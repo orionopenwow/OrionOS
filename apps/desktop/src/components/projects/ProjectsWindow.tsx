@@ -20,10 +20,10 @@ import { missionsApi, STATE_LABEL, type MissionDetail } from '../../lib/missions
 import { folderName, projectsApi, type Project, type ProjectsSnapshot, type Starter } from '../../lib/projects';
 
 const field =
-  'w-full rounded-lg border border-white/10 bg-black/30 px-2.5 py-2 text-[13px] text-white placeholder:text-white/30 focus:border-[#7C5CFF]/60 focus:outline-none';
+  'w-full rounded-lg border border-white/10 bg-black/30 px-2.5 py-2 text-[13px] text-white placeholder:text-white/55 focus:border-[#2E6BFF]/60 focus:outline-none';
 const primary =
   'flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold text-white disabled:opacity-40';
-const primaryStyle = { background: 'rgba(124,92,255,0.45)', border: '1px solid rgba(176,156,255,0.6)' };
+const primaryStyle = { background: 'rgba(46,107,255,0.45)', border: '1px solid rgba(141,176,255,0.6)' };
 const quiet =
   'flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-[12px] text-white/80 hover:bg-white/[0.06] disabled:opacity-40';
 
@@ -74,11 +74,11 @@ function Wizard({ snap, onMade, prefill }: { snap: ProjectsSnapshot; onMade: (na
     <div className="space-y-3">
       <div className="flex items-center gap-2" aria-live="polite">
         {['Name it', 'Pick a starter', 'Say what you want'].map((t, i) => (
-          <span key={t} className="flex items-center gap-1.5 text-[11.5px]" style={{ color: i === step ? '#D8DEFF' : 'rgba(216,222,255,0.4)' }}>
+          <span key={t} className="flex items-center gap-1.5 text-[12px]" style={{ color: i === step ? '#DDE5F0' : 'rgba(221,229,240,0.4)' }}>
             <span
               aria-hidden
-              className="grid h-5 w-5 place-items-center rounded-full text-[10.5px] font-bold"
-              style={{ background: i <= step ? 'rgba(124,92,255,0.5)' : 'rgba(216,222,255,0.08)' }}
+              className="grid h-5 w-5 place-items-center rounded-full text-[11.5px] font-bold"
+              style={{ background: i <= step ? 'rgba(46,107,255,0.5)' : 'rgba(221,229,240,0.08)' }}
             >
               {i + 1}
             </span>
@@ -101,7 +101,7 @@ function Wizard({ snap, onMade, prefill }: { snap: ProjectsSnapshot; onMade: (na
             placeholder="Star Catcher"
             className={field}
           />
-          <div className="text-[11.5px] text-white/45">
+          <div className="text-[12px] text-white/74">
             {taken ? <span className="text-[#FFC66B]">You already have a project called {clean}.</span> : clean ? <>Orion makes the folder {snap.root}{sep}{clean}</> : 'Letters, numbers, spaces, - and _.'}
           </div>
         </div>
@@ -118,12 +118,12 @@ function Wizard({ snap, onMade, prefill }: { snap: ProjectsSnapshot; onMade: (na
               onClick={() => setStarter(s.id)}
               className="rounded-xl px-3 py-2.5 text-left outline-none focus-visible:ring-1 focus-visible:ring-[#00E5FF]/70"
               style={{
-                background: starter === s.id ? 'rgba(124,92,255,0.22)' : 'rgba(216,222,255,0.04)',
-                border: `1px solid ${starter === s.id ? 'rgba(176,156,255,0.6)' : 'rgba(216,222,255,0.08)'}`,
+                background: starter === s.id ? 'rgba(46,107,255,0.22)' : 'rgba(221,229,240,0.04)',
+                border: `1px solid ${starter === s.id ? 'rgba(141,176,255,0.6)' : 'rgba(221,229,240,0.08)'}`,
               }}
             >
-              <span className="block text-[13px] font-semibold text-[#D8DEFF]">{s.label}</span>
-              <span className="block text-[11.5px] leading-snug text-[#D8DEFF]/55">{s.description}</span>
+              <span className="block text-[13px] font-semibold text-[#DDE5F0]">{s.label}</span>
+              <span className="block text-[12px] leading-snug text-[#DDE5F0]/78">{s.description}</span>
             </button>
           ))}
         </div>
@@ -133,14 +133,14 @@ function Wizard({ snap, onMade, prefill }: { snap: ProjectsSnapshot; onMade: (na
         <div className="space-y-2">
           <label className="block text-[12.5px] font-semibold" htmlFor="project-idea">What do you want? Plain words are fine.</label>
           <textarea id="project-idea" autoFocus value={idea} onChange={(e) => setIdea(e.target.value)} rows={5} placeholder={IDEA_HINT[starter]} className={field} />
-          <label className="flex items-center gap-2 text-[12px] text-white/70">
+          <label className="flex items-center gap-2 text-[12px] text-white/85">
             Who builds it
             <select value={agent} onChange={(e) => setAgent(e.target.value as 'claude' | '')} className="rounded-md border border-white/10 bg-black/40 px-2 py-1 text-[12px] text-white">
               <option value="claude">Claude Code</option>
               <option value="">Let Orion pick</option>
             </select>
           </label>
-          <div className="text-[11.5px] text-white/45">
+          <div className="text-[12px] text-white/74">
             Claude works on a copy and never pushes anything. When it's done you check it, and your phone signs the merge.
           </div>
         </div>
@@ -180,7 +180,7 @@ function Progress({ id }: { id: string }) {
       window.clearInterval(t);
     };
   }, [id]);
-  if (!d) return <div className="text-[12px] text-white/45">Loading the mission…</div>;
+  if (!d) return <div className="text-[12px] text-white/74">Loading the mission…</div>;
   const c = STATE_COLOR[d.state] ?? '#8A90B8';
   return (
     <div className="space-y-1.5 rounded-xl border border-white/10 bg-black/20 p-2.5" aria-live="polite">
@@ -188,11 +188,11 @@ function Progress({ id }: { id: string }) {
         {d.state === 'running' ? <Loader2 size={13} className="animate-spin" style={{ color: c }} /> : <span aria-hidden className="h-2 w-2 rounded-full" style={{ background: c }} />}
         <span className="font-semibold" style={{ color: c }}>{STATE_LABEL[d.state]}</span>
         <span className="min-w-0 flex-1 truncate text-white/80">{d.title}</span>
-        <span className="shrink-0 text-[11px] text-white/45" title={d.cost_note}>${d.cost_usd.toFixed(2)} of ${d.budget_usd.toFixed(2)}</span>
+        <span className="shrink-0 text-[11.5px] text-white/74" title={d.cost_note}>${d.cost_usd.toFixed(2)} of ${d.budget_usd.toFixed(2)}</span>
       </div>
-      {d.summary && <div className="text-[12px] text-white/65">{d.summary}</div>}
+      {d.summary && <div className="text-[12px] text-white/82">{d.summary}</div>}
       {d.log_tail?.length > 0 && (
-        <pre className="selectable max-h-28 overflow-y-auto whitespace-pre-wrap rounded-lg bg-black/30 p-2 font-mono text-[10.5px] leading-snug text-white/55">
+        <pre className="selectable max-h-28 overflow-y-auto whitespace-pre-wrap rounded-lg bg-black/30 p-2 font-mono text-[11.5px] leading-snug text-white/78">
           {d.log_tail.slice(-8).join('\n')}
         </pre>
       )}
@@ -225,9 +225,9 @@ function Detail({ p, onNote, onChanged }: { p: Project; onNote: (s: string) => v
   return (
     <div className="space-y-3">
       <div>
-        <div className="text-[15px] font-semibold text-[#D8DEFF]">{p.name}</div>
-        <div className="selectable truncate text-[11.5px] text-white/45" title={p.path}>{p.path}</div>
-        {p.idea && <div className="mt-1 text-[12.5px] text-white/70">{p.idea}</div>}
+        <div className="text-[15px] font-semibold text-[#DDE5F0]">{p.name}</div>
+        <div className="selectable truncate text-[12px] text-white/74" title={p.path}>{p.path}</div>
+        {p.idea && <div className="mt-1 text-[12.5px] text-white/85">{p.idea}</div>}
       </div>
       <div className="flex flex-wrap gap-2">
         <button type="button" className={quiet} disabled={busy || !p.exists} onClick={() => run(() => projectsApi.open(p.name))}>
@@ -243,7 +243,7 @@ function Detail({ p, onNote, onChanged }: { p: Project; onNote: (s: string) => v
           <Rocket size={13} /> Mission Control
         </button>
       </div>
-      {latest ? <Progress key={latest} id={latest} /> : <div className="text-[12px] text-white/50">No mission yet. Ask for a change below to start one.</div>}
+      {latest ? <Progress key={latest} id={latest} /> : <div className="text-[12px] text-white/76">No mission yet. Ask for a change below to start one.</div>}
       <div className="space-y-1.5">
         <label htmlFor="project-change" className="block text-[12.5px] font-semibold">Ask for a change</label>
         <div className="flex gap-1.5">
@@ -262,7 +262,7 @@ function Detail({ p, onNote, onChanged }: { p: Project; onNote: (s: string) => v
             <Send size={13} />
           </button>
         </div>
-        {p.missions.length > 1 && <div className="text-[11px] text-white/40">{p.missions.length} missions on this project so far.</div>}
+        {p.missions.length > 1 && <div className="text-[11.5px] text-white/72">{p.missions.length} missions on this project so far.</div>}
       </div>
     </div>
   );
@@ -309,7 +309,7 @@ export default function ProjectsWindow({ mobile }: { mobile?: boolean }) {
 
   const current = snap?.projects.find((p) => p.name === view);
   const body = !snap ? (
-    <div className="text-[12.5px] text-white/50">{offline ? "Orion's brain isn't running, so projects can't be made right now." : 'Loading…'}</div>
+    <div className="text-[12.5px] text-white/76">{offline ? "Orion's brain isn't running, so projects can't be made right now." : 'Loading…'}</div>
   ) : view === 'new' ? (
     <Wizard key={prefill?.name ?? 'blank'} snap={snap} prefill={prefill} onMade={(name, msg) => { setNote(msg); setPrefill(null); load(); setView(name); }} />
   ) : current ? (
@@ -317,24 +317,24 @@ export default function ProjectsWindow({ mobile }: { mobile?: boolean }) {
   ) : (
     <div className="space-y-2">
       <button type="button" onClick={() => { setPrefill(null); setView('new'); setNote(''); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left outline-none focus-visible:ring-1 focus-visible:ring-[#00E5FF]/70"
-        style={{ background: 'rgba(124,92,255,0.18)', border: '1px solid rgba(176,156,255,0.45)' }}>
-        <Plus size={18} className="text-[#C4B5FD]" />
+        style={{ background: 'rgba(46,107,255,0.18)', border: '1px solid rgba(141,176,255,0.45)' }}>
+        <Plus size={18} className="text-[#B7CBFF]" />
         <span>
-          <span className="block text-[13.5px] font-semibold text-[#D8DEFF]">Start a project with Claude</span>
-          <span className="block text-[11.5px] text-white/55">A game, a website or a tool. Name it, pick a starter, say what you want.</span>
+          <span className="block text-[13.5px] font-semibold text-[#DDE5F0]">Start a project with Claude</span>
+          <span className="block text-[12px] text-white/78">A game, a website or a tool. Name it, pick a starter, say what you want.</span>
         </span>
       </button>
-      {snap.projects.length === 0 && <div className="px-1 text-[12px] text-white/45">No projects yet. They live in {snap.root}.</div>}
+      {snap.projects.length === 0 && <div className="px-1 text-[12px] text-white/74">No projects yet. They live in {snap.root}.</div>}
       {snap.projects.map((p) => {
         const st = p.latest?.state;
         return (
           <button key={p.name} type="button" onClick={() => setView(p.name)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-white/[0.05] focus-visible:bg-white/[0.08] focus-visible:outline-none">
-            <FolderGit2 size={15} className="shrink-0 text-white/60" />
+            <FolderGit2 size={15} className="shrink-0 text-white/80" />
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[13px] font-semibold text-[#D8DEFF]">{p.name}</span>
-              <span className="block truncate text-[11.5px] text-white/45">{p.idea || snap.starters.find((s) => s.id === p.starter)?.label}</span>
+              <span className="block truncate text-[13px] font-semibold text-[#DDE5F0]">{p.name}</span>
+              <span className="block truncate text-[12px] text-white/74">{p.idea || snap.starters.find((s) => s.id === p.starter)?.label}</span>
             </span>
-            {st && <span className="shrink-0 text-[11px]" style={{ color: STATE_COLOR[st] }}>{STATE_LABEL[st]}</span>}
+            {st && <span className="shrink-0 text-[11.5px]" style={{ color: STATE_COLOR[st] }}>{STATE_LABEL[st]}</span>}
           </button>
         );
       })}
@@ -352,20 +352,20 @@ export default function ProjectsWindow({ mobile }: { mobile?: boolean }) {
           id="projects"
           title="Projects"
           subtitle={view === 'new' ? 'Start a project with Claude' : current ? current.name : 'Make something with Claude'}
-          icon={<FolderGit2 size={14} className="text-[#9D85FF]" />}
+          icon={<FolderGit2 size={14} className="text-[#8DB0FF]" />}
           onClose={() => { setOpen(false); setView('list'); setNote(''); }}
           maximisable={false}
           mobile={mobile}
           className="top-16 w-[520px] max-w-[calc(100vw-32px)]"
           style={mobile ? undefined : { left: 'max(16px, calc(50% - 260px))' }}
           titleExtra={view !== 'list' ? (
-            <button type="button" onClick={() => { setView('list'); setNote(''); }} className="flex items-center gap-1 rounded-md px-2 py-0.5 text-[11.5px] text-white/60 hover:bg-white/10 hover:text-white">
+            <button type="button" onClick={() => { setView('list'); setNote(''); }} className="flex items-center gap-1 rounded-md px-2 py-0.5 text-[12px] text-white/80 hover:bg-white/10 hover:text-white">
               <ArrowLeft size={12} /> All projects
             </button>
           ) : undefined}
         >
-          <div className="max-h-[70vh] space-y-3 overflow-y-auto p-4 text-[#D8DEFF]">
-            {note && <div role="status" className="rounded-lg bg-white/[0.05] px-3 py-1.5 text-[12px] text-white/75">{note}</div>}
+          <div className="max-h-[70vh] space-y-3 overflow-y-auto p-4 text-[#DDE5F0]">
+            {note && <div role="status" className="rounded-lg bg-white/[0.05] px-3 py-1.5 text-[12px] text-white/88">{note}</div>}
             {body}
           </div>
         </GlassWindow>

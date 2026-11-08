@@ -48,7 +48,7 @@ export default function MicLight() {
       style={{
         position: 'fixed', top: 10, left: '50%', transform: 'translateX(-50%)', zIndex: 60,
         display: 'flex', alignItems: 'center', gap: 8, padding: '6px 14px', borderRadius: 999,
-        background: 'rgba(11,15,30,0.85)', border: '1px solid #262D50', color: '#D8DEFF',
+        background: 'rgba(26,31,39,0.85)', border: '1px solid #2F3744', color: '#DDE5F0',
         font: '500 12px/1.2 system-ui, sans-serif', cursor: 'pointer', backdropFilter: 'blur(8px)',
       }}
     >

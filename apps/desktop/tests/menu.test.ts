@@ -54,3 +54,31 @@ test('orion:open reaches only the listeners for that id', () => {
   openOrion('projects');
   assert.deepEqual(got, ['projects', 'missions']);
 });
+
+// ---- look pass: the command console groups and the draggable Orion button --------------------------------
+import { SECTIONS, sectionItems } from '../src/lib/menu.ts';
+import { clampPos, defaultPos, inTaskbarCorner, readPos, BUTTON_SIZE } from '../src/lib/orionButton.ts';
+
+test('every item except Chat sits in exactly one console section, main items first', () => {
+  const ids = new Set(SECTIONS.map((s) => s.id));
+  for (const i of MENU) {
+    if (i.id === 'chat') assert.equal(i.section, undefined);
+    else assert.ok(i.section && ids.has(i.section), i.id);
+  }
+  const placed = SECTIONS.flatMap((s) => sectionItems(s.id).map((i) => i.id));
+  assert.equal(placed.length, MENU.length - 1);
+  for (const s of SECTIONS) {
+    const g = sectionItems(s.id).map((i) => i.group);
+    assert.deepEqual(g, [...g].sort((a, b) => (a === b ? 0 : a === 'main' ? -1 : 1)), s.id);
+  }
+});
+
+test('the Orion button stays on screen and remembers a sane spot', () => {
+  assert.deepEqual(clampPos({ x: -50, y: 9999 }, 1600, 1000), { x: 12, y: 1000 - BUTTON_SIZE - 12 });
+  assert.deepEqual(clampPos({ x: 700, y: 400 }, 1600, 1000), { x: 700, y: 400 });
+  // a spot saved on a big screen is pulled back inside a small one
+  assert.deepEqual(readPos(JSON.stringify({ x: 1500, y: 900 }), 390, 844), { x: 390 - BUTTON_SIZE - 12, y: 844 - BUTTON_SIZE - 12 });
+  for (const bad of [null, '', 'nope', '{"x":"a"}', '{"x":1}']) assert.deepEqual(readPos(bad, 1600, 1000), defaultPos(1600, 1000));
+  assert.equal(inTaskbarCorner(defaultPos(1600, 1000), 1000), true);
+  assert.equal(inTaskbarCorner({ x: 800, y: 40 }, 1000), false);
+});

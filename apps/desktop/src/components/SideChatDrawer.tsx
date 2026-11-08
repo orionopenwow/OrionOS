@@ -89,7 +89,7 @@ export default function SideChatDrawer({
           transition={{ type: 'spring', stiffness: 280, damping: 30 }}
           className="glass-strong absolute bottom-0 right-0 top-12 z-40 flex w-[400px] flex-col border-l border-glass shadow-2xl backdrop-blur-2xl"
           style={{
-            boxShadow: '-12px 0 40px rgba(0,0,0,0.6), -1px 0 0 rgba(157, 142, 199, 0.25)',
+            boxShadow: '-12px 0 40px rgba(0,0,0,0.6), -1px 0 0 rgba(138, 154, 181, 0.25)',
           }}
         >
           {/* Header */}
@@ -103,7 +103,7 @@ export default function SideChatDrawer({
                 <div className="font-display text-xs font-bold tracking-widest text-starlight">
                   ORION INTELLIGENCE
                 </div>
-                <div className="text-[10px] text-dust font-mono flex items-center gap-1.5">
+                <div className="text-[11px] text-dust font-mono flex items-center gap-1.5">
                   <span>Neural Chat Thread</span>
                   {micActive && (
                     <span className="text-danger flex items-center gap-1 animate-pulse font-semibold">
@@ -127,7 +127,7 @@ export default function SideChatDrawer({
               <div className="flex h-full flex-col items-center justify-center p-6 text-center text-dust">
                 <Sparkles size={28} className="text-pulse/50 mb-3 animate-pulse" />
                 <p className="text-xs text-starlight/80">Orion is standing by.</p>
-                <p className="text-[11px] text-dust/70 mt-1 max-w-[240px]">
+                <p className="text-[11.5px] text-dust/85 mt-1 max-w-[240px]">
                   Click the mic to speak directly, and Orion will type your words live.
                 </p>
               </div>
@@ -139,7 +139,7 @@ export default function SideChatDrawer({
                   animate={{ opacity: 1, y: 0 }}
                   className="space-y-1.5"
                 >
-                  <div className="flex items-center justify-between text-[10px] text-dust px-1">
+                  <div className="flex items-center justify-between text-[11px] text-dust px-1">
                     <span className="flex items-center gap-1 font-mono text-pulse">
                       <Bot size={12} /> Orion {m.tier ? `(${m.tier})` : ''}
                     </span>
@@ -150,7 +150,7 @@ export default function SideChatDrawer({
                     <p className="selectable">{m.text}</p>
 
                     {m.code && (
-                      <div className="mt-2.5 relative rounded bg-black/75 p-2.5 font-mono text-[11px] text-starlight border border-glass">
+                      <div className="mt-2.5 relative rounded bg-black/75 p-2.5 font-mono text-[11.5px] text-starlight border border-glass">
                         <button
                           onClick={() => handleCopy(m.id, m.code!)}
                           className="absolute right-2 top-2 rounded p-1 text-dust hover:text-pulse bg-white/5 hover:bg-white/10"

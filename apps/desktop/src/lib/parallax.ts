@@ -49,3 +49,28 @@ export function stepParallax(): { x: number; y: number } {
 export function getParallax(): { x: number; y: number } {
   return { x: value.x, y: value.y };
 }
+
+/**
+ * Look pass: publish the smoothed pointer value as CSS variables (--orion-px, --orion-py, -1..1) on <html> so
+ * plain layers can drift with it: the core leans a few pixels toward the pointer (a soft gravity pull) while
+ * the stars move the other way. Runs only while the value changes; stays at 0 with calm or reduced motion.
+ */
+let cssStarted = false;
+export function startPointerVars(): void {
+  if (cssStarted || typeof window === 'undefined') return;
+  cssStarted = true;
+  const root = document.documentElement;
+  let lx = 9;
+  let ly = 9;
+  const tick = () => {
+    requestAnimationFrame(tick);
+    const x = value.x;
+    const y = value.y;
+    if (Math.abs(x - lx) + Math.abs(y - ly) < 0.001) return;
+    lx = x;
+    ly = y;
+    root.style.setProperty('--orion-px', x.toFixed(4));
+    root.style.setProperty('--orion-py', y.toFixed(4));
+  };
+  requestAnimationFrame(tick);
+}

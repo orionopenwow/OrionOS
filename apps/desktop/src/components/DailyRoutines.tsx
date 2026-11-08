@@ -93,14 +93,14 @@ export default function DailyRoutines({
             {onSnooze && (
               <button
                 onClick={onSnooze}
-                className="emboss-pill flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] text-white/75"
+                className="emboss-pill flex items-center gap-1 rounded-full px-2 py-0.5 text-[11.5px] text-white/88"
                 title={`Remind me in ${snoozeMinutes} minutes`}
               >
                 <AlarmClockOff size={11} /> {snoozeMinutes} min
               </button>
             )}
           </div>
-          <p className="mt-1 text-[11.5px] text-white/65">
+          <p className="mt-1 text-[12px] text-white/82">
             Suggested: <b className="text-white">{checkin.suggestion.title}</b> — {checkin.suggestion.detail}
           </p>
           <div className="mt-2.5 grid grid-cols-2 gap-1.5">
@@ -113,7 +113,7 @@ export default function DailyRoutines({
                   onClick={() => onStartBreak?.(opt.id ?? opt.kind)}
                   data-active={suggested}
                   title={opt.detail}
-                  className="emboss-pill flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-left text-[11.5px]"
+                  className="emboss-pill flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-left text-[12px]"
                   style={{ color: suggested ? pacingColors.break_due : '#E5E7EB' }}
                 >
                   <Icon size={14} className="shrink-0" />
@@ -136,7 +136,7 @@ export default function DailyRoutines({
               onClick={onRequestRoutines}
               disabled={!connected}
               title="Consolidate memory & suggest new routines"
-              className="flex items-center gap-1.5 rounded px-2 py-1 text-[11px] text-dust transition-colors hover:bg-white/5 hover:text-starlight disabled:opacity-40"
+              className="flex items-center gap-1.5 rounded px-2 py-1 text-[11.5px] text-dust transition-colors hover:bg-white/5 hover:text-starlight disabled:opacity-40"
             >
               <RefreshCw size={12} />
               <span>Refresh</span>

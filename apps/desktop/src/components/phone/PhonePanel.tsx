@@ -115,8 +115,8 @@ async function call<T>(path: string, method = 'GET', body?: unknown): Promise<T>
 }
 
 const btn = 'rounded-full px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-40';
-const primary = { background: 'linear-gradient(90deg,#7C5CFF,#00B8D9)' };
-const quiet = { background: 'rgba(124,92,255,0.18)', border: '1px solid #3A3F6B' };
+const primary = { background: 'linear-gradient(90deg,#2E6BFF,#00B8D9)' };
+const quiet = { background: 'rgba(46,107,255,0.18)', border: '1px solid #3A4352' };
 
 function PhoneWindow({ onClose, mobile }: { onClose: () => void; mobile?: boolean }) {
   const [phones, setPhones] = useState<Phone[] | null>(null);
@@ -288,8 +288,8 @@ function PhoneWindow({ onClose, mobile }: { onClose: () => void; mobile?: boolea
       mobile={mobile}
       className="left-1/2 top-[12vh] -translate-x-1/2 w-[460px] max-w-[calc(100vw-32px)]"
     >
-      <div className="p-4 space-y-3 max-h-[74vh] overflow-y-auto text-[#D8DEFF]">
-        {phones === null && <div className="text-[13px] text-[#D8DEFF]/60">Checking…</div>}
+      <div className="p-4 space-y-3 max-h-[74vh] overflow-y-auto text-[#DDE5F0]">
+        {phones === null && <div className="text-[13px] text-[#DDE5F0]/80">Checking…</div>}
 
         {/* ------------------------------------------------ pairing: QR, code, then the words */}
         {showPairing && !pending && showInstall && share && (
@@ -303,8 +303,8 @@ function PhoneWindow({ onClose, mobile }: { onClose: () => void; mobile?: boolea
                   alt="QR code to download Orion Mobile"
                   src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(share.qr_svg)}`}
                 />
-                <div className="text-center select-all font-mono text-[11px] text-[#D8DEFF]/55">{share.url}</div>
-                <div className="text-[12px] text-[#D8DEFF]/60">
+                <div className="text-center select-all font-mono text-[11.5px] text-[#DDE5F0]/78">{share.url}</div>
+                <div className="text-[12px] text-[#DDE5F0]/80">
                   Your phone downloads the app over your Wi-Fi. Open the download and tap Install (Android may ask you
                   to allow installing from your browser once). Already installed? Skip to 2.
                 </div>
@@ -333,15 +333,15 @@ function PhoneWindow({ onClose, mobile }: { onClose: () => void; mobile?: boolea
               <div className="text-[13px] text-[#FFC66B]">{pair.how}</div>
             )}
             <div className="text-center">
-              <div className="text-[12px] text-[#D8DEFF]/60">or open Orion Mobile &gt; Pair with my PC and type the code</div>
+              <div className="text-[12px] text-[#DDE5F0]/80">or open Orion Mobile &gt; Pair with my PC and type the code</div>
               <div className="mt-1 select-all font-mono text-[20px] tracking-wider text-[#00E5FF]">{pair.code}</div>
-              {pair.address && <div className="text-[11px] text-[#D8DEFF]/45">PC address {pair.address}</div>}
+              {pair.address && <div className="text-[11.5px] text-[#DDE5F0]/74">PC address {pair.address}</div>}
             </div>
-            <div className="text-[12px] text-[#D8DEFF]/60">{pair.how}</div>
+            <div className="text-[12px] text-[#DDE5F0]/80">{pair.how}</div>
             {lan && lan.ok === false && (
               <div className="rounded-xl px-3 py-2 space-y-2" style={{ background: 'rgba(255,198,107,0.10)', border: '1px solid rgba(255,198,107,0.35)' }}>
                 <div className="text-[13px] text-[#FFC66B]">{lan.words}</div>
-                {lan.fix_words && <div className="text-[12px] text-[#D8DEFF]/70">{lan.fix_words}</div>}
+                {lan.fix_words && <div className="text-[12px] text-[#DDE5F0]/85">{lan.fix_words}</div>}
                 {lan.fix === 'open_access' && (
                   <button type="button" disabled={busy} className={btn} style={primary}
                     onClick={() => void action('/phones/open-access')}>
@@ -351,7 +351,7 @@ function PhoneWindow({ onClose, mobile }: { onClose: () => void; mobile?: boolea
               </div>
             )}
             <div className="flex items-center gap-2">
-              <span className="flex-1 text-[12px] text-[#D8DEFF]/50">Waiting for your phone…</span>
+              <span className="flex-1 text-[12px] text-[#DDE5F0]/76">Waiting for your phone…</span>
               <button type="button" disabled={busy} className={btn} style={quiet} onClick={() => void open()}>New code</button>
               <button type="button" disabled={busy} className={btn} style={quiet} onClick={() => void cancel()}>Cancel</button>
             </div>
@@ -363,9 +363,9 @@ function PhoneWindow({ onClose, mobile }: { onClose: () => void; mobile?: boolea
             <div className="text-[15px] font-semibold">Do these words match your phone?</div>
             <div className="rounded-xl px-3 py-4 text-center" style={{ background: 'rgba(0,229,255,0.06)', border: '1px solid rgba(0,229,255,0.3)' }}>
               <div className="text-[24px] font-semibold leading-snug text-[#00E5FF]">{pending.words}</div>
-              <div className="mt-2 font-mono text-[11px] text-[#D8DEFF]/45">{pending.fingerprint}</div>
+              <div className="mt-2 font-mono text-[11.5px] text-[#DDE5F0]/74">{pending.fingerprint}</div>
             </div>
-            <div className="text-[12px] text-[#D8DEFF]/65">
+            <div className="text-[12px] text-[#DDE5F0]/82">
               &ldquo;{pending.name}&rdquo; wants to connect. Only press Confirm if your phone shows exactly these words.
               If they don&apos;t match, press Cancel: something on the network swapped the key.
             </div>
@@ -382,15 +382,15 @@ function PhoneWindow({ onClose, mobile }: { onClose: () => void; mobile?: boolea
         {!showPairing && phones && phones.length > 0 && (
           <>
             {phones.map((p) => (
-              <div key={p.device_id} className="rounded-xl px-3 py-3 space-y-2" style={{ background: 'rgba(216,222,255,0.05)' }}>
+              <div key={p.device_id} className="rounded-xl px-3 py-3 space-y-2" style={{ background: 'rgba(221,229,240,0.05)' }}>
                 <div className="flex items-center gap-2">
                   <span aria-hidden className="h-2.5 w-2.5 rounded-full"
                     style={{ background: p.online ? '#5CFFB0' : '#5A6088', boxShadow: p.online ? '0 0 8px #5CFFB0' : 'none' }} />
                   <span className="flex-1 text-[15px] font-semibold">{p.name}</span>
-                  <span className="text-[12px] text-[#D8DEFF]/60">{p.online ? 'Online' : `Last seen ${ago(p.last_seen)}`}</span>
+                  <span className="text-[12px] text-[#DDE5F0]/80">{p.online ? 'Online' : `Last seen ${ago(p.last_seen)}`}</span>
                 </div>
                 {p.link && (   /* [phonelink] one plain line: Connected / Reconnecting… / Not connected */
-                  <div className="text-[12px] text-[#D8DEFF]/70">
+                  <div className="text-[12px] text-[#DDE5F0]/85">
                     {p.link.words}
                     {p.link.state !== 'never' ? ` · last seen ${ago(p.link.last_seen)}` : ''}
                     {p.link.quality ? ` · link ${p.link.quality}` : ''}
@@ -398,7 +398,7 @@ function PhoneWindow({ onClose, mobile }: { onClose: () => void; mobile?: boolea
                     {p.link.clock_words ? ` · ${p.link.clock_words}` : ''}
                   </div>
                 )}
-                <div className="text-[12px] text-[#D8DEFF]/55">
+                <div className="text-[12px] text-[#DDE5F0]/78">
                   {p.battery != null ? `Battery ${p.battery}%${p.charging ? ', charging' : ''}` : 'Battery not known yet'}
                   {p.network === 'cellular' ? ' · on mobile data' : ''}
                 </div>
@@ -416,10 +416,10 @@ function PhoneWindow({ onClose, mobile }: { onClose: () => void; mobile?: boolea
               </div>
             ))}
             {report && (   /* [phonelink] what the checks found, the first thing to do on top */
-              <div className="rounded-xl px-3 py-3 space-y-1 text-[12px]" style={{ background: 'rgba(216,222,255,0.05)' }}>
+              <div className="rounded-xl px-3 py-3 space-y-1 text-[12px]" style={{ background: 'rgba(221,229,240,0.05)' }}>
                 <div className="text-[13px] font-semibold" style={{ color: report.ok ? '#5CFFB0' : '#FFB86B' }}>{report.say}</div>
                 {report.checks.map((c) => (
-                  <div key={c.id} className="text-[#D8DEFF]/70">
+                  <div key={c.id} className="text-[#DDE5F0]/85">
                     {c.ok === true ? 'OK' : c.ok === false ? 'Problem' : 'Note'} · {c.name}: {c.words}
                     {c.ok === false && c.fix ? ` ${c.fix}` : ''}
                   </div>
@@ -448,18 +448,18 @@ function PhoneWindow({ onClose, mobile }: { onClose: () => void; mobile?: boolea
               .then((j) => { setPcName(j.name); setNote(`Phones now see this PC as ${j.name}.`); })
               .catch((err) => setNote(err instanceof Error ? err.message : 'Couldn\'t save the name.'));
           }}>
-            <label className="text-[12px] text-[#D8DEFF]/60" htmlFor="orion-pc-name">Phones call this PC</label>
+            <label className="text-[12px] text-[#DDE5F0]/80" htmlFor="orion-pc-name">Phones call this PC</label>
             <input id="orion-pc-name" value={pcName} maxLength={40} placeholder="Orion PC"
               onChange={(e) => setPcName(e.target.value)}
               className="flex-1 rounded-lg bg-transparent px-2 py-1 text-[13px] outline-none"
-              style={{ border: '1px solid rgba(216,222,255,0.2)' }} />
+              style={{ border: '1px solid rgba(221,229,240,0.2)' }} />
             <button type="submit" disabled={busy} className={btn} style={quiet}>Save</button>
           </form>
         )}
 
         {note && <div className="text-[12px] text-[#FFC66B]">{note}</div>}
         {status?.pin === 'asked' && (
-          <div className="text-[12px] text-[#D8DEFF]/60">
+          <div className="text-[12px] text-[#DDE5F0]/80">
             OrionOS asks for your password once, so your phone&apos;s fingerprint can also unfreeze Orion.
           </div>
         )}

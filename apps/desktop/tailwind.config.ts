@@ -1,5 +1,5 @@
 import type { Config } from 'tailwindcss';
-import { brand, colors, emboss, glow } from './src/theme/colors';
+import { brand, colors, emboss, glow, text } from './src/theme/colors';
 
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
@@ -24,6 +24,11 @@ export default {
         photon: brand.photon,
         ember: brand.ember,
         'starlight-soft': brand.starlight,
+        // look pass: cobalt accent, gunmetal surfaces, readable text tiers
+        cobalt: { DEFAULT: brand.cobalt, deep: brand.cobaltDeep, light: brand.cobaltLight },
+        gunmetal: { DEFAULT: brand.gunmetal, raised: brand.gunmetalRaised },
+        steel: brand.steel,
+        ink: { DEFAULT: text.body, 2: text.secondary, 3: text.muted },
       },
       borderColor: { glass: colors.glassBorder },
       boxShadow: {

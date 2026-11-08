@@ -3,7 +3,7 @@
 window#waybar { background: transparent; }
 #tray {
   background-color: rgba(11, 15, 30, 0.78);
-  border: 1px solid rgba(124, 92, 255, 0.55);
+  border: 1px solid rgba(46, 107, 255, 0.55);
   border-radius: 999px;
   padding: 4px 14px;
   margin: 0;
@@ -11,5 +11,5 @@ window#waybar { background: transparent; }
 #tray > .passive { opacity: 0.6; }
 #tray > .needs-attention { background-color: rgba(255, 92, 138, 0.35); border-radius: 999px; }
 #tray menu { background-color: rgba(11, 15, 30, 0.96); color: #D8DEFF; border: 1px solid #262D50; border-radius: 12px; }
-#tray menu menuitem:hover { background-color: #7C5CFF; color: #FFFFFF; }
+#tray menu menuitem:hover { background-color: #2E6BFF; color: #FFFFFF; }
 #tray.empty { background-color: transparent; border-color: transparent; padding: 0; }

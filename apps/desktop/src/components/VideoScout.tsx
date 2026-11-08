@@ -60,10 +60,10 @@ function fmtT(t: number | null): string {
 const VERDICT_STYLE: Record<string, string> = {
   'worth checking': 'text-[#3DFFA8] border-[#3DFFA8]/40 bg-[#3DFFA8]/10',
   maybe: 'text-[#FFB300] border-[#FFB300]/40 bg-[#FFB300]/10',
-  skip: 'text-white/50 border-white/15 bg-white/5',
+  skip: 'text-white/76 border-white/15 bg-white/5',
 };
 const TREND_STYLE: Record<string, string> = {
-  new: 'text-[#00E5FF]', rising: 'text-[#3DFFA8]', steady: 'text-white/50', falling: 'text-[#FF5C8A]',
+  new: 'text-[#00E5FF]', rising: 'text-[#3DFFA8]', steady: 'text-white/76', falling: 'text-[#FF5C8A]',
 };
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
@@ -83,16 +83,16 @@ function VideoCard({ c }: { c: Card }) {
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
       <div className="flex items-start gap-2">
-        <span className="mt-0.5 rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-wider text-[#C084FC]">
+        <span className="mt-0.5 rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10.5px] font-mono uppercase tracking-wider text-[#7FA6FF]">
           {c.platform}
         </span>
         <div className="min-w-0 flex-1">
           <div className="truncate text-[13px] font-semibold text-white/90" title={c.title || c.url}>{c.title || c.url}</div>
-          <div className="text-[11px] text-white/45">
+          <div className="text-[11.5px] text-white/74">
             {c.uploader || 'unknown'}{c.followers ? ` · ${human(c.followers)} followers` : ''}
           </div>
         </div>
-        <a href={c.url} target="_blank" rel="noreferrer" className="rounded p-1 text-white/40 hover:bg-white/10 hover:text-white" title="Open the video">
+        <a href={c.url} target="_blank" rel="noreferrer" className="rounded p-1 text-white/72 hover:bg-white/10 hover:text-white" title="Open the video">
           <ExternalLink size={13} />
         </a>
       </div>
@@ -110,23 +110,23 @@ function VideoCard({ c }: { c: Card }) {
 
       {c.status === 'done' && (
         <>
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-white/60">
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-white/80">
             <span>{human(c.stats.views)} views</span>
             <span>{human(c.virality.views_per_day)}/day</span>
             {c.virality.engagement != null && <span>{(c.virality.engagement * 100).toFixed(1)}% engaged</span>}
             {c.virality.vs_creator != null && <span>{c.virality.vs_creator}× their usual</span>}
             {c.virality.velocity != null && <span>+{human(c.virality.velocity)}/day lately</span>}
             {c.virality.label && c.virality.label !== 'unknown' && (
-              <span className="rounded-full border border-white/15 px-1.5 text-white/70">{c.virality.label}</span>
+              <span className="rounded-full border border-white/15 px-1.5 text-white/85">{c.virality.label}</span>
             )}
           </div>
           {s && (
             <>
               <div className="mt-2 flex items-center gap-2">
-                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${VERDICT_STYLE[s.verdict] || VERDICT_STYLE.maybe}`}>
+                <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${VERDICT_STYLE[s.verdict] || VERDICT_STYLE.maybe}`}>
                   {s.verdict}
                 </span>
-                <span className="truncate text-[11px] text-white/50" title={s.verdict_reason}>{s.verdict_reason}</span>
+                <span className="truncate text-[11.5px] text-white/76" title={s.verdict_reason}>{s.verdict_reason}</span>
               </div>
               <ul className="mt-2 list-disc space-y-0.5 pl-4 text-[12px] leading-snug text-white/80">
                 {s.bullets.map((b, i) => <li key={i}>{b}</li>)}
@@ -136,17 +136,17 @@ function VideoCard({ c }: { c: Card }) {
           {addons.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">
               {addons.map((m) => (
-                <span key={m.name} className="rounded-md border border-[#00E5FF]/30 bg-[#00E5FF]/10 px-1.5 py-0.5 text-[11px] text-[#9FF3FF]" title={m.first_t != null ? `first at ${fmtT(m.first_t)}` : undefined}>
+                <span key={m.name} className="rounded-md border border-[#00E5FF]/30 bg-[#00E5FF]/10 px-1.5 py-0.5 text-[11.5px] text-[#9FF3FF]" title={m.first_t != null ? `first at ${fmtT(m.first_t)}` : undefined}>
                   {m.name}{m.count > 1 ? ` ×${m.count}` : ''}{m.first_t != null ? ` @${fmtT(m.first_t)}` : ''}
                 </span>
               ))}
             </div>
           )}
-          <button onClick={() => setOpen(!open)} className="mt-2 text-[11px] text-[#C084FC] hover:underline">
+          <button onClick={() => setOpen(!open)} className="mt-2 text-[11.5px] text-[#7FA6FF] hover:underline">
             {open ? 'Less' : 'More'}
           </button>
           {open && (
-            <div className="mt-1 space-y-1 text-[11px] text-white/60">
+            <div className="mt-1 space-y-1 text-[11.5px] text-white/80">
               {others.length > 0 && <div>Also: {others.map((m) => `${m.name} (${m.kind})`).join(', ')}</div>}
               {s && s.projects.length > 0 && <div>Projects: {s.projects.map((p) => p.name).join(', ')}</div>}
               {s && s.claims.length > 0 && <div>Claims to check: {s.claims.join(' · ')}</div>}
@@ -201,26 +201,26 @@ function Leaderboard() {
       <div className="flex items-center gap-1">
         {[7, 30, 0].map((d) => (
           <button key={d} onClick={() => setDays(d)}
-            className={`rounded-full px-2.5 py-0.5 text-[11px] ${days === d ? 'bg-[#7C5CFF] text-white' : 'bg-white/5 text-white/60 hover:bg-white/10'}`}>
+            className={`rounded-full px-2.5 py-0.5 text-[11.5px] ${days === d ? 'bg-[#2E6BFF] text-white' : 'bg-white/5 text-white/80 hover:bg-white/10'}`}>
             {d === 7 ? 'This week' : d === 30 ? '30 days' : 'All time'}
           </button>
         ))}
-        <span className="ml-auto text-[11px] text-white/40">{board ? `${board.videos} videos` : ''}</span>
+        <span className="ml-auto text-[11.5px] text-white/72">{board ? `${board.videos} videos` : ''}</span>
       </div>
       {board && board.addons.length === 0 && (
-        <div className="text-[12px] text-white/50">No addon mentions yet in this period. Send Orion some WoW videos.</div>
+        <div className="text-[12px] text-white/76">No addon mentions yet in this period. Send Orion some WoW videos.</div>
       )}
       {board && board.addons.length > 0 && (
         <table className="w-full text-[12px]">
           <thead>
-            <tr className="text-left text-[10px] uppercase tracking-wider text-white/40">
+            <tr className="text-left text-[11px] uppercase tracking-wider text-white/72">
               <th className="py-1 pr-1">#</th><th>Addon</th><th className="text-right">Score</th><th className="text-right">Videos</th><th className="pl-2">Trend</th>
             </tr>
           </thead>
           <tbody>
             {board.addons.map((a, i) => (
               <tr key={a.name} className="border-t border-white/5 text-white/80">
-                <td className="py-1 pr-1 text-white/40">{i + 1}</td>
+                <td className="py-1 pr-1 text-white/72">{i + 1}</td>
                 <td className="truncate">
                   {a.best_video?.url ? <a href={a.best_video.url} target="_blank" rel="noreferrer" title={a.best_video.title} className="hover:underline">{a.name}</a> : a.name}
                 </td>
@@ -233,17 +233,17 @@ function Leaderboard() {
         </table>
       )}
       {board && board.projects.length > 0 && (
-        <div className="text-[11px] text-white/60">Projects: {board.projects.slice(0, 10).map((p) => `${p.name} (${p.trend})`).join(', ')}</div>
+        <div className="text-[11.5px] text-white/80">Projects: {board.projects.slice(0, 10).map((p) => `${p.name} (${p.trend})`).join(', ')}</div>
       )}
       {board && board.new_on_github.length > 0 && (
-        <div className="text-[11px] text-white/60">New on GitHub: {board.new_on_github.slice(0, 10).map((p) => p.name).join(', ')}</div>
+        <div className="text-[11.5px] text-white/80">New on GitHub: {board.new_on_github.slice(0, 10).map((p) => p.name).join(', ')}</div>
       )}
       <div className="flex flex-wrap gap-1.5">
-        <button onClick={copyMd} className="flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1 text-[11px] text-white/70 hover:bg-white/10"><Copy size={11} /> Markdown</button>
-        <button onClick={downloadCsv} className="flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1 text-[11px] text-white/70 hover:bg-white/10"><Download size={11} /> CSV</button>
-        <button onClick={toIdeas} className="flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1 text-[11px] text-white/70 hover:bg-white/10"><FileText size={11} /> Send to IDEAS.md</button>
+        <button onClick={copyMd} className="flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1 text-[11.5px] text-white/85 hover:bg-white/10"><Copy size={11} /> Markdown</button>
+        <button onClick={downloadCsv} className="flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1 text-[11.5px] text-white/85 hover:bg-white/10"><Download size={11} /> CSV</button>
+        <button onClick={toIdeas} className="flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1 text-[11.5px] text-white/85 hover:bg-white/10"><FileText size={11} /> Send to IDEAS.md</button>
       </div>
-      {msg && <div className="text-[11px] text-white/50">{msg}</div>}
+      {msg && <div className="text-[11.5px] text-white/76">{msg}</div>}
     </div>
   );
 }
@@ -301,17 +301,17 @@ export default function VideoScout() {
             className="orion-glass orion-glass--dense fixed right-4 top-12 bottom-24 z-[55] flex w-[420px] max-w-[calc(100vw-32px)] flex-col"
           >
             <div className="flex items-center gap-2 border-b border-white/5 px-4 py-3">
-              <Clapperboard size={15} className="text-[#C084FC]" />
+              <Clapperboard size={15} className="text-[#7FA6FF]" />
               <span className="text-[13px] font-semibold text-white/90">Video Scout</span>
               {working > 0 && <Loader2 size={12} className="animate-spin text-[#00E5FF]" aria-label="Working" />}
-              {!online && <span className="text-[11px] text-white/40">Orion isn't answering</span>}
+              {!online && <span className="text-[11.5px] text-white/72">Orion isn't answering</span>}
               <div className="ml-3 flex gap-1">
-                <button onClick={() => setTab('videos')} className={`rounded-full px-2 py-0.5 text-[11px] ${tab === 'videos' ? 'bg-white/10 text-white' : 'text-white/50'}`}>Videos</button>
-                <button onClick={() => setTab('board')} className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] ${tab === 'board' ? 'bg-white/10 text-white' : 'text-white/50'}`}>
+                <button onClick={() => setTab('videos')} className={`rounded-full px-2 py-0.5 text-[11.5px] ${tab === 'videos' ? 'bg-white/10 text-white' : 'text-white/76'}`}>Videos</button>
+                <button onClick={() => setTab('board')} className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[11.5px] ${tab === 'board' ? 'bg-white/10 text-white' : 'text-white/76'}`}>
                   <Trophy size={11} /> Top addons
                 </button>
               </div>
-              <button onClick={() => setOpen(false)} className="ml-auto rounded-lg p-1 text-white/40 hover:bg-white/10 hover:text-white" title="Close">
+              <button onClick={() => setOpen(false)} className="ml-auto rounded-lg p-1 text-white/72 hover:bg-white/10 hover:text-white" title="Close">
                 <X size={14} />
               </button>
             </div>
@@ -324,22 +324,22 @@ export default function VideoScout() {
                       onChange={(e) => setLink(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
                       placeholder="Paste TikTok / YouTube / Reels links"
-                      className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 text-[12px] text-white placeholder:text-white/30 focus:border-[#7C5CFF]/60 focus:outline-none"
+                      className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 text-[12px] text-white placeholder:text-white/55 focus:border-[#2E6BFF]/60 focus:outline-none"
                     />
-                    <button onClick={submit} className="rounded-lg bg-[#7C5CFF] px-2.5 text-white hover:bg-[#6a4cf0]" title="Scout">
+                    <button onClick={submit} className="rounded-lg bg-[#2E6BFF] px-2.5 text-white hover:bg-[#1F4FD8]" title="Scout">
                       <Send size={13} />
                     </button>
                   </div>
-                  {msg && <div className="text-[11px] text-white/55">{msg}</div>}
+                  {msg && <div className="text-[11.5px] text-white/78">{msg}</div>}
                   {status && (!status.fetcher || !status.voice || !status.ocr) && (
-                    <div className="text-[11px] text-[#FFB300]/80">
+                    <div className="text-[11.5px] text-[#FFB300]/80">
                       {!status.fetcher && 'Downloader missing (pip install yt-dlp). '}
                       {!status.voice && 'Voice add-on not installed: captions and descriptions only. '}
                       {!status.ocr && 'On-screen text needs ffmpeg and Tesseract.'}
                     </div>
                   )}
                   {videos.length === 0 && (
-                    <div className="pt-6 text-center text-[12px] text-white/45">
+                    <div className="pt-6 text-center text-[12px] text-white/74">
                       Nothing scouted yet. Paste a link here, say "scout &lt;link&gt;" in chat, or share a video to Orion from your phone.
                     </div>
                   )}

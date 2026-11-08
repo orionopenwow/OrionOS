@@ -9,7 +9,7 @@ import type { BibleSend, BibleState } from '../../hooks/bibleState';
 const PLATFORM: Record<string, { label: string; color: string }> = {
   telegram: { label: 'Telegram', color: '#2AABEE' },
   discord: { label: 'Discord', color: '#7C8BFF' },
-  messenger: { label: 'Messenger', color: '#C084FC' },
+  messenger: { label: 'Messenger', color: '#7FA6FF' },
 };
 
 export interface AlertItem {
@@ -68,23 +68,23 @@ function MusicWidget({ media, send }: { media: NonNullable<BibleState['media']>;
   return (
     <div className={`${card} p-3 flex items-center gap-3`}>
       <div className="w-12 h-12 rounded-xl overflow-hidden bg-white/[0.06] shrink-0 flex items-center justify-center">
-        {media.art ? <img src={media.art} alt="" className="w-full h-full object-cover" /> : <Music2 size={18} className="text-white/50" />}
+        {media.art ? <img src={media.art} alt="" className="w-full h-full object-cover" /> : <Music2 size={18} className="text-white/76" />}
       </div>
       <div className="min-w-0 flex-1">
         <div className="text-[13px] font-bold truncate">{media.title}</div>
-        <div className="text-[12px] text-white/55 truncate">{media.artist || media.app}</div>
+        <div className="text-[12px] text-white/78 truncate">{media.artist || media.app}</div>
         <div className="mt-1.5 h-[3px] rounded-full bg-white/10 overflow-hidden">
           <div className="h-full bg-white/70 rounded-full transition-[width] duration-1000 ease-linear" style={{ width: `${pct * 100}%` }} />
         </div>
       </div>
       <div className="flex items-center gap-0.5 shrink-0">
-        <button className="p-1.5 rounded-full text-white/60 hover:text-white hover:bg-white/10" onClick={() => send('MEDIA_CONTROL', { action: 'previous' })} aria-label="Previous track">
+        <button className="p-1.5 rounded-full text-white/80 hover:text-white hover:bg-white/10" onClick={() => send('MEDIA_CONTROL', { action: 'previous' })} aria-label="Previous track">
           <SkipBack size={14} />
         </button>
         <button className="p-2 rounded-full bg-white text-black hover:scale-105 transition-transform" onClick={() => send('MEDIA_CONTROL', { action: 'toggle' })} aria-label={media.playing ? 'Pause' : 'Play'}>
           {media.playing ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
         </button>
-        <button className="p-1.5 rounded-full text-white/60 hover:text-white hover:bg-white/10" onClick={() => send('MEDIA_CONTROL', { action: 'next' })} aria-label="Next track">
+        <button className="p-1.5 rounded-full text-white/80 hover:text-white hover:bg-white/10" onClick={() => send('MEDIA_CONTROL', { action: 'next' })} aria-label="Next track">
           <SkipForward size={14} />
         </button>
       </div>
@@ -121,12 +121,12 @@ function MessagesWidget({
     <div className={`${card} p-3`}>
       <div className="flex items-center justify-between mb-2">
         <span className="flex items-center gap-2 text-[13px] font-bold">
-          <MessageCircle size={14} className="text-white/70" /> Messages
+          <MessageCircle size={14} className="text-white/85" /> Messages
         </span>
-        <span className="text-[11px] text-white/45">{total ? `${total} unread` : 'All caught up'}</span>
+        <span className="text-[11.5px] text-white/74">{total ? `${total} unread` : 'All caught up'}</span>
       </div>
       {shown.length === 0 ? (
-        <p className="text-[12px] text-white/45 leading-relaxed">
+        <p className="text-[12px] text-white/74 leading-relaxed">
           Telegram, Discord and Messenger chats show up here together once they're connected.
         </p>
       ) : (
@@ -142,13 +142,13 @@ function MessagesWidget({
               >
                 <div className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: p.color }} title={p.label} />
-                  <span className={`text-[12.5px] truncate ${t.unread ? 'font-bold text-white' : 'text-white/70'}`}>{t.thread_name}</span>
-                  {t.vip && <span className="text-[10px] text-amber-300/90">★</span>}
-                  <span className="ml-auto text-[10.5px] text-white/40 shrink-0">{ago(t.last_ts)}</span>
-                  {t.unread > 0 && <span className="text-[10px] font-bold bg-white text-black rounded-full px-1.5">{t.unread}</span>}
+                  <span className={`text-[12.5px] truncate ${t.unread ? 'font-bold text-white' : 'text-white/85'}`}>{t.thread_name}</span>
+                  {t.vip && <span className="text-[11px] text-amber-300/90">★</span>}
+                  <span className="ml-auto text-[11.5px] text-white/72 shrink-0">{ago(t.last_ts)}</span>
+                  {t.unread > 0 && <span className="text-[11px] font-bold bg-white text-black rounded-full px-1.5">{t.unread}</span>}
                 </div>
                 {last && (
-                  <div className="pl-3.5 text-[11.5px] text-white/50 truncate">
+                  <div className="pl-3.5 text-[12px] text-white/76 truncate">
                     {last.direction === 'out' ? 'You: ' : ''}
                     {last.text}
                   </div>
@@ -160,13 +160,13 @@ function MessagesWidget({
       )}
       {top && chips.length > 0 && (
         <div className="mt-2 pt-2 border-t border-white/[0.07]">
-          <div className="text-[10.5px] text-white/40 mb-1.5">Reply to {top.thread_name} in your style</div>
+          <div className="text-[11.5px] text-white/72 mb-1.5">Reply to {top.thread_name} in your style</div>
           <div className="flex flex-wrap gap-1.5">
             {chips.map((c) => (
               <button
                 key={c}
                 onClick={() => onOpen({ tab: 'comms', threadKey: top.key, draft: c })}
-                className="rounded-full border border-white/12 bg-white/[0.06] hover:bg-white/[0.12] px-2.5 py-1 text-[11.5px] text-white/85 max-w-full truncate"
+                className="rounded-full border border-white/12 bg-white/[0.06] hover:bg-white/[0.12] px-2.5 py-1 text-[12px] text-white/85 max-w-full truncate"
                 title="Opens the chat with this reply ready — you press send"
               >
                 {c}
@@ -233,7 +233,7 @@ function AlertsWidget({
   return (
     <div className={`${card} p-3`}>
       <div className="flex items-center gap-2 text-[13px] font-bold mb-1.5">
-        <Bell size={14} className="text-white/70" /> Alerts
+        <Bell size={14} className="text-white/85" /> Alerts
       </div>
       <div className="flex flex-col">
         <AnimatePresence initial={false}>
@@ -249,10 +249,10 @@ function AlertsWidget({
               <span className="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: dot[a.tone] }} />
               <button className="min-w-0 flex-1 text-left" onClick={() => a.open && onOpen(a.open)} disabled={!a.open}>
                 <div className="text-[12.5px] text-white/90">{a.title}</div>
-                {a.detail && <div className="text-[11.5px] text-white/45 truncate">{a.detail}</div>}
+                {a.detail && <div className="text-[12px] text-white/74 truncate">{a.detail}</div>}
               </button>
               <button
-                className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5 text-white/40 hover:text-white"
+                className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5 text-white/72 hover:text-white"
                 onClick={() => setDismissed((d) => new Set(d).add(a.id))}
                 aria-label="Dismiss"
               >
@@ -262,7 +262,7 @@ function AlertsWidget({
           ))}
         </AnimatePresence>
         {held > 0 && (
-          <div className="px-2 pt-1 text-[11px] text-white/40">
+          <div className="px-2 pt-1 text-[11.5px] text-white/72">
             {held} work alert{held === 1 ? '' : 's'} held until morning
           </div>
         )}

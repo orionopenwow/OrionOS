@@ -48,7 +48,7 @@ export default function AgentPet({ agent }: { agent: AgentActivity | null }) {
             aria-live="polite"
           >
             <div className="text-[12.5px] font-bold leading-snug">{bubble.title}</div>
-            <div className="text-[11px] text-white/50 truncate">{bubble.sub}</div>
+            <div className="text-[11.5px] text-white/76 truncate">{bubble.sub}</div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -105,7 +105,7 @@ export default function AgentPet({ agent }: { agent: AgentActivity | null }) {
 
           {/* face */}
           {state === 'idle' && (
-            <g stroke="#9fb0ff" strokeWidth="2" strokeLinecap="round" fill="none">
+            <g stroke="#9FB8FF" strokeWidth="2" strokeLinecap="round" fill="none">
               <path d="M33 41 q3 2 6 0" />
               <path d="M41 41 q3 2 6 0" />
             </g>
@@ -139,7 +139,7 @@ export default function AgentPet({ agent }: { agent: AgentActivity | null }) {
         {/* sleepy z's / work sparkles */}
         {state === 'idle' && (
           <motion.span
-            className="absolute -top-1 right-0 text-[11px] font-bold text-white/50"
+            className="absolute -top-1 right-0 text-[11.5px] font-bold text-white/76"
             animate={{ opacity: [0, 1, 0], y: [4, -6, -12] }}
             transition={{ duration: 2.8, repeat: Infinity }}
           >

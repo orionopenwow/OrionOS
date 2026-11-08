@@ -91,7 +91,7 @@ export default function ChatPanelFrame({
     <GlassWindow
       id="chat-frame"
       title="Orion"
-      icon={<MessageSquare size={14} className="text-[#B09CFF]" />}
+      icon={<MessageSquare size={14} className="text-[#8DB0FF]" />}
       subtitle={micActive ? <span className="text-[#FF8AAD]">• Listening…</span> : undefined}
       onClose={onClose ?? (() => {})}
       maximisable={false}
@@ -105,7 +105,7 @@ export default function ChatPanelFrame({
             <div className="flex flex-col items-center justify-center py-8 text-center text-dust">
               <Sparkles size={26} className="text-[#00E5FF] mb-2 animate-pulse" />
               <p className="text-xs text-starlight/90 font-medium">Orion Neural Thread Active</p>
-              <p className="text-[11px] text-dust/70 max-w-sm mt-1">
+              <p className="text-[11.5px] text-dust/85 max-w-sm mt-1">
                 Ask Orion to orchestrate tasks, analyze code, inspect the screen, or import data.
               </p>
             </div>
@@ -117,7 +117,7 @@ export default function ChatPanelFrame({
                 animate={{ opacity: 1, y: 0 }}
                 className="space-y-1.5"
               >
-                <div className="flex items-center justify-between text-[10px] text-dust px-1">
+                <div className="flex items-center justify-between text-[11px] text-dust px-1">
                   <span className="flex items-center gap-1 font-mono text-[#00E5FF]">
                     <Bot size={12} /> Orion {m.tier ? `(${m.tier})` : ''}
                   </span>
@@ -128,7 +128,7 @@ export default function ChatPanelFrame({
                   <p className="selectable">{m.text}</p>
 
                   {m.code && (
-                    <div className="mt-2.5 relative rounded-lg bg-black/80 p-2.5 font-mono text-[11px] text-starlight border border-white/10">
+                    <div className="mt-2.5 relative rounded-lg bg-black/80 p-2.5 font-mono text-[11.5px] text-starlight border border-white/10">
                       <button
                         onClick={() => handleCopy(m.id, m.code!)}
                         className="absolute right-2 top-2 rounded p-1 text-dust hover:text-[#00E5FF] bg-white/5 hover:bg-white/10"
@@ -158,12 +158,12 @@ export default function ChatPanelFrame({
 
         {/* Bottom Navigation Capsule matching reference sheet (chamfered button with [ < ] [ >> ]) */}
         <div className="flex items-center justify-between pt-2 border-t border-white/[0.06]">
-          <div className="text-[10px] font-mono text-dust flex items-center gap-2">
+          <div className="text-[11px] font-mono text-dust flex items-center gap-2">
             <span>THREAD STATUS:</span>
             <span className="text-[#3DFFA8]">REAL-TIME ACTIVE (PAGE {pageIndex + 1})</span>
           </div>
 
-          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg border border-[#9D8EC7]/40 bg-white/5">
+          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg border border-[#8A9AB5]/40 bg-white/5">
             <button
               onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
               className="p-1 text-dust hover:text-starlight rounded hover:bg-white/10 transition-colors"

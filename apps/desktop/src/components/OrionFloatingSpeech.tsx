@@ -33,13 +33,13 @@ export default function OrionFloatingSpeech({ taskText, isProcessing, latestResp
               strokeWidth="1.2"
               fill="none"
             />
-            <polygon points="60,2 64,8 60,13 56,8" fill="#C084FC" stroke="#F9D689" strokeWidth="0.8" />
+            <polygon points="60,2 64,8 60,13 56,8" fill="#7FA6FF" stroke="#F9D689" strokeWidth="0.8" />
           </svg>
         </div>
 
         {/* Floating Ethereal Pill Bubble */}
         <div
-          className="relative px-5 py-2.5 rounded-full border border-[#C084FC]/40 bg-gradient-to-r from-[#0B0D17]/90 via-[#1a1333]/85 to-[#0B0D17]/90 backdrop-blur-2xl shadow-[0_0_30px_rgba(192,132,252,0.25)] flex items-center gap-2.5 text-center"
+          className="relative px-5 py-2.5 rounded-full border border-[#7FA6FF]/40 bg-gradient-to-r from-[#151A21]/90 via-[#1a1333]/85 to-[#151A21]/90 backdrop-blur-2xl shadow-[0_0_30px_rgba(127,166,255,0.25)] flex items-center gap-2.5 text-center"
         >
           {isProcessing ? (
             <Terminal size={14} className="text-[#00E5FF] animate-spin shrink-0" />
@@ -53,7 +53,7 @@ export default function OrionFloatingSpeech({ taskText, isProcessing, latestResp
         </div>
 
         {/* Delicate Connecting Pointer Glow Line to Orion */}
-        <div className="mx-auto w-[1px] h-3 bg-gradient-to-b from-[#C084FC]/60 to-transparent" />
+        <div className="mx-auto w-[1px] h-3 bg-gradient-to-b from-[#7FA6FF]/60 to-transparent" />
       </motion.div>
     </AnimatePresence>
   );

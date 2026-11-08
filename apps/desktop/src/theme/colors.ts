@@ -1,17 +1,36 @@
 import type { MemorySource } from '@orion/shared-types';
 
 /**
- * Art Update brand palette (plan §6). Ember is the only warm colour: for things that need you (stuck, urgent).
- * Mirrored as CSS custom properties (--orion-void ... --orion-ember) in index.css and as Tailwind colours.
+ * Brand palette. Look pass (owner feedback): deep cobalt blue is the accent, surfaces are dark gunmetal
+ * (blue-grey steel) with a faint brushed grain; purple only where it means something (a brand, WoW XP).
+ * Ember is the only warm colour: for things that need you (stuck, urgent).
+ * Mirrored as CSS custom properties (--orion-void ... --orion-ember, --orion-cobalt, --orion-gunmetal) in
+ * index.css and as Tailwind colours. The old name `accretion` now holds cobalt so existing code follows.
  */
 export const brand = {
-  void: '#05070E',
-  event: '#0B0F1E',
-  edge: '#262D50',
-  accretion: '#7C5CFF',
+  void: '#06080C',
+  event: '#151A21',
+  edge: '#2F3744',
+  accretion: '#2E6BFF',
   photon: '#00E5FF',
-  starlight: '#D8DEFF',
+  starlight: '#E6ECF5',
   ember: '#FFC66B',
+  /** Accent: buttons, focus rings, selected things. */
+  cobalt: '#2E6BFF',
+  cobaltDeep: '#1F4FD8',
+  /** Accent text and icons on dark surfaces (6.5:1 on gunmetal). */
+  cobaltLight: '#8DB0FF',
+  /** Surfaces, darkest to lightest. */
+  gunmetal: '#1A1F27',
+  gunmetalRaised: '#222833',
+  steel: '#2A313B',
+} as const;
+
+/** Text on gunmetal, WCAG AA or better on #1A1F27: body 15:1, secondary 10:1, muted 7.4:1 (5.9:1 on #2A313B). */
+export const text = {
+  body: '#F2F5FA',
+  secondary: '#C3CCDA',
+  muted: '#A3AEC2',
 } as const;
 
 /** Brand type. Unbounded: wordmark, clock, headings. Figtree: reading text. Martian Mono: terminal, code, numbers. */
@@ -33,15 +52,15 @@ export const type = {
 
 /** Orion cosmic glassmorphism palette. */
 export const colors = {
-  void: '#05070E',
-  cosmos: '#0B0D17',
-  glass: 'rgba(19, 23, 40, 0.65)',
+  void: '#06080C',
+  cosmos: '#11151B',
+  glass: 'rgba(26, 31, 39, 0.72)',
   glassBorder: 'rgba(255, 255, 255, 0.08)',
   cyan: '#00E5FF',
-  purple: '#9D8EC7',
+  purple: '#8A9AB5',
   violet: brand.accretion,
   starlight: '#FFFFFF',
-  dust: '#8F90A6',
+  dust: '#A3AEC2',
   success: '#3DFFA8',
   warn: '#FFB86B',
   danger: '#FF5C8A',
@@ -65,7 +84,7 @@ export const palette = {
 
 export const glow = {
   cyan: '0 0 24px rgba(0, 229, 255, 0.45)',
-  purple: '0 0 28px rgba(157, 142, 199, 0.55)',
+  purple: '0 0 28px rgba(138, 154, 181, 0.55)',
 } as const;
 
 /** V2 Tactile Cosmic Emboss tokens (mirrored as CSS classes in index.css). */
@@ -82,9 +101,9 @@ export const emboss = {
 
 /** Pacing / wellness arc colours (focus -> break due). */
 export const pacingColors = {
-  idle: '#7B5CFF',
+  idle: '#2E6BFF',
   focus: '#00E5FF',
-  warming: '#B05CFF',
+  warming: '#5B8CFF',
   break_due: '#FFB300',
   resting: '#3DFFA8',
 } as const;

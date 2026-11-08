@@ -25,7 +25,7 @@ AWARDS = {
 DAILY_CAP = {"commit": 120, "water": 20, "approval": 45}
 
 SKINS = [
-    {"id": "default", "name": "Cosmic Violet", "level": 1},
+    {"id": "default", "name": "Cosmic Cobalt", "level": 1},
     {"id": "emerald", "name": "Emerald Nebula", "level": 3},
     {"id": "supernova", "name": "Supernova Gold", "level": 5},
     {"id": "bloodmoon", "name": "Blood Moon Eclipse", "level": 8},

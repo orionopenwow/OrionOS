@@ -44,13 +44,13 @@ export default function Waveform({ state, analyser, bars = 76, className = '' }:
 
       // Symmetrical Purple/Violet Neon Gradient
       const grad = ctx.createLinearGradient(0, 0, w, 0);
-      grad.addColorStop(0, '#7B5CFF');
-      grad.addColorStop(0.35, '#9D8EC7');
-      grad.addColorStop(0.5, '#E9D5FF');
-      grad.addColorStop(0.65, '#9D8EC7');
-      grad.addColorStop(1, '#7B5CFF');
+      grad.addColorStop(0, '#2E6BFF');
+      grad.addColorStop(0.35, '#8A9AB5');
+      grad.addColorStop(0.5, '#DCE7FF');
+      grad.addColorStop(0.65, '#8A9AB5');
+      grad.addColorStop(1, '#2E6BFF');
       ctx.fillStyle = grad;
-      ctx.shadowColor = '#9D8EC7';
+      ctx.shadowColor = '#8A9AB5';
       ctx.shadowBlur = 10;
 
       for (let i = 0; i < bars; i++) {

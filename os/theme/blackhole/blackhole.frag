@@ -44,9 +44,9 @@ const float TEX_OUT = 0.37; // painting radius where the paint ends
 const float EINSTEIN = 0.112;
 const float FLOW_T = 5.0;   // seconds per flow phase
 
-const vec3 VIOLET = vec3(0.486, 0.361, 1.0);   // Accretion #7C5CFF
+const vec3 VIOLET = vec3(0.18, 0.42, 1.0);     // Accent, now cobalt #2E6BFF (look pass; name kept)
 const vec3 PHOTON = vec3(0.0, 0.898, 1.0);     // Photon #00E5FF
-const vec3 STAR = vec3(0.847, 0.871, 1.0);     // Starlight #D8DEFF
+const vec3 STAR = vec3(0.9, 0.925, 0.96);      // Starlight #E6ECF5
 const vec3 EMBER = vec3(1.0, 0.776, 0.42);     // Ember #FFC66B
 
 // ------------------------------------------------------------------ noise
@@ -161,7 +161,7 @@ vec4 diskColor(float rd, float ang, float f, float t, float turb, int oct, float
   vec4 tex = paintAt(rd, ang, f, turb, oct);
   vec3 col = tex.rgb; // texture is uploaded premultiplied
   float x = (rd - RIN) / (ROUT - RIN);
-  // the paint dissolves into space: ragged noisy rim, cooled toward violet
+  // the paint dissolves into space: ragged noisy rim, cooled toward cobalt
   // (noise in Cartesian disk coordinates so there is no seam at the angle wrap; turns slowly with the outer disk)
   float ra = ang - f * 0.03;
   vec2 dq = vec2(cos(ra), sin(ra)) * rd;
@@ -169,13 +169,13 @@ vec4 diskColor(float rd, float ang, float f, float t, float turb, int oct, float
   float edge = smoothstep(1.02, 0.22, x + (n - 0.5) * 0.55);
   edge *= edge;
   float lum = dot(col, vec3(0.3, 0.5, 0.2));
-  vec3 cool = lum * vec3(0.62, 0.48, 1.25) * 1.25;
+  vec3 cool = lum * vec3(0.42, 0.66, 1.25) * 1.25;
   col = mix(col, cool, smoothstep(0.35, 0.85, x));
   // lift the painting: contrast + saturation so it glows against the void
   col = pow(col * 1.7, vec3(1.12)) * 1.25;
-  // inner edge heats up (lilac-white), soft inner rim fade so the disk meets the photon ring cleanly
+  // inner edge heats up (blue-white), soft inner rim fade so the disk meets the photon ring cleanly
   float heat = exp(-max(rd - RIN, 0.0) / 0.022);
-  col += vec3(0.62, 0.55, 1.0) * heat * 0.55 * (0.6 + 0.4 * lum * 4.0);
+  col += vec3(0.66, 0.85, 1.0) * heat * 0.55 * (0.6 + 0.4 * lum * 4.0);
   float inner = smoothstep(RIN * 0.93, RIN * 1.06, rd);
   // ripples: Orion speaking sends waves outward through the disk
   float rip = u_ripple * (0.5 + 0.5 * sin(rd * 90.0 - t * 7.0)) * smoothstep(0.0, 0.2, x) * (1.0 - x);
@@ -185,7 +185,7 @@ vec4 diskColor(float rd, float ang, float f, float t, float turb, int oct, float
   // boot: paint in from the outside
   float rv = smoothstep(reveal - 0.18, reveal + 0.02, x);
   float front = reveal > -0.1 ? exp(-pow((x - reveal + 0.04) / 0.07, 2.0)) * 0.6 : 0.0;
-  col += vec3(0.7, 0.6, 1.0) * front * (0.3 + lum * 3.0);
+  col += vec3(0.62, 0.8, 1.0) * front * (0.3 + lum * 3.0);
   float a = edge * inner * rv;
   return vec4(col * a, a);
 }
@@ -243,7 +243,7 @@ void main() {
   // ---------------------------------------------------------- boot: spark and spiral starfall
   if (sparkA > 0.0) {
     float sp = exp(-b / 0.006) * 1.6 + exp(-b / 0.035) * 0.35 + exp(-b / 0.12) * 0.08;
-    col += mix(VIOLET, vec3(0.9, 0.85, 1.0), exp(-b / 0.01)) * sp * sparkA * (1.0 + 0.6 * smoothstep(1.5, 2.55, bt));
+    col += mix(VIOLET, vec3(0.85, 0.93, 1.0), exp(-b / 0.01)) * sp * sparkA * (1.0 + 0.6 * smoothstep(1.5, 2.55, bt));
   }
   if (fallA > 0.0) {
     float tt = max(bt - 0.8, 0.0);

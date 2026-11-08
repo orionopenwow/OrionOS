@@ -130,10 +130,10 @@ export default function GlobalDropAndPasteZone({
               {/* Pulsing Concentric Aperture Rings */}
               <div className="relative h-44 w-44 flex items-center justify-center mb-6">
                 <span className="absolute inset-0 rounded-full border-2 border-[#00E5FF]/60 animate-ping opacity-60" />
-                <span className="absolute inset-3 rounded-full border-2 border-[#C084FC]/60 animate-spin" style={{ animationDuration: '8s' }} />
-                <div className="h-28 w-28 rounded-full bg-gradient-to-tr from-[#00E5FF]/30 to-[#C084FC]/30 border border-[#00E5FF] flex items-center justify-center shadow-[0_0_50px_rgba(0,229,255,0.6)]">
+                <span className="absolute inset-3 rounded-full border-2 border-[#7FA6FF]/60 animate-spin" style={{ animationDuration: '8s' }} />
+                <div className="h-28 w-28 rounded-full bg-gradient-to-tr from-[#00E5FF]/30 to-[#7FA6FF]/30 border border-[#00E5FF] flex items-center justify-center shadow-[0_0_50px_rgba(0,229,255,0.6)]">
                   {dragType === 'image' && <ImageIcon size={44} className="text-[#00E5FF]" />}
-                  {dragType === 'video' && <Video size={44} className="text-[#C084FC]" />}
+                  {dragType === 'video' && <Video size={44} className="text-[#7FA6FF]" />}
                   {dragType === 'doc' && <FileText size={44} className="text-[#3DFFA8]" />}
                   {dragType === 'general' && <UploadCloud size={44} className="text-[#00E5FF]" />}
                 </div>

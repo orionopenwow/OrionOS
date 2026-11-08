@@ -50,25 +50,25 @@ export default function GameBugTrackerHub({ bugs, onSendResponse, onSendTelegram
       <div className="flex w-80 shrink-0 flex-col rounded-2xl border border-white/10 bg-[#070913]/80 p-4 backdrop-blur-xl shadow-2xl">
         <div className="flex items-center justify-between pb-3 border-b border-white/10">
           <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-lg bg-[#C084FC]/20 text-[#C084FC] border border-[#C084FC]/30">
+            <span className="p-1.5 rounded-lg bg-[#7FA6FF]/20 text-[#7FA6FF] border border-[#7FA6FF]/30">
               <Gamepad2 size={16} />
             </span>
             <div>
               <div className="font-display text-sm font-bold tracking-wider text-white">DISCORD BUG HUB</div>
-              <div className="text-[10px] font-mono text-white/50">Auto-captured from Discord & Gemini</div>
+              <div className="text-[11px] font-mono text-white/76">Auto-captured from Discord & Gemini</div>
             </div>
           </div>
-          <span className="px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-[11px] font-mono text-[#3DFFA8]">
+          <span className="px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-[11.5px] font-mono text-[#3DFFA8]">
             {bugs.length} {bugs.length === 1 ? 'bug' : 'bugs'}
           </span>
         </div>
 
         <div className="mt-3 flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
           {bugs.length === 0 ? (
-            <div className="flex h-48 flex-col items-center justify-center text-center text-white/40">
+            <div className="flex h-48 flex-col items-center justify-center text-center text-white/72">
               <Bug size={32} className="mb-2 opacity-30" />
               <p className="text-xs">No game bugs reported yet.</p>
-              <p className="text-[10px] text-white/30 mt-1">
+              <p className="text-[11px] text-white/65 mt-1">
                 Post in your Discord #bug-reports channel or mention `!bug`.
               </p>
             </div>
@@ -79,14 +79,14 @@ export default function GameBugTrackerHub({ bugs, onSendResponse, onSendTelegram
                 onClick={() => setSelectedBugId(b.id)}
                 className={`w-full text-left p-3 rounded-xl border transition-all ${
                   selectedBug?.id === b.id
-                    ? 'border-[#C084FC]/50 bg-[#C084FC]/10 shadow-[0_0_15px_rgba(192,132,252,0.15)]'
+                    ? 'border-[#7FA6FF]/50 bg-[#7FA6FF]/10 shadow-[0_0_15px_rgba(127,166,255,0.15)]'
                     : 'border-white/5 bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/10'
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-xs font-semibold text-[#00E5FF]">#{b.id}</span>
                   <span
-                    className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full uppercase ${
+                    className={`text-[10.5px] font-mono px-1.5 py-0.5 rounded-full uppercase ${
                       b.status === 'resolved'
                         ? 'bg-[#3DFFA8]/20 text-[#3DFFA8] border border-[#3DFFA8]/30'
                         : 'bg-[#FFB74D]/20 text-[#FFB74D] border border-[#FFB74D]/30'
@@ -96,7 +96,7 @@ export default function GameBugTrackerHub({ bugs, onSendResponse, onSendTelegram
                   </span>
                 </div>
                 <div className="mt-1 text-xs text-white/90 line-clamp-2 font-medium">{b.description}</div>
-                <div className="mt-2 flex items-center justify-between text-[10px] text-white/40 font-mono">
+                <div className="mt-2 flex items-center justify-between text-[11px] text-white/72 font-mono">
                   <span>{b.author}</span>
                   <span>{b.channel}</span>
                 </div>
@@ -119,7 +119,7 @@ export default function GameBugTrackerHub({ bugs, onSendResponse, onSendTelegram
                     {selectedBug.game}
                   </span>
                 </div>
-                <div className="text-xs text-white/50 font-mono mt-0.5">
+                <div className="text-xs text-white/76 font-mono mt-0.5">
                   Reported by <span className="text-white/80">{selectedBug.author}</span> in{' '}
                   <span className="text-white/80">{selectedBug.channel}</span>
                 </div>
@@ -139,7 +139,7 @@ export default function GameBugTrackerHub({ bugs, onSendResponse, onSendTelegram
 
             {/* Issue Description */}
             <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-              <div className="text-[11px] font-mono uppercase tracking-wider text-white/50 mb-1">
+              <div className="text-[11.5px] font-mono uppercase tracking-wider text-white/76 mb-1">
                 Player Description
               </div>
               <p className="text-sm text-white/90 leading-relaxed whitespace-pre-wrap">
@@ -156,7 +156,7 @@ export default function GameBugTrackerHub({ bugs, onSendResponse, onSendTelegram
                     Gemini Search Diagnosis
                   </span>
                 </div>
-                <span className="text-[10px] font-mono text-white/40">In-line AI Analysis</span>
+                <span className="text-[11px] font-mono text-white/72">In-line AI Analysis</span>
               </div>
               <div className="text-xs text-white/80 leading-relaxed font-sans whitespace-pre-line">
                 {selectedBug.diagnosis || 'Analyzing bug reports against documentation and engine telemetry...'}
@@ -186,7 +186,7 @@ export default function GameBugTrackerHub({ bugs, onSendResponse, onSendTelegram
 
             {/* Response Section */}
             <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-              <div className="text-[11px] font-mono uppercase tracking-wider text-white/50 mb-2">
+              <div className="text-[11.5px] font-mono uppercase tracking-wider text-white/76 mb-2">
                 Send Response to Discord
               </div>
               <div className="flex gap-2">
@@ -195,28 +195,28 @@ export default function GameBugTrackerHub({ bugs, onSendResponse, onSendTelegram
                   value={responseText}
                   onChange={(e) => setResponseText(e.target.value)}
                   placeholder="Type an official reply or workaround to post into Discord..."
-                  className="flex-1 rounded-xl border border-white/10 bg-black/30 px-3.5 py-2 text-xs text-white placeholder-white/30 focus:border-[#C084FC]/50 focus:outline-none"
+                  className="flex-1 rounded-xl border border-white/10 bg-black/30 px-3.5 py-2 text-xs text-white placeholder-white/30 focus:border-[#7FA6FF]/50 focus:outline-none"
                   onKeyDown={(e) => e.key === 'Enter' && handleSendReply()}
                 />
                 <button
                   onClick={handleSendReply}
                   disabled={!responseText.trim()}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-mono font-medium text-white bg-gradient-to-r from-[#C084FC] to-[#5865F2] hover:opacity-90 disabled:opacity-40 transition-all shadow-md"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-mono font-medium text-white bg-gradient-to-r from-[#7FA6FF] to-[#5865F2] hover:opacity-90 disabled:opacity-40 transition-all shadow-md"
                 >
                   <Send size={13} />
                   <span>Send</span>
                 </button>
               </div>
               {selectedBug.developer_response && (
-                <div className="mt-3 p-2.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/70">
-                  <span className="text-[10px] font-mono text-[#3DFFA8] block mb-0.5">Last response sent:</span>
+                <div className="mt-3 p-2.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/85">
+                  <span className="text-[11px] font-mono text-[#3DFFA8] block mb-0.5">Last response sent:</span>
                   {selectedBug.developer_response}
                 </div>
               )}
             </div>
           </div>
         ) : (
-          <div className="flex h-full flex-col items-center justify-center text-white/40">
+          <div className="flex h-full flex-col items-center justify-center text-white/72">
             <Gamepad2 size={48} className="mb-3 opacity-20" />
             <p className="text-sm font-medium">Select a bug to inspect Gemini diagnosis</p>
           </div>

@@ -1,289 +1,215 @@
 /**
- * Cosmic Sound Effects Synthesizer using Web Audio API.
- * Synthesizes pure harmonic, ethereal celestial chimes and audio cues
- * with zero external audio assets.
+ * Orion's UI sounds, synthesised with the Web Audio API (no audio files).
+ *
+ * Look pass (owner feedback: "less chimes, more bass hums"): every cue is a soft low hum or swell, a sine or
+ * triangle between about 45 and 110 Hz with a slow attack and release, a quiet octave above it so small
+ * speakers can still hear it, and a whisper of low-passed noise for texture. Nothing bright, nothing sharp.
+ * The on/off switch and the volume (Settings > Personality and voice) work as before.
  */
+
+type HumOpts = {
+  /** Start delay in seconds. */
+  at?: number;
+  /** Base pitch in Hz (45-110). */
+  freq: number;
+  /** Pitch it glides to by the end, if any. */
+  glideTo?: number;
+  /** Seconds of rise and of fade. */
+  attack: number;
+  release: number;
+  /** Seconds it holds between rise and fade. */
+  hold?: number;
+  /** Peak level before the master volume (0-1). */
+  level: number;
+  wave?: OscillatorType;
+  /** How much filtered noise rides on top (0-1). */
+  air?: number;
+  /** Slow tremble in Hz (0 = none). */
+  wobble?: number;
+};
 
 class CosmicAudioSynthesizer {
   private ctx: AudioContext | null = null;
+  private noise: AudioBuffer | null = null;
   public enabled: boolean = true;
   public volume: number = 0.35;
 
   constructor() {
-    // AudioContext will be initialized on first user interaction
-    const savedMuted = localStorage.getItem('orion_audio_muted');
-    if (savedMuted !== null) {
-      this.enabled = savedMuted !== 'true';
-    }
-    const savedVol = localStorage.getItem('orion_audio_vol');
-    if (savedVol !== null) {
-      this.volume = parseFloat(savedVol);
+    // AudioContext is created on first use (after a user gesture)
+    try {
+      const savedMuted = localStorage.getItem('orion_audio_muted');
+      if (savedMuted !== null) this.enabled = savedMuted !== 'true';
+      const savedVol = localStorage.getItem('orion_audio_vol');
+      if (savedVol !== null && !Number.isNaN(parseFloat(savedVol))) this.volume = parseFloat(savedVol);
+    } catch {
+      /* storage blocked: defaults */
     }
   }
 
   private getContext(): AudioContext | null {
     if (typeof window === 'undefined') return null;
-    if (!this.ctx) {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioContextClass) {
-        this.ctx = new AudioContextClass();
+    try {
+      if (!this.ctx) {
+        const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (AudioContextClass) this.ctx = new AudioContextClass();
       }
-    }
-    if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume();
+      if (this.ctx && this.ctx.state === 'suspended') void this.ctx.resume();
+    } catch {
+      return null;
     }
     return this.ctx;
   }
 
   public setMuted(muted: boolean) {
     this.enabled = !muted;
-    localStorage.setItem('orion_audio_muted', String(muted));
+    try {
+      localStorage.setItem('orion_audio_muted', String(muted));
+    } catch {
+      /* remembered for now only */
+    }
   }
 
   public setVolume(vol: number) {
     this.volume = Math.max(0, Math.min(1, vol));
-    localStorage.setItem('orion_audio_vol', String(this.volume));
+    try {
+      localStorage.setItem('orion_audio_vol', String(this.volume));
+    } catch {
+      /* remembered for now only */
+    }
   }
 
-  /**
-   * Warm analog-style synth voice: detuned saw stack + sub sine through a resonant low-pass whose cutoff
-   * opens and closes (the classic pad "bwaah"), with a soft attack so it never clicks.
-   */
-  private synth(
-    ctx: AudioContext,
-    out: AudioNode,
-    opts: { at: number; dur: number; notes: number[]; glideTo?: number; cutoff: [number, number, number]; level: number },
-  ) {
-    const { at, dur, notes, glideTo, cutoff, level } = opts;
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.Q.value = 6;
-    filter.frequency.setValueAtTime(cutoff[0], at);
-    filter.frequency.exponentialRampToValueAtTime(cutoff[1], at + dur * 0.35);
-    filter.frequency.exponentialRampToValueAtTime(cutoff[2], at + dur);
+  private noiseBuffer(ctx: AudioContext): AudioBuffer {
+    if (this.noise && this.noise.sampleRate === ctx.sampleRate) return this.noise;
+    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 1.5), ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    let last = 0;
+    for (let i = 0; i < d.length; i++) {
+      // brown noise: deep and soft, never hissy
+      last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02;
+      d[i] = last * 3.2;
+    }
+    this.noise = buf;
+    return buf;
+  }
 
-    const amp = ctx.createGain();
-    amp.gain.setValueAtTime(0.0001, at);
-    amp.gain.exponentialRampToValueAtTime(level, at + 0.12);
-    amp.gain.setTargetAtTime(level * 0.7, at + 0.15, 0.25);
-    amp.gain.setTargetAtTime(0.0001, at + dur * 0.55, dur * 0.16);
-    filter.connect(amp).connect(out);
+  /** The one building block: a low hum that swells in and fades out. Overall level is kept quiet. */
+  private hum(o: HumOpts) {
+    if (!this.enabled || this.volume <= 0) return;
+    const ctx = this.getContext();
+    if (!ctx) return;
+    try {
+      const t0 = ctx.currentTime + 0.02 + (o.at ?? 0);
+      const hold = o.hold ?? 0;
+      const end = t0 + o.attack + hold + o.release;
+      const peak = Math.max(0.0002, o.level * this.volume * 0.55);
 
-    const ratio = glideTo ? glideTo / notes[0] : 1;
-    notes.forEach((note, n) => {
-      // three slightly detuned saws per note = analog chorus width
-      [-7, 0, 7].forEach((cents) => {
+      const amp = ctx.createGain();
+      amp.gain.setValueAtTime(0.0001, t0);
+      amp.gain.exponentialRampToValueAtTime(peak, t0 + o.attack);
+      amp.gain.setValueAtTime(peak, t0 + o.attack + hold);
+      amp.gain.exponentialRampToValueAtTime(0.0001, end);
+      // a gentle low-pass keeps every partial round
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 420;
+      lp.Q.value = 0.7;
+      lp.connect(amp).connect(ctx.destination);
+
+      const voice = (freq: number, gain: number, wave: OscillatorType, detune = 0) => {
         const osc = ctx.createOscillator();
         const g = ctx.createGain();
-        osc.type = 'sawtooth';
-        osc.detune.value = cents;
-        osc.frequency.setValueAtTime(note, at);
-        if (glideTo) osc.frequency.exponentialRampToValueAtTime(note * ratio, at + dur * 0.5);
-        g.gain.value = (n === 0 ? 0.32 : 0.2) / 3;
-        osc.connect(g).connect(filter);
-        osc.start(at);
-        osc.stop(at + dur + 0.8);
-      });
-    });
-    // sub-octave sine for body
-    const sub = ctx.createOscillator();
-    const subGain = ctx.createGain();
-    sub.type = 'sine';
-    sub.frequency.setValueAtTime(notes[0] / 2, at);
-    if (glideTo) sub.frequency.exponentialRampToValueAtTime((notes[0] / 2) * ratio, at + dur * 0.5);
-    subGain.gain.value = 0.5;
-    sub.connect(subGain).connect(amp);
-    sub.start(at);
-    sub.stop(at + dur + 0.8);
+        osc.type = wave;
+        osc.detune.value = detune;
+        osc.frequency.setValueAtTime(freq, t0);
+        if (o.glideTo) osc.frequency.exponentialRampToValueAtTime(o.glideTo * (freq / o.freq), end);
+        g.gain.value = gain;
+        osc.connect(g).connect(lp);
+        osc.start(t0);
+        osc.stop(end + 0.05);
+        return g;
+      };
+      voice(o.freq, 0.8, o.wave ?? 'sine');
+      voice(o.freq, 0.25, 'sine', 6); // slow beating for warmth
+      voice(o.freq * 2, 0.22, 'triangle'); // an octave up so laptop speakers still hear it
+
+      if (o.wobble) {
+        const lfo = ctx.createOscillator();
+        const depth = ctx.createGain();
+        lfo.frequency.value = o.wobble;
+        depth.gain.value = peak * 0.25;
+        lfo.connect(depth).connect(amp.gain);
+        lfo.start(t0);
+        lfo.stop(end + 0.05);
+      }
+
+      if (o.air) {
+        const src = ctx.createBufferSource();
+        src.buffer = this.noiseBuffer(ctx);
+        const band = ctx.createBiquadFilter();
+        band.type = 'lowpass';
+        band.frequency.value = 260;
+        const ng = ctx.createGain();
+        ng.gain.value = o.air * 0.5;
+        src.connect(band).connect(ng).connect(amp);
+        src.start(t0);
+        src.stop(end + 0.05);
+      }
+    } catch {
+      /* no sound here; nothing else depends on it */
+    }
   }
 
-  /**
-   * Orion begins listening: a quick bassy synth rise — A1 sweeping up an octave to A2 as the filter opens.
-   */
+  /** Orion begins listening: a short rising swell. */
   public playListenStart(): void {
-    if (!this.enabled) return;
-    const ctx = this.getContext();
-    if (!ctx) return;
-    const now = ctx.currentTime + 0.01;
-    const master = ctx.createGain();
-    master.gain.setValueAtTime(this.volume * 1.4, now);
-    master.connect(ctx.destination);
-    this.synth(ctx, master, { at: now, dur: 0.42, notes: [55, 82.41], glideTo: 110, cutoff: [140, 1100, 700], level: 0.7 });
+    this.hum({ freq: 55, glideTo: 82.4, attack: 0.18, hold: 0.05, release: 0.45, level: 0.9, air: 0.4 });
   }
 
-  /**
-   * Speech captured / sent: a short synth "bwow" gliding down from A2 to D2 as the filter closes.
-   */
+  /** Speech captured / a command sent: a low swell settling downward. */
   public playCommandDetected(): void {
-    if (!this.enabled) return;
-    const ctx = this.getContext();
-    if (!ctx) return;
-    const now = ctx.currentTime + 0.01;
-    const master = ctx.createGain();
-    master.gain.setValueAtTime(this.volume * 1.9, now);
-    master.connect(ctx.destination);
-    this.synth(ctx, master, { at: now, dur: 0.9, notes: [110, 164.81], glideTo: 73.42, cutoff: [900, 700, 160], level: 0.5 });
+    this.hum({ freq: 98, glideTo: 65.4, attack: 0.08, hold: 0.06, release: 0.6, level: 0.8, air: 0.3 });
   }
 
-  /**
-   * Gentle cosmic resolve pentatonic chime with celestial shimmer decay when a task finishes.
-   * Freqs: E5 (659.25Hz), B5 (987.77Hz), E6 (1318.51Hz)
-   */
+  /** A task finished: two soft hums a fifth apart, the second lower and longer, like a sigh of relief. */
   public playTaskFinished(): void {
-    if (!this.enabled) return;
-    const ctx = this.getContext();
-    if (!ctx) return;
-
-    const now = ctx.currentTime;
-    const master = ctx.createGain();
-    master.gain.setValueAtTime(this.volume * 0.4, now);
-    master.connect(ctx.destination);
-
-    const freqs = [659.25, 830.61, 987.77, 1318.51];
-    freqs.forEach((freq, idx) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, now + idx * 0.05);
-
-      gain.gain.setValueAtTime(0.001, now + idx * 0.05);
-      gain.gain.exponentialRampToValueAtTime(0.55, now + idx * 0.05 + 0.04);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.05 + 1.2);
-
-      osc.connect(gain);
-      gain.connect(master);
-
-      osc.start(now + idx * 0.05);
-      osc.stop(now + idx * 0.05 + 1.25);
-    });
+    this.hum({ freq: 82.4, attack: 0.12, release: 0.5, level: 0.6, wave: 'triangle' });
+    this.hum({ at: 0.22, freq: 55, attack: 0.2, hold: 0.1, release: 0.9, level: 0.75, air: 0.25 });
   }
 
-  /**
-   * Ethereal pulse chime when Orion discovers a proactive insight on screen.
-   */
+  /** Orion noticed something useful: a single warm pulse with a slow tremble. */
   public playProactiveInsight(): void {
-    if (!this.enabled) return;
-    const ctx = this.getContext();
-    if (!ctx) return;
-
-    const now = ctx.currentTime;
-    const master = ctx.createGain();
-    master.gain.setValueAtTime(this.volume * 0.35, now);
-    master.connect(ctx.destination);
-
-    const freqs = [880.0, 1174.66, 1760.0];
-    freqs.forEach((freq, idx) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, now + idx * 0.07);
-
-      gain.gain.setValueAtTime(0.001, now + idx * 0.07);
-      gain.gain.exponentialRampToValueAtTime(0.4, now + idx * 0.07 + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.07 + 0.9);
-
-      osc.connect(gain);
-      gain.connect(master);
-
-      osc.start(now + idx * 0.07);
-      osc.stop(now + idx * 0.07 + 0.95);
-    });
+    this.hum({ freq: 73.4, attack: 0.25, hold: 0.15, release: 0.8, level: 0.6, wobble: 5, air: 0.2 });
   }
 
-  /**
-   * V2 harmonic Celestial Chime — plays when the pacing arc reaches its limit (90 min).
-   * Slow G-major arpeggio (G5 B5 D6 G6) with detuned partials and a long, soft shimmer tail.
-   */
+  /** The focus arc reached its limit: a slow, deep breath in and out. */
   public playCelestialChime(): void {
-    if (!this.enabled) return;
-    const ctx = this.getContext();
-    if (!ctx) return;
-
-    const now = ctx.currentTime;
-    const master = ctx.createGain();
-    master.gain.setValueAtTime(this.volume * 0.5, now);
-    master.connect(ctx.destination);
-
-    const notes = [783.99, 987.77, 1174.66, 1567.98];
-    notes.forEach((freq, idx) => {
-      const t = now + idx * 0.18;
-      [1, 2.01, 3.0].forEach((partial, pIdx) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq * partial, t);
-        osc.detune.setValueAtTime(pIdx === 1 ? 4 : pIdx === 2 ? -3 : 0, t);
-        const peak = 0.5 / (pIdx + 1) ** 1.6;
-        gain.gain.setValueAtTime(0.0001, t);
-        gain.gain.exponentialRampToValueAtTime(peak, t + 0.03);
-        gain.gain.exponentialRampToValueAtTime(0.0001, t + 2.4 - pIdx * 0.5);
-        osc.connect(gain);
-        gain.connect(master);
-        osc.start(t);
-        osc.stop(t + 2.5);
-      });
-    });
+    this.hum({ freq: 49, glideTo: 55, attack: 0.9, hold: 0.4, release: 1.8, level: 0.8, air: 0.35, wobble: 0.8 });
+    this.hum({ at: 0.6, freq: 73.4, attack: 0.8, hold: 0.2, release: 1.6, level: 0.35, wave: 'triangle' });
   }
 
-  /**
-   * V2 soft two-note ping when a drafted reply or patch lands in the approval queue.
-   */
+  /** Something landed in the approval queue: two low taps on a drum skin. */
   public playApprovalPing(): void {
-    if (!this.enabled) return;
-    const ctx = this.getContext();
-    if (!ctx) return;
-
-    const now = ctx.currentTime;
-    const master = ctx.createGain();
-    master.gain.setValueAtTime(this.volume * 0.3, now);
-    master.connect(ctx.destination);
-
-    [1318.51, 1567.98].forEach((freq, idx) => {
-      const t = now + idx * 0.09;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, t);
-      gain.gain.setValueAtTime(0.0001, t);
-      gain.gain.exponentialRampToValueAtTime(0.45, t + 0.015);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
-      osc.connect(gain);
-      gain.connect(master);
-      osc.start(t);
-      osc.stop(t + 0.55);
-    });
+    this.hum({ freq: 87.3, glideTo: 70, attack: 0.03, release: 0.32, level: 0.7 });
+    this.hum({ at: 0.16, freq: 87.3, glideTo: 70, attack: 0.03, release: 0.4, level: 0.55 });
   }
 
-  /**
-   * Subtle glassmorphic tactile tap for planetary dials and radial buttons.
-   */
+  /** A tap on a button or tab: the softest low thump. */
   public playTap(): void {
-    if (!this.enabled) return;
-    const ctx = this.getContext();
-    if (!ctx) return;
+    this.hum({ freq: 110, glideTo: 80, attack: 0.012, release: 0.12, level: 0.45 });
+  }
 
-    const now = ctx.currentTime;
-    const master = ctx.createGain();
-    master.gain.setValueAtTime(this.volume * 0.25, now);
-    master.connect(ctx.destination);
+  /** The command console opens: a swell rising from the deep. */
+  public playConsoleOpen(): void {
+    this.hum({ freq: 46.2, glideTo: 69.3, attack: 0.22, hold: 0.04, release: 0.5, level: 0.75, air: 0.45 });
+  }
 
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+  /** The command console closes: the same swell sinking back. */
+  public playConsoleClose(): void {
+    this.hum({ freq: 69.3, glideTo: 46.2, attack: 0.05, release: 0.42, level: 0.55, air: 0.3 });
+  }
 
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(1200, now);
-    osc.frequency.exponentialRampToValueAtTime(800, now + 0.08);
-
-    gain.gain.setValueAtTime(0.3, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
-
-    osc.connect(gain);
-    gain.connect(master);
-
-    osc.start(now);
-    osc.stop(now + 0.09);
+  /** A check passed (Test Center): a short warm hum. */
+  public playSoftTick(): void {
+    this.hum({ freq: 65.4, glideTo: 73.4, attack: 0.04, release: 0.35, level: 0.55 });
   }
 }
 

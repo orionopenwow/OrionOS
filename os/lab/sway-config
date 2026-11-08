@@ -17,7 +17,7 @@ gaps inner 10
 gaps outer 6
 smart_borders off
 #                       border   background text     indicator child_border
-client.focused          #7C5CFF  #0B0F1E    #FFFFFF  #00E5FF   #7C5CFF
+client.focused          #2E6BFF  #0B0F1E    #FFFFFF  #00E5FF   #2E6BFF
 client.focused_inactive #1E2440  #0B0F1E    #8888AA  #1E2440   #1E2440
 client.unfocused        #141932  #05070E    #6B7090  #141932   #141932
 client.urgent           #FF5C8A  #0B0F1E    #FFFFFF  #FF5C8A   #FF5C8A
@@ -126,7 +126,7 @@ bar {
     colors {
         background #05070E
         statusline #A5B4FC
-        focused_workspace #7C5CFF #7C5CFF #FFFFFF
+        focused_workspace #2E6BFF #2E6BFF #FFFFFF
         inactive_workspace #05070E #05070E #8888AA
     }
 }

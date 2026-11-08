@@ -216,14 +216,14 @@ export default function CommsPanel({
               key={p}
               onClick={() => setFilter(p)}
               data-active={filter === p}
-              className="emboss-pill rounded-full px-2.5 py-1 text-[11px]"
-              style={{ color: p === 'all' ? '#E9D5FF' : PLATFORM[p].color }}
+              className="emboss-pill rounded-full px-2.5 py-1 text-[11.5px]"
+              style={{ color: p === 'all' ? '#DCE7FF' : PLATFORM[p].color }}
             >
               {p === 'all' ? 'All' : PLATFORM[p].label}
             </button>
           ))}
         </div>
-        <div className="flex gap-2 text-[10px] text-white/55 items-center">
+        <div className="flex gap-2 text-[11px] text-white/78 items-center">
           {onDigest && (
             <button
               type="button"
@@ -246,10 +246,10 @@ export default function CommsPanel({
       {threads.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center px-8 space-y-3">
           <div className="emboss w-12 h-12 rounded-2xl flex items-center justify-center">
-            <Inbox size={22} className="text-[#C084FC]" />
+            <Inbox size={22} className="text-[#7FA6FF]" />
           </div>
           <h3 className="text-sm text-starlight">Unified Comms is listening</h3>
-          <p className="text-[12px] text-white/60 leading-relaxed max-w-sm">
+          <p className="text-[12px] text-white/80 leading-relaxed max-w-sm">
             Pin your <b>messenger.com</b> and <b>discord.com/channels/@me</b> tabs in Chrome (click the Orion icon on the
             tab), DM your Orion Discord bot, or add <b>TELEGRAM_API_ID/HASH</b> to mirror personal Telegram chats.
           </p>
@@ -277,22 +277,22 @@ export default function CommsPanel({
                 >
                   <div className="flex items-center gap-1.5">
                     <span
-                      className="shrink-0 rounded-md px-1 py-[1px] text-[9px] font-extrabold"
+                      className="shrink-0 rounded-md px-1 py-[1px] text-[10.5px] font-extrabold"
                       style={{ color: p.color, background: `${p.color}22`, border: `1px solid ${p.color}55` }}
                     >
                       {p.short}
                     </span>
                     {t.vip && <Star size={10} className="shrink-0 text-[#FFB300] fill-[#FFB300]" />}
-                    <span className={`truncate text-[12px] font-bold ${t.muted ? 'text-white/45' : 'text-white/90'}`}>{t.thread_name}</span>
-                    {t.muted && <BellOff size={10} className="shrink-0 text-white/35" />}
+                    <span className={`truncate text-[12px] font-bold ${t.muted ? 'text-white/74' : 'text-white/90'}`}>{t.thread_name}</span>
+                    {t.muted && <BellOff size={10} className="shrink-0 text-white/68" />}
                     {t.unread > 0 && (
-                      <span className="ml-auto shrink-0 rounded-full bg-[#00E5FF] px-1.5 text-[10px] font-extrabold text-black">
+                      <span className="ml-auto shrink-0 rounded-full bg-[#00E5FF] px-1.5 text-[11px] font-extrabold text-black">
                         {t.unread}
                       </span>
                     )}
                   </div>
                   {last && (
-                    <div className="mt-0.5 truncate text-[11px] text-white/50">
+                    <div className="mt-0.5 truncate text-[11.5px] text-white/76">
                       {last.direction === 'out' ? 'You: ' : ''}
                       {last.text}
                     </div>
@@ -305,12 +305,12 @@ export default function CommsPanel({
           {/* Conversation */}
           {thread && (!mobile || mobileThread) && (
             <div className="flex-1 flex flex-col min-w-0">
-              <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between text-[11px]">
+              <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between text-[11.5px]">
                 {mobile && (
                   <button
                     type="button"
                     onClick={() => setMobileThread(false)}
-                    className="mr-2 -ml-1 p-1.5 rounded-full text-white/70 hover:text-white hover:bg-white/10"
+                    className="mr-2 -ml-1 p-1.5 rounded-full text-white/85 hover:text-white hover:bg-white/10"
                     aria-label="Back to all chats"
                   >
                     <ChevronLeft size={18} />
@@ -318,7 +318,7 @@ export default function CommsPanel({
                 )}
                 <div className="min-w-0 mr-auto">
                   <div className="font-bold text-[13px] text-white truncate text-emboss-header">{thread.thread_name}</div>
-                  <div className="text-white/45">
+                  <div className="text-white/74">
                     {PLATFORM[thread.platform].label} · replies via {ROUTE_LABEL[thread.route] ?? thread.route}
                   </div>
                 </div>
@@ -326,14 +326,14 @@ export default function CommsPanel({
                   <button
                     type="button"
                     onClick={() => onMute(thread.key, !thread.muted)}
-                    className="mr-2 text-white/50 hover:text-white"
+                    className="mr-2 text-white/76 hover:text-white"
                     title={thread.muted ? 'Unmute (notify me again)' : 'Mute into the 12:00 / 18:00 digest'}
                   >
                     {thread.muted ? <BellOff size={13} /> : <Bell size={13} />}
                   </button>
                 )}
                 {thread.thread_url && (
-                  <a href={thread.thread_url} target="_blank" rel="noreferrer" className="text-white/50 hover:text-white" title="Open chat">
+                  <a href={thread.thread_url} target="_blank" rel="noreferrer" className="text-white/76 hover:text-white" title="Open chat">
                     <ExternalLink size={13} />
                   </a>
                 )}
@@ -351,12 +351,12 @@ export default function CommsPanel({
                       style={m.direction === 'out' ? { borderColor: `${PLATFORM[thread.platform].color}66` } : undefined}
                     >
                       {m.direction === 'in' && thread.thread_name !== m.author && (
-                        <div className="text-[10.5px] font-bold" style={{ color: PLATFORM[thread.platform].color }}>
+                        <div className="text-[11.5px] font-bold" style={{ color: PLATFORM[thread.platform].color }}>
                           {m.author}
                         </div>
                       )}
                       <p className="selectable whitespace-pre-wrap break-words">{m.text}</p>
-                      <div className="mt-0.5 text-right text-[9.5px] text-white/40">{hhmm(m.timestamp)}</div>
+                      <div className="mt-0.5 text-right text-[10.5px] text-white/72">{hhmm(m.timestamp)}</div>
                     </div>
                   </div>
                 ))}
@@ -364,7 +364,7 @@ export default function CommsPanel({
               </div>
 
               {errorText && (
-                <div className="mx-3 mb-1 flex items-center gap-1.5 text-[11px] text-[#FF8FAB]">
+                <div className="mx-3 mb-1 flex items-center gap-1.5 text-[11.5px] text-[#FF8FAB]">
                   <AlertTriangle size={12} /> {errorText}
                 </div>
               )}
@@ -392,7 +392,7 @@ export default function CommsPanel({
                   onClick={requestDraft}
                   disabled={isDrafting || !connected}
                   aria-label="Draft a reply in your voice"
-                  className="emboss-pill rounded-xl p-2.5 text-[#C084FC]"
+                  className="emboss-pill rounded-xl p-2.5 text-[#7FA6FF]"
                   title="Draft a reply in your voice"
                 >
                   {isDrafting ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
@@ -411,7 +411,7 @@ export default function CommsPanel({
                   aria-label={`Reply to ${thread.thread_name}`}
                   rows={Math.min(5, Math.max(1, text.split('\n').length))}
                   placeholder={`Reply to ${thread.thread_name} via ${PLATFORM[thread.platform].label}…`}
-                  className="selectable emboss-well flex-1 resize-none rounded-xl px-3 py-2.5 text-[12.5px] text-starlight placeholder:text-white/35 focus:outline-none"
+                  className="selectable emboss-well flex-1 resize-none rounded-xl px-3 py-2.5 text-[12.5px] text-starlight placeholder:text-white/55 focus:outline-none"
                 />
                 <button
                   type="submit"
@@ -425,7 +425,7 @@ export default function CommsPanel({
                 </button>
               </form>
               {draftId && (
-                <div className="px-3 pb-2 -mt-1 text-[10px] text-white/45">
+                <div className="px-3 pb-2 -mt-1 text-[11px] text-white/74">
                   Drafted in your voice — edits you make here are learned.
                 </div>
               )}

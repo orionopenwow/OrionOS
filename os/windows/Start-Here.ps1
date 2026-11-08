@@ -904,6 +904,10 @@ try {
     SetStep $s.id ([string]$res)
     $n++
   }
+  # [voice2] Orion's voice: open the voice page in the Orion window, or say where it is
+  $v = Call "POST" "/hud/open" @{ what = "voice" }
+  if ($v.ok -and $v.json -and $v.json.window -ne $false) { Good "Orion's voice is open in the Orion window: pick how Orion sounds." }
+  elseif (-not $v.dry) { Info "Pick how Orion sounds any time: in the Orion window, Menu > Orion's voice." }
   Say ""
   Say "  All done for now:" Cyan
   Overview

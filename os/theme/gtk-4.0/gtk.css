@@ -1,8 +1,8 @@
 /* OrionOS: GTK 4 colours for libadwaita apps, which ignore GTK themes (the Orion Glass theme in
  * /usr/share/themes covers plain GTK 4 apps). Copied once into ~/.config/gtk-4.0/; only colour names here, so the
  * theme's see-through glass is not overridden. Palette: Art Update §6. */
-@define-color accent_color #9D85FF;
-@define-color accent_bg_color #7C5CFF;
+@define-color accent_color #8DB0FF;
+@define-color accent_bg_color #2E6BFF;
 @define-color accent_fg_color #FFFFFF;
 @define-color destructive_color #FF8AAD;
 @define-color destructive_bg_color #FF5C8A;

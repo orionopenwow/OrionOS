@@ -57,7 +57,7 @@ export async function focusAppWindow(id: number): Promise<boolean> {
 
 /** A steady colour per app, so the same app always gets the same tile colour. */
 export function appColor(appId: string): string {
-  const palette = ['#9D85FF', '#7FF2FF', '#5CFFB0', '#FFC66B', '#FF8FB0', '#B9C0E8'];
+  const palette = ['#8DB0FF', '#7FF2FF', '#5CFFB0', '#FFC66B', '#FF8FB0', '#B9C0E8'];
   let h = 0;
   for (const ch of appId) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   return palette[h % palette.length];

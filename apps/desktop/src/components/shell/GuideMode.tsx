@@ -19,12 +19,12 @@ export const OPEN_GUIDE_EVENT = 'orion:open-guide';
 
 const card: React.CSSProperties = {
   position: 'fixed', left: '50%', bottom: 96, transform: 'translateX(-50%)', zIndex: 70, width: 440,
-  maxWidth: 'calc(100vw - 32px)', padding: '14px 16px', borderRadius: 18, background: 'rgba(11,15,30,0.9)',
-  border: '1px solid rgba(0,229,255,0.45)', color: '#D8DEFF', font: '400 13px/1.45 Figtree, system-ui, sans-serif',
+  maxWidth: 'calc(100vw - 32px)', padding: '14px 16px', borderRadius: 18, background: 'rgba(26,31,39,0.9)',
+  border: '1px solid rgba(0,229,255,0.45)', color: '#DDE5F0', font: '400 13px/1.45 Figtree, system-ui, sans-serif',
   backdropFilter: 'blur(14px)', boxShadow: '0 18px 50px rgba(2,3,10,0.6)',
 };
 export const pill: React.CSSProperties = {
-  padding: '6px 14px', borderRadius: 999, border: '1px solid #3A3F6B', background: 'rgba(124,92,255,0.18)',
+  padding: '6px 14px', borderRadius: 999, border: '1px solid #3A4352', background: 'rgba(46,107,255,0.18)',
   color: '#FFFFFF', cursor: 'pointer', font: '600 12px Figtree, system-ui, sans-serif',
 };
 
@@ -53,7 +53,7 @@ export function GuideRing({ state, scale }: { state: GuideState; scale: number }
       className="orion-guide-ring"
       style={{
         position: 'fixed', left: b.left, top: b.top, width: b.size, height: b.size, borderRadius: '50%',
-        border: '4px solid #00E5FF', boxShadow: '0 0 0 6px rgba(124,92,255,0.55), 0 0 28px #00E5FF',
+        border: '4px solid #00E5FF', boxShadow: '0 0 0 6px rgba(46,107,255,0.55), 0 0 28px #00E5FF',
         pointerEvents: 'none', zIndex: 2147483000, animation: 'orionGuidePulse 1.4s ease-in-out infinite',
       }}
     >
@@ -176,8 +176,8 @@ export default function GuideMode() {
                 onChange={(e) => setTask(e.target.value)}
                 placeholder="install Discord, connect to Wi-Fi, pair my phone…"
                 aria-label="What to do"
-                style={{ flex: 1, padding: '7px 12px', borderRadius: 999, border: '1px solid #3A3F6B',
-                         background: 'rgba(216,222,255,0.06)', color: '#FFFFFF', font: 'inherit' }}
+                style={{ flex: 1, padding: '7px 12px', borderRadius: 999, border: '1px solid #3A4352',
+                         background: 'rgba(221,229,240,0.06)', color: '#FFFFFF', font: 'inherit' }}
               />
               <button style={pill} type="submit">Guide me</button>
             </form>

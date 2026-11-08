@@ -145,7 +145,7 @@ def test_sway_and_foot_writers():
     assert "default_border pixel 4" in sway and "#FFD400" in sway
     assert "output * scale 1.25" in sway and "xcursor_theme Orion 48" in sway
     normal = E.render_sway_access(E.clean_access({}))
-    assert "client.focused          #7C5CFF" in normal and "output" not in normal
+    assert "client.focused          #2E6BFF" in normal and "output" not in normal
     assert "xcursor_theme Orion 24" in normal
     foot = E.render_foot_access(s)
     assert foot.splitlines()[1] == "[main]" and "size=15.75" in foot and "background=000000" in foot

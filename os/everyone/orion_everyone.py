@@ -119,7 +119,7 @@ THEMES = {"glass": "Orion-Glass", "solid": "Orion-Glass-Solid", "contrast": "Ori
 # Sway's own colours (os/lab/sway-config) and the high-contrast set: white/yellow on black, thick borders.
 SWAY_NORMAL = [
     "default_border pixel 2", "default_floating_border pixel 2",
-    "client.focused          #7C5CFF  #0B0F1E    #FFFFFF  #00E5FF   #7C5CFF",
+    "client.focused          #2E6BFF  #0B0F1E    #FFFFFF  #00E5FF   #2E6BFF",
     "client.focused_inactive #1E2440  #0B0F1E    #8888AA  #1E2440   #1E2440",
     "client.unfocused        #141932  #05070E    #6B7090  #141932   #141932",
     "client.urgent           #FF5C8A  #0B0F1E    #FFFFFF  #FF5C8A   #FF5C8A",

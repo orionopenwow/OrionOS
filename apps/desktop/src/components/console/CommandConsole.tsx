@@ -9,6 +9,9 @@
  *   - Opens from the Orion button, Super+Space, Alt+Space or Ctrl+Space, or `openOrion('menu')` (toggle) and
  *     `openOrion('chat')` (open). Esc or the Orion button closes it; it grows from and shrinks into the button.
  *   - Files can still be dropped anywhere on the screen (GlobalDropAndPasteZone).
+ *   - [focus] Before a conversation starts, the middle shows the Focus dashboard (FocusDashboard.tsx, at most five
+ *     cards). It moves away as soon as the session has messages or a chat message is being typed (a feature search
+ *     keeps it); "New" brings it back.
  * Picking an item fires `orion:open` with its id; the window that owns that id opens itself.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -26,6 +29,8 @@ import { getButtonPos, BUTTON_SIZE } from '../../lib/orionButton';
 import { cosmicAudio } from '../../lib/cosmicAudio';
 import { useCalmMotion } from '../../lib/hudPrefs';
 import OrionMark from '../glass/OrionMark';
+import FocusDashboard from './FocusDashboard'; // [focus]
+import { showDashboard } from '../../lib/focus'; // [focus]
 import '../../styles/glass.css';
 
 const ICONS: Record<string, LucideIcon> = {
@@ -67,6 +72,8 @@ interface Props {
   onSetPersonality?: (mode: PersonalityMode) => void;
   onConsolidateMemories?: () => void;
   onSendTelegram?: (text: string) => void;
+  /** [focus] Open a conversation in Messages, optionally with a draft in its reply box (never sent). */
+  onOpenThread?: (thread: string, draft?: string) => void;
 }
 
 // --------------------------------------------------------------------------------------- feature tiles
@@ -132,6 +139,7 @@ export default function CommandConsole({
   onSetPersonality,
   onConsolidateMemories,
   onSendTelegram,
+  onOpenThread,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -147,6 +155,10 @@ export default function CommandConsole({
     { id: 'session-game-bugs', title: 'Game bug reports from Discord', preview: 'Looking at the screenshot in player report #142.', timestamp: '2h ago' },
     { id: 'session-chrome-scrape', title: 'Reading a page in Chrome', preview: 'Pulling the useful text out of the open tab.', timestamp: 'Yesterday' },
   ]);
+  // [focus] this session's conversation starts at `baseline` ("New" moves it); `chatting` = a chat message was sent
+  const [baseline, setBaseline] = useState(0);
+  const [chatting, setChatting] = useState(false);
+  const convo = responses.slice(Math.min(baseline, responses.length));
   const input = useRef<HTMLInputElement>(null);
   const feed = useRef<HTMLDivElement>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
@@ -223,7 +235,7 @@ export default function CommandConsole({
     // scroll only the conversation (scrollIntoView would also scroll the console itself on phones)
     const el = feed.current;
     if (open && el) el.scrollTo({ top: el.scrollHeight, behavior: reduce ? 'auto' : 'smooth' });
-  }, [responses.length, open, reduce]);
+  }, [convo.length, open, reduce]);
 
   const results = useMemo(() => (query.trim() ? filterMenu(query).filter((i) => i.id !== 'chat') : null), [query]);
   const hits = useMemo(() => (results ? new Set(results.map((r) => r.id)) : null), [results]);
@@ -244,6 +256,7 @@ export default function CommandConsole({
     const text = query.trim();
     if (!text) return;
     cosmicAudio.playCommandDetected();
+    setChatting(true); // [focus]
     onSendMessage(text);
     setQuery('');
   };
@@ -264,6 +277,8 @@ export default function CommandConsole({
     setSessions((s) => [{ id, title: `Conversation ${s.length + 1}`, preview: 'A fresh start.', timestamp: 'Just now' }, ...s]);
     setActiveSessionId(id);
     setSessionsOpen(false);
+    setBaseline(responses.length); // [focus] a fresh conversation: the dashboard comes back
+    setChatting(false);
     input.current?.focus();
   };
 
@@ -273,13 +288,24 @@ export default function CommandConsole({
     window.setTimeout(() => setCopiedId(null), 2000);
   };
 
+  const say = (text: string) => {
+    setChatting(true); // [focus]
+    onSendMessage(text);
+  };
+  const focusShown = showDashboard({ messages: convo.length, processing: isProcessing, chatting, query, featureMatches: shown.length }); // [focus]
+  const openThread = (thread: string, draft?: string) => {
+    close(true);
+    if (onOpenThread) onOpenThread(thread, draft);
+    else openOrion('messages');
+  };
+
   const quick: Array<{ label: string; icon: LucideIcon; run: () => void }> = [
-    { label: 'Look at my screen', icon: Monitor, run: () => onSendMessage('Inspect the current screen and report all visible windows and text.') },
-    { label: 'Check game bugs', icon: Gamepad2, run: () => onSendMessage('Summarize latest game bug reports and Gemini search diagnosis.') },
+    { label: 'Look at my screen', icon: Monitor, run: () => say('Inspect the current screen and report all visible windows and text.') },
+    { label: 'Check game bugs', icon: Gamepad2, run: () => say('Summarize latest game bug reports and Gemini search diagnosis.') },
     {
       label: 'Consolidate memories',
       icon: Database,
-      run: () => (onConsolidateMemories ? onConsolidateMemories() : onSendMessage('Consolidate recent vector memories and outline open loops.')),
+      run: () => (onConsolidateMemories ? (setChatting(true), onConsolidateMemories()) : say('Consolidate recent vector memories and outline open loops.')),
     },
   ];
 
@@ -421,18 +447,34 @@ export default function CommandConsole({
 
               {/* the conversation */}
               <div ref={feed} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 selectable" aria-live="polite">
-                {responses.length === 0 ? (
-                  <div className="mx-auto max-w-md py-10 text-center">
-                    <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-cobalt/40 bg-cobalt/15">
-                      <Sparkles size={26} className="text-cobalt-light" />
-                    </div>
-                    <h3 className="text-[17px] font-bold text-ink">Ask Orion anything</h3>
-                    <p className="mt-2 text-[14.5px] leading-relaxed text-ink-2">
-                      Ask a question, run a task on your desktop, or drop a file anywhere on the screen. Type a feature's name to find it.
-                    </p>
-                  </div>
-                ) : (
-                  responses.map((r) => {
+                <AnimatePresence initial={false}>
+                  {focusShown && (
+                    <motion.div
+                      key="focus"
+                      initial={reduce ? { opacity: 0 } : { opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={reduce ? { opacity: 0, transition: { duration: 0.1 } } : { opacity: 0, y: -16, scale: 0.98, transition: { duration: 0.22 } }}
+                    >
+                      <FocusDashboard
+                        onOpenWindow={pickItem}
+                        onOpenThread={openThread}
+                        fallback={
+                          <div className="mx-auto max-w-md py-10 text-center">
+                            <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-cobalt/40 bg-cobalt/15">
+                              <Sparkles size={26} className="text-cobalt-light" />
+                            </div>
+                            <h3 className="text-[17px] font-bold text-ink">Ask Orion anything</h3>
+                            <p className="mt-2 text-[14.5px] leading-relaxed text-ink-2">
+                              Ask a question, run a task on your desktop, or drop a file anywhere on the screen. Type a feature's name to find it.
+                            </p>
+                          </div>
+                        }
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                {focusShown || convo.length === 0 ? null : (
+                  convo.map((r) => {
                     const codeAction = (r.response.actions || []).find((a) => a.type === 'code_suggestion');
                     const code = (codeAction?.payload as { code?: string } | undefined)?.code;
                     const lang = (codeAction?.payload as { language?: string } | undefined)?.language || 'code';

@@ -27,7 +27,39 @@ export const DEMO_ROUTES = [
   '/browser-skills', '/desktop-skills', '/scout', '/health/status', '/freeze', '/access', '/linux/windows',
   '/hardware/report', '/telegram/pair', '/extension/pair', '/compute', '/agents/swarm', '/vault/drop', '/assets/upload', '/games',
   '/voice', // [voice2]
+  '/focus', // [focus]
 ] as const;
+
+// ---------------------------------------------------------------- Focus dashboard [focus]
+const focusPins = new Set<string>();
+const focusHidden = new Set<string>();
+function focusView() {
+  const t = now();
+  const cards = [
+    { id: 'now:mission:star', kind: 'now', title: 'Star catcher: add a high-score table', detail: 'Claude: Checking the work (build, tests, review). $0.42 of $2.00 spent.',
+      why: 'This is what Orion is working on right now.', score: 70, open: { window: 'missions' }, actions: ['open'],
+      meta: { progress: 0.75, step: 'Checking the work', waiting_on: 'Your OK on the result, once the checks pass.' } },
+    { id: 'msg:tg:maya', kind: 'message', title: 'Maya on Telegram', detail: 'perfect. can you send the demo track before then?',
+      why: 'You usually reply to Maya within minutes.', score: 66, open: { window: 'messages', thread: 'tg:maya' }, actions: ['open', 'draft'],
+      meta: { sender: 'Maya', app_label: 'Telegram', unread: 1, thread: 'tg:maya', ts: t - 240 } },
+    { id: 'approval:ap2', kind: 'approval', title: '2 things are waiting for your OK', detail: 'Top: Devlog: raid lockouts',
+      why: "Orion won't do these until you say yes.", score: 64, open: { window: 'queue' }, actions: ['open'], meta: { count: 2, risk: 'medium' } },
+    { id: 'msg:dc:openwow-dev', kind: 'message', title: 'Leo on Discord', detail: 'one thing — the reset timer shows UTC instead of server time',
+      why: 'You open Leo\'s messages most days.', score: 48, open: { window: 'messages', thread: 'dc:openwow-dev' }, actions: ['open', 'draft'],
+      meta: { sender: 'Leo', app_label: 'Discord', unread: 2, thread: 'dc:openwow-dev', ts: t - 900 } },
+    { id: 'next:promise:demo', kind: 'next_up', title: 'Send Maya the demo track', detail: 'Due in 3 hours (you told Maya).',
+      why: "You said you'd do this.", score: 40, open: { window: 'life' }, actions: ['open'], meta: { due: t + 3 * 3600 } },
+  ]
+    .filter((c) => focusPins.has(c.id) || !focusHidden.has(c.id))
+    .map((c) => (focusPins.has(c.id) ? { ...c, pinned: true, score: c.score + 100, why: 'You pinned this.' } : { ...c, pinned: false }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
+  return { cards, all_clear: cards.length === 0, line: cards.length ? '' : 'All clear. Nothing needs you right now.', generated_at: t };
+}
+const FOCUS_DRAFTS: Record<string, { draft: string; thread: string }> = {
+  'msg:tg:maya': { draft: "yep! sending it tonight, it's sounding good", thread: 'tg:maya' },
+  'msg:dc:openwow-dev': { draft: 'good catch, I\'ll switch it to server time today', thread: 'dc:openwow-dev' },
+};
 
 // ---------------------------------------------------------------- Orion's voice [voice2]
 const voiceActive = { engine: 'kokoro', voice: 'af_nicole', speed: 0.92, warmth: 0, delivery: '', chosen: true };
@@ -398,6 +430,21 @@ export async function demoRoute(method: string, path: string, body: Json, emitEv
   const query = new URLSearchParams(q);
   const POST = method === 'POST';
   let m: RegExpMatchArray | null;
+
+  // ---- Focus dashboard [focus] (sample data; drafts are never sent)
+  if (p === '/focus' && !POST) return ok(focusView());
+  if (p === '/focus/feedback') {
+    const id = String(body.id ?? '');
+    const action = String(body.action ?? '');
+    if (action === 'pin') focusPins.add(id);
+    else if (action === 'unpin') focusPins.delete(id);
+    else if (action === 'dismiss') { focusHidden.add(id); focusPins.delete(id); }
+    return ok({ ok: true });
+  }
+  if (p === '/focus/draft') {
+    const d = FOCUS_DRAFTS[String(body.id ?? '')];
+    return d ? ok(d) : ok({ error: "That message isn't on the dashboard any more." }, 400);
+  }
 
   // ---- Test Center
   if (p === '/tests' && !POST) return ok(tView());

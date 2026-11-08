@@ -188,6 +188,7 @@ class PhonePair:
             "frozen": frozen,
             "pc": self._pc(snap),
             "missions": self._missions(),   # Mission Control robots with their cost (phone_missions.py)
+            "focus": self._focus(),   # [focus] the same top-5 list as the console (focus.py)
         }
         self._home_at = now
         return self._home
@@ -270,6 +271,13 @@ class PhonePair:
             if isinstance(a.get("cost_usd"), (int, float)) and not isinstance(a.get("cost_usd"), bool):
                 out[-1]["cost_usd"] = round(float(a["cost_usd"]), 4)   # robots on the phone show what they cost
         return out
+
+    def _focus(self) -> list[dict[str, Any]]:  # [focus]
+        try:
+            import focus
+            return focus.for_phone(self.d, self.data_dir)
+        except Exception:   # Pocket Orion and older PCs: no Focus
+            return []
 
     @staticmethod
     def _missions() -> list[dict[str, Any]]:

@@ -130,7 +130,7 @@ def test_home_matches_the_contract(pc):
     r = call(pc, "GET", "/phone/home")
     assert r.status_code == 200, r.text
     h = r.json()
-    assert set(h) == {"core", "approvals", "agents", "health", "frozen", "pc", "missions"}
+    assert set(h) == {"core", "approvals", "agents", "health", "frozen", "pc", "missions", "focus"}
     assert {"voice", "speaking", "thinking", "heat", "messages", "approvals", "health", "quiet"} <= set(h["core"])
     assert h["core"]["approvals"] == 2 and h["core"]["health"] == 1
     for a in h["approvals"]:

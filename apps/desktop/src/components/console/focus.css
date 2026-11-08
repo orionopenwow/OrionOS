@@ -1,0 +1,122 @@
+/* Focus dashboard (FocusDashboard.tsx): the console's matte look. No glow, 1.5px edges, rounded, white text, thick
+   white icons; cobalt #2E6BFF only for the one primary action on each card. */
+.focus {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 0 0 4px;
+  color: #ffffff;
+}
+.focus__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 0 4px 8px; }
+.focus__title {
+  font-family: var(--font-display, inherit);
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #ffffff;
+}
+.focus__sub { font-size: 14.5px; font-weight: 600; color: #c9d1dc; }
+.focus__list { display: flex; flex-direction: column; gap: 8px; }
+.focus__loading,
+.focus__clear {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 20px;
+  border-radius: 18px;
+  border: 1.5px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 16px;
+  font-weight: 650;
+  color: #ffffff;
+}
+.focus__loading { color: #c9d1dc; font-size: 14.5px; }
+.focus__note { margin-top: 10px; padding: 0 4px; font-size: 13.5px; font-weight: 600; color: #ffd27a; }
+
+.focus-card {
+  display: flex;
+  gap: 14px;
+  padding: 10px 14px 8px;
+  border-radius: 18px;
+  border: 1.5px solid rgba(255, 255, 255, 0.16);
+  background: #1d222a;
+}
+.focus-card[data-pinned] { border-color: rgba(255, 255, 255, 0.34); }
+.focus-card__icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.07);
+  color: #ffffff;
+}
+.focus-card[data-kind='needs_you'] .focus-card__icon { border-color: rgba(255, 196, 92, 0.55); color: #ffd27a; }
+.focus-card__body { min-width: 0; flex: 1; }
+.focus-card__label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #aeb8c6;
+}
+.focus-card__pin { display: inline-flex; align-items: center; gap: 3px; color: #ffffff; letter-spacing: 0.04em; }
+.focus-card__title {
+  margin-top: 1px;
+  font-size: 16.5px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #ffffff;
+  overflow-wrap: anywhere;
+}
+.focus-card__detail { margin-top: 1px; font-size: 15px; line-height: 1.4; color: #e3e8ef; overflow-wrap: anywhere; }
+.focus-card__waiting { margin-top: 3px; font-size: 13.5px; font-weight: 600; color: #d3d9e2; }
+.focus-card__foot { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 3px; }
+.focus-card__why { flex: 1 1 200px; min-width: 0; font-size: 13px; font-weight: 600; color: #aeb8c6; }
+.focus-card__progress {
+  margin-top: 6px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+.focus-card__progress > span { display: block; height: 100%; border-radius: inherit; background: #ffffff; }
+.focus-card__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-left: auto; }
+
+.focus-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 11px;
+  border: 1.5px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.07);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #ffffff;
+  white-space: nowrap;
+}
+.focus-btn:hover { background: rgba(255, 255, 255, 0.12); }
+.focus-btn:focus-visible { outline: 1.5px solid #2e6bff; outline-offset: 2px; }
+.focus-btn:disabled { opacity: 0.6; }
+.focus-btn--primary { background: #2e6bff; border-color: #2e6bff; }
+.focus-btn--primary:hover { background: #2559d6; }
+.focus-btn--quiet { background: transparent; border-color: transparent; color: #c9d1dc; padding: 0 8px; }
+.focus-btn--quiet:hover { color: #ffffff; background: rgba(255, 255, 255, 0.07); }
+
+@media (max-width: 640px) {
+  .focus__title { font-size: 19px; }
+  .focus-card { gap: 0; padding: 12px 14px 10px; }
+  .focus-card__icon { display: none; }   /* the kind label says what it is; the room goes to the text and buttons */
+  .focus-card__title { font-size: 16px; }
+  .focus-card__detail { font-size: 14.5px; }
+  .focus-card__actions { margin-left: 0; width: 100%; }
+  .focus-btn__text { display: none; }   /* Pin and Not important become icons on phones (named for screen readers) */
+  .focus-btn--quiet { padding: 0 9px; }
+  .focus-btn--push { margin-left: auto; }
+}

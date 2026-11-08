@@ -1558,6 +1558,7 @@ G.router(app, "projects", lambda: __import__("projects").make_router(lambda: dae
 G.router(app, "phone_app_share", lambda: __import__("phone_app_share").make_router(lambda: daemon))  # [start-here] /phones/app-share (before /phones/{id}/...)
 G.router(app, "hud_open", lambda: __import__("hud_open").make_router(lambda: daemon))  # [start-here] POST /hud/open
 G.router(app, "games_routes", lambda: __import__("games_routes").make_router(lambda: daemon))  # [games] GET /games, POST /games/do (os/lab/bin/orion-games)
+G.router(app, "focus", lambda: __import__("focus").make_router(lambda: daemon))  # [focus] GET /focus, POST /focus/feedback, /focus/draft (focus.py)
 G.router(app, "phone_pairing_ui", lambda: __import__("phone_pairing_ui").make_router(lambda: daemon))  # [phone2] /phones/...
 G.router(app, "voice_engines", lambda: __import__("voice_engines").make_router(lambda: daemon))  # [voice2] /voice/...
 

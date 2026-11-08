@@ -760,6 +760,7 @@ export default function App() {
           activePersonality={personalityMode}
           onSetPersonality={setPersonality}
           onSendTelegram={sendTelegram}
+          onOpenThread={(threadKey, draft) => showTab({ tab: 'comms', nonce: Date.now(), threadKey, draft })} // [focus] Open / Draft reply (never sends)
           onConsolidateMemories={() => {
             setCurrentTaskText('Consolidating memories & exporting fine-tune dataset...');
             consolidateMemories();

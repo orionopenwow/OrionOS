@@ -763,6 +763,7 @@ export default function App() {
           onOpenThread={(threadKey, draft) => showTab({ tab: 'comms', nonce: Date.now(), threadKey, draft })} // [focus] Open / Draft reply (never sends)
           telemetry={telemetry} // [command] Today panel: wind-down, bedtime, breaks
           threads={commsThreads} // [command] Messages panel: unread by app
+          approvals={approvals} // [context] Waiting on you (rows open the queue; nothing approves there)
           onConsolidateMemories={() => {
             setCurrentTaskText('Consolidating memories & exporting fine-tune dataset...');
             consolidateMemories();

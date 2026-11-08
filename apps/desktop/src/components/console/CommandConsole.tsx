@@ -9,13 +9,19 @@
  *   - Opens from the Orion button, Super+Space, Alt+Space or Ctrl+Space, or `openOrion('menu')` (toggle) and
  *     `openOrion('chat')` (open). Esc or the Orion button closes it; it grows from and shrinks into the button.
  *   - Files can still be dropped anywhere on the screen (GlobalDropAndPasteZone).
- *   - [focus] Before a conversation starts, the middle shows the Focus dashboard (FocusDashboard.tsx, at most five
- *     cards). It moves away as soon as the session has messages or a chat message is being typed (a feature search
+ *   - [focus] Before a conversation starts, the middle shows Focus and context ([context] ContextPanel.tsx; the five
+ *     focus cards sit behind its "Show all"). It moves away as soon as the session has messages or a chat message is being typed (a feature search
  *     keeps it); "New" brings it back.
  *   - [command] The console fills the whole screen as a life and project command centre: the sides hold small live
- *     panels (Projects, Today, Quick tools, Computer, Messages: CommandWidgets.tsx) and the feature tiles in compact
- *     "tools" panels. Wide screens (1700px and up) get a fourth column; below 1101px the middle comes first and the
- *     panels stack under it. Every column runs to the same bottom line.
+ *     panels (CommandWidgets.tsx) and the feature tiles in a compact "All tools" panel. Every column runs to the
+ *     same bottom line.
+ *   - [context] Owner mockup, 2026-11-07 ("Life and project manager"). Four columns from 1700px:
+ *       1. Mission Control, Today, Quick tools
+ *       2. Focus and context (ContextPanel.tsx: the focus timer, Next best action, Today's timeline), then the chat
+ *       3. Messages, Waiting on you, Waiting on others, Computer
+ *       4. All tools
+ *     From 1101px to 1699px three columns (All tools joins the first column, Quick tools the third); below that the
+ *     middle comes first and the panels stack under it (one column on phones).
  * Picking an item fires `orion:open` with its id; the window that owns that id opens itself.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -33,9 +39,12 @@ import { getButtonPos, BUTTON_SIZE } from '../../lib/orionButton';
 import { cosmicAudio } from '../../lib/cosmicAudio';
 import { useCalmMotion } from '../../lib/hudPrefs';
 import OrionMark from '../glass/OrionMark';
-import type { CommsThread, TelemetrySnapshot } from '@orion/shared-types';
-import { ComputerPanel, MessagesPanel, Panel, ProjectsPanel, QuickToolsPanel, TodayPanel } from './CommandWidgets'; // [command]
-import FocusDashboard, { AllClear } from './FocusDashboard'; // [focus]
+import type { ApprovalItem, CommsThread, TelemetrySnapshot } from '@orion/shared-types';
+import {
+  ComputerPanel, MessagesPanel, MissionControlPanel, Panel, QuickToolsPanel, TodayPanel, WaitingOnOthersPanel, WaitingOnYouPanel,
+} from './CommandWidgets'; // [command] [context]
+import { useFocus } from './FocusDashboard'; // [focus]
+import ContextPanel from './ContextPanel'; // [context]
 import { showDashboard } from '../../lib/focus'; // [focus]
 import '../../styles/glass.css';
 
@@ -84,6 +93,8 @@ interface Props {
   telemetry?: TelemetrySnapshot | null;
   /** [command] The live chat list, for unread counts by app. */
   threads?: CommsThread[];
+  /** [context] The live approvals list, for "Waiting on you" (rows open the queue; nothing approves here). */
+  approvals?: ApprovalItem[];
 }
 
 /** [command] How the console lays out: the middle stacked over the panels, three columns, or four on wide screens. */
@@ -196,9 +207,11 @@ export default function CommandConsole({
   onOpenThread,
   telemetry,
   threads,
+  approvals,
 }: Props) {
   const layout = useLayout(); // [command]
   const [open, setOpen] = useState(false);
+  const focus = useFocus(open); // [context] one /focus poll for the middle and "Waiting on you", only while open
   const [query, setQuery] = useState('');
   const [pick, setPick] = useState(-1);
   const [reported, setReported] = useState<MenuBadges>({});
@@ -396,7 +409,7 @@ export default function CommandConsole({
               <OrionMark size={26} />
               <div className="min-w-0">
                 <div className="font-display text-[15px] font-bold tracking-wide text-ink">Orion</div>
-                {!mobile && <div className="text-[12.5px] font-semibold text-ink-3 truncate">Ask anything, or type to find a feature</div>}
+                {!mobile && <div className="text-[12.5px] font-semibold text-ink-3 truncate">Life and project manager. Ask anything, or type to find a feature</div>}
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -410,16 +423,16 @@ export default function CommandConsole({
           <div className="orion-console__grid" data-layout={layout}>
             {/* [command] left: projects, then the day and quick tools (four columns) or every feature (three columns) */}
             {layout !== 'stack' && (
-              <aside className="orion-console__side" aria-label="Projects and your day">
-                <ProjectsPanel onOpen={pickItem} />
-                {layout === 'four' && <TodayPanel onOpen={pickItem} telemetry={telemetry} rows={5} />}
+              <aside className="orion-console__side" aria-label="Mission Control and your day">
+                <MissionControlPanel onOpen={pickItem} />
+                <TodayPanel onOpen={pickItem} telemetry={telemetry} rows={layout === 'four' ? 5 : 3} />
                 {layout === 'four' && <QuickToolsPanel grow />}
                 {layout === 'three' && <ToolsPanel title="All tools" group="system" sections={['work', 'life', 'connect', 'system']} badges={badges} hits={hits} onPick={pickItem} grow />}
               </aside>
             )}
 
             {/* middle: the chat */}
-            <main className="orion-console__chat" aria-label="Chat with Orion">
+            <main className="orion-console__chat" aria-label="Focus, context and chat with Orion" data-context={focusShown || undefined}>
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.08] px-4 py-2.5">
                 <div className="flex items-center gap-2 min-w-0">
                   <button
@@ -508,25 +521,17 @@ export default function CommandConsole({
               </AnimatePresence>
 
               {/* the conversation */}
-              <div ref={feed} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 selectable" aria-live="polite">
+              <div ref={feed} className="orion-console__feed min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 selectable" data-context={focusShown || undefined} aria-live={focusShown ? undefined : 'polite'}>
                 <AnimatePresence initial={false}>
                   {focusShown && (
                     <motion.div
                       key="focus"
+                      className="orion-console__context"
                       initial={reduce ? { opacity: 0 } : { opacity: 0, y: 12 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={reduce ? { opacity: 0, transition: { duration: 0.1 } } : { opacity: 0, y: -16, scale: 0.98, transition: { duration: 0.22 } }}
                     >
-                      <FocusDashboard
-                        onOpenWindow={pickItem}
-                        onOpenThread={openThread}
-                        fallback={
-                          <AllClear
-                            title="Ask Orion anything"
-                            text="Ask a question, run a task on your desktop, or drop a file anywhere on the screen. Type a feature's name to find it."
-                          />
-                        }
-                      />
+                      <ContextPanel focus={focus} telemetry={telemetry} threads={threads} onOpenWindow={pickItem} onOpenThread={openThread} />
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -655,32 +660,29 @@ export default function CommandConsole({
               </div>
             </main>
 
-            {/* [command] right: the day, messages, the computer and quick tools (three columns); messages and the
-                computer, then every feature in its own column (four columns) */}
-            {layout === 'three' && (
-              <aside className="orion-console__side" aria-label="Your day, messages, computer and quick tools">
-                <TodayPanel onOpen={pickItem} telemetry={telemetry} rows={3} />
-                <MessagesPanel onOpen={pickItem} threads={threads} rows={3} />
+            {/* [command] [context] right: messages, what waits on you and on others, the computer (and quick tools in
+                three columns); all tools in their own column (four columns) */}
+            {layout !== 'stack' && (
+              <aside className="orion-console__side" aria-label="Messages, waiting and computer">
+                <MessagesPanel onOpen={pickItem} onOpenThread={(k) => openThread(k)} threads={threads} rows={layout === 'four' ? 4 : 3} />
+                <WaitingOnYouPanel onOpen={pickItem} approvals={approvals} cards={focus.view?.cards} rows={layout === 'four' ? 5 : 2} />
+                <WaitingOnOthersPanel onOpen={pickItem} onOpenThread={(k) => openThread(k)} threads={threads} rows={layout === 'four' ? 4 : 3} grow />
                 <ComputerPanel onOpen={pickItem} />
-                <QuickToolsPanel grow />
+                {layout === 'three' && <QuickToolsPanel />}
               </aside>
             )}
             {layout === 'four' && (
-              <>
-                <aside className="orion-console__side" aria-label="Messages and computer">
-                  <MessagesPanel onOpen={pickItem} onOpenThread={(k) => openThread(k)} threads={threads} latest={5} grow />
-                  <ComputerPanel onOpen={pickItem} />
-                </aside>
-                <aside className="orion-console__side" aria-label="All tools">
-                  <ToolsPanel title="All tools" group="system" sections={['work', 'life', 'connect', 'system']} badges={badges} hits={hits} onPick={pickItem} grow />
-                </aside>
-              </>
+              <aside className="orion-console__side" aria-label="All tools">
+                <ToolsPanel title="All tools" group="system" sections={['work', 'life', 'connect', 'system']} badges={badges} hits={hits} onPick={pickItem} grow />
+              </aside>
             )}
             {layout === 'stack' && (
-              <aside className="orion-console__side" aria-label="Your projects, day, messages, computer and tools">
-                <ProjectsPanel onOpen={pickItem} />
+              <aside className="orion-console__side" aria-label="Mission Control, your day, messages, waiting, computer and tools">
+                <MissionControlPanel onOpen={pickItem} />
                 <TodayPanel onOpen={pickItem} telemetry={telemetry} />
                 <MessagesPanel onOpen={pickItem} onOpenThread={(k) => openThread(k)} threads={threads} latest={3} />
+                <WaitingOnYouPanel onOpen={pickItem} approvals={approvals} cards={focus.view?.cards} />
+                <WaitingOnOthersPanel onOpen={pickItem} onOpenThread={(k) => openThread(k)} threads={threads} />
                 <ComputerPanel onOpen={pickItem} />
                 <QuickToolsPanel />
                 <ToolsPanel title="All tools" group="system" sections={['work', 'life', 'connect', 'system']} badges={badges} hits={hits} onPick={pickItem} />

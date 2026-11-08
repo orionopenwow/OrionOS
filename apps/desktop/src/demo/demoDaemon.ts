@@ -112,6 +112,10 @@ const THREADS: CommsThread[] = [
     ['you', 'haha thanks, it eats files now', 5300, true],
     ['Sam', 'wait what. show me', 600],
   ], 1),
+  thread('tg:jules', 'telegram', 'Jules', [ // [context] you wrote last: shows under "Waiting on others"
+    ['Jules', 'cover art is coming along, want a sneak peek?', 9000],
+    ['you', 'yes please! can you send the files by friday?', 7200, true],
+  ], 0),
 ];
 const APPROVALS: ApprovalItem[] = [
   { id: 'ap1', kind: 'discord_prompt', status: 'pending', created_at: T0 - 1200, platform: 'discord', category: 'question',

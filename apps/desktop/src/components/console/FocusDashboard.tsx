@@ -13,7 +13,7 @@
  * When the daemon can't be reached, `fallback` shows instead.
  */
 import { emojiUrl, pickEmoji } from '../../lib/emoji';
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   EyeOff, Loader2, MoreHorizontal, PenLine, Pin, PinOff, type LucideIcon,
@@ -235,14 +235,17 @@ export function AllClear({ title, text, children }: { title: string; text: strin
   );
 }
 
-export default function FocusDashboard({ onOpenWindow, onOpenThread, fallback }: Props) {
+/** [context] The focus list from GET /focus, refreshed every 20 seconds while `enabled` (the console is open). */
+export interface FocusState {
+  view: FocusView | null;
+  failed: boolean;
+  load: () => Promise<void>;
+  setView: Dispatch<SetStateAction<FocusView | null>>;
+}
+export function useFocus(enabled = true): FocusState {
   const [view, setView] = useState<FocusView | null>(null);
   const [failed, setFailed] = useState(false);
-  const [drafting, setDrafting] = useState<string | null>(null);
-  const [note, setNote] = useState('');
   const alive = useRef(true);
-  const reduce = !!useReducedMotion() || useCalmMotion();
-
   const load = useCallback(async () => {
     try {
       const v = await focusApi.view();
@@ -253,8 +256,8 @@ export default function FocusDashboard({ onOpenWindow, onOpenThread, fallback }:
       if (alive.current) setFailed(true);
     }
   }, []);
-
   useEffect(() => {
+    if (!enabled) return;
     alive.current = true;
     void load();
     const t = window.setInterval(() => void load(), REFRESH_MS);
@@ -262,7 +265,19 @@ export default function FocusDashboard({ onOpenWindow, onOpenThread, fallback }:
       alive.current = false;
       window.clearInterval(t);
     };
-  }, [load]);
+  }, [load, enabled]);
+  return { view, failed, load, setView };
+}
+
+/**
+ * [context] The five focus cards (Now first, the rest two to a row) with their buttons and More menus. The console
+ * shows them under "Show all" on the Next best action card.
+ */
+export function FocusCardList({ focus, onOpenWindow, onOpenThread }: { focus: FocusState; onOpenWindow: (id: string) => void; onOpenThread: (thread: string, draft?: string) => void }) {
+  const { view, load, setView } = focus;
+  const [drafting, setDrafting] = useState<string | null>(null);
+  const [note, setNote] = useState('');
+  const reduce = !!useReducedMotion() || useCalmMotion();
 
   const teach = (card: FocusCard, action: 'open' | 'dismiss' | 'pin' | 'unpin') => focusApi.feedback(card.id, action).catch(() => undefined);
 
@@ -281,7 +296,7 @@ export default function FocusDashboard({ onOpenWindow, onOpenThread, fallback }:
     } catch (e) {
       setNote(e instanceof Error ? e.message : "Couldn't write a draft just now.");
     } finally {
-      if (alive.current) setDrafting(null);
+      setDrafting(null);
     }
   };
 
@@ -296,13 +311,10 @@ export default function FocusDashboard({ onOpenWindow, onOpenThread, fallback }:
     void load();
   };
 
-  if (failed && !view) return <>{fallback}</>;
   const cards = topCards(view?.cards ?? []);
-  // the hero is the first "Now" card; everything else sits below it, two to a row
   const heroAt = cards.findIndex((c) => c.kind === 'now');
   const hero = heroAt >= 0 ? cards[heroAt] : null;
   const rest = cards.filter((_, i) => i !== heroAt);
-  const detail = summaryLine(cards);
 
   const render = (c: FocusCard, i: number) => (
     <motion.div
@@ -318,10 +330,33 @@ export default function FocusDashboard({ onOpenWindow, onOpenThread, fallback }:
   );
 
   return (
+    <>
+      <div className="focus__list">
+        <AnimatePresence initial={false}>
+          {hero && render(hero, 0)}
+          {rest.map((c, i) => render(c, i + 1))}
+        </AnimatePresence>
+      </div>
+      {note && (
+        <p className="focus__note" role="status">
+          {note}
+        </p>
+      )}
+    </>
+  );
+}
+
+/** The greeting with the focus cards (the earlier console middle; kept for any other screen that wants it). */
+export default function FocusDashboard({ onOpenWindow, onOpenThread, fallback }: Props) {
+  const focus = useFocus();
+  const { view, failed } = focus;
+  if (failed && !view) return <>{fallback}</>;
+  const cards = topCards(view?.cards ?? []);
+  return (
     <section className="focus" aria-label="Focus: what matters right now" data-focus-dashboard>
       <header className="focus__head">
         <h2 className="focus__title">{greeting()}.</h2>
-        {view && cards.length > 0 && <p className="focus__sub">{detail}</p>}
+        {view && cards.length > 0 && <p className="focus__sub">{summaryLine(cards)}</p>}
       </header>
       {!view ? (
         <div className="focus__loading">
@@ -330,17 +365,7 @@ export default function FocusDashboard({ onOpenWindow, onOpenThread, fallback }:
       ) : cards.length === 0 ? (
         <AllClear title="All clear" text="Nothing needs you right now. Ask Orion anything below, or type a feature's name to open it." />
       ) : (
-        <div className="focus__list">
-          <AnimatePresence initial={false}>
-            {hero && render(hero, 0)}
-            {rest.map((c, i) => render(c, i + 1))}
-          </AnimatePresence>
-        </div>
-      )}
-      {note && (
-        <p className="focus__note" role="status">
-          {note}
-        </p>
+        <FocusCardList focus={focus} onOpenWindow={onOpenWindow} onOpenThread={onOpenThread} />
       )}
     </section>
   );

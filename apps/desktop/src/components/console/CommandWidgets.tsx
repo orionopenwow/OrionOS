@@ -3,10 +3,13 @@
  * ultimate life and project command center with tools of all kinds"). Small solid gunmetal panels, each with a
  * coloured group marker, a plain title and at most five rows:
  *
- *   - Projects  GET /projects (projects.py): status from each project's latest mission, one button each.
- *   - Today     a focus timer (local, survives closing the console) and the day's timeline: open promises from
- *               GET /promises (promise_keeper.py), wind-down and bedtime from Life (telemetry.circadian) and a
- *               break when Life says one is due (telemetry.pacing).
+ *   - Mission Control  GET /projects (projects.py): a summary line ("4 projects, 1 running, 1 needs you"), then
+ *               each project's status from its latest mission and one button (Review / Watch / Open).
+ *   - Today     the day's to-dos: open promises from GET /promises (promise_keeper.py), wind-down and bedtime from
+ *               Life (telemetry.circadian) and a break when Life says one is due (telemetry.pacing). Each has a done
+ *               tick (promises are marked done in Orion; routines are ticked for today in this browser).
+ *               [context] The focus timer moved to the middle (FocusTimer, used by ContextPanel.tsx).
+ *   - Waiting on you / Waiting on others  [context] see the panels at the end of this file.
  *   - Quick tools  an inline calculator and unit converter (local), and a quick note saved to the vault
  *               (POST /vault/drop, the same route as dropping a file on the core). "Look at my screen" stays one of
  *               the middle's quick actions.
@@ -20,6 +23,7 @@
  */
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Calculator, Check, Pause, Play, Plus, RotateCcw, StickyNote } from 'lucide-react';
+import { projectsSummary, waitingOnOthers, waitingOnYou, type ApprovalLike, type CardLike, type MissionLike, type WaitRow } from '../../lib/contextView';
 import type { TelemetrySnapshot } from '@orion/shared-types';
 import { ORION_HTTP_URL, dropToVault } from '../../lib/assets';
 import { useDaemonPoll } from '../../lib/swarmCompute';
@@ -34,10 +38,10 @@ export type PanelGroup = 'work' | 'life' | 'connect' | 'system';
 
 /** One side panel: a coloured marker, a title, an optional count or action, then its rows. */
 export function Panel({
-  title, group, meta, action, grow, children, label,
-}: { title: string; group: PanelGroup; meta?: ReactNode; action?: ReactNode; grow?: boolean; children: ReactNode; label?: string }) {
+  title, group, meta, action, grow, children, label, id,
+}: { title: string; group: PanelGroup; meta?: ReactNode; action?: ReactNode; grow?: boolean; children: ReactNode; label?: string; id?: string }) {
   return (
-    <section className="cc-panel" data-group={group} data-grow={grow || undefined} aria-label={label ?? title}>
+    <section className="cc-panel" data-group={group} data-grow={grow || undefined} data-panel={id} aria-label={label ?? title}>
       <header className="cc-panel__head">
         <h2 className="cc-panel__title">{title}</h2>
         {meta !== undefined && <span className="cc-panel__meta">{meta}</span>}
@@ -58,14 +62,14 @@ interface WidgetProps {
 
 const STATUS_BUTTON: Record<ProjectStatus, string> = { needs: 'Review', running: 'Watch', idle: 'Open' };
 
-export function ProjectsPanel({ onOpen, grow }: WidgetProps & { grow?: boolean }) {
+export function MissionControlPanel({ onOpen, grow }: WidgetProps & { grow?: boolean }) {
   const [data] = useDaemonPoll<ProjectsSnapshot>('/projects', 15_000);
   const [note, setNote] = useState('');
   const rows = useMemo(
     () => sortProjects((data?.projects ?? []).map((p) => ({ ...p, status: projectStatus(p.latest?.state) }))),
     [data],
   );
-  const busy = rows.filter((r) => r.status !== 'idle').length;
+  const summary = useMemo(() => projectsSummary((data?.projects ?? []).map((p) => projectStatus(p.latest?.state))), [data]);
   const open = async (name: string, status: ProjectStatus) => {
     if (status !== 'idle') return onOpen('missions');
     try {
@@ -76,16 +80,17 @@ export function ProjectsPanel({ onOpen, grow }: WidgetProps & { grow?: boolean }
   };
   return (
     <Panel
-      title="Projects"
+      title="Mission Control"
+      label="Mission Control: your projects"
       group="work"
       grow={grow}
-      meta={data ? (busy ? `${busy} active` : `${data.projects.length}`) : undefined}
       action={
         <button type="button" className="cc-mini" onClick={() => onOpen('projects')}>
           <Plus size={14} /> New project
         </button>
       }
     >
+      {data && rows.length > 0 && <p className="cc-summary" data-needs={summary.includes('need') || undefined}>{summary}</p>}
       {!data ? (
         <Empty>Projects show here when Orion's brain is running.</Empty>
       ) : rows.length === 0 ? (
@@ -141,7 +146,11 @@ function saveTimer(t: TimerState) {
   }
 }
 
-function FocusTimer() {
+/**
+ * [context] The console's one focus timer: a big clock, one start/pause button and a short label. It lives at the
+ * top of the "Focus and context" middle (ContextPanel.tsx) and keeps running when the console closes.
+ */
+export function FocusTimer() {
   const [, tick] = useState(0);
   const [t, setT] = useState<TimerState>(timer);
   const set = (n: TimerState) => {
@@ -161,41 +170,37 @@ function FocusTimer() {
   const resume = () => set({ ...t, endsAt: Date.now() + t.left * 1000 });
   const reset = () => set({ endsAt: null, left: FOCUS_S, length: FOCUS_S });
   const fresh = !running && !finished && t.left === t.length;
+  const onBreak = t.length === BREAK_S;
   const pct = t.length ? Math.round(((t.length - left) / t.length) * 100) : 0;
+  const main = running ? pause : fresh || finished ? () => start(finished && !onBreak ? BREAK_S : t.length) : resume;
+  const mainLabel = running ? 'Pause the timer' : fresh ? `Start ${Math.round(t.length / 60)} minutes` : finished ? (onBreak ? 'Start another focus block' : 'Start a 5 minute break') : 'Carry on';
+  const what = finished
+    ? onBreak ? 'Break over. Ready for another block?' : 'Nice work. Time for a short break.'
+    : running ? (onBreak ? 'On a short break' : 'Focusing. Messages can wait.')
+      : fresh ? (onBreak ? '5 minute break' : '25 minute focus block') : 'Paused';
   return (
     <div className="cc-timer" data-running={running || undefined}>
       <div className="cc-timer__clock" role="timer" aria-label={`Focus timer: ${clock(left)} left`}>
-        {finished ? 'Done' : clock(left)}
+        {finished ? '00:00' : clock(left)}
       </div>
       <div className="cc-timer__side">
-        <span className="cc-timer__what">
-          {finished ? (t.length === BREAK_S ? 'Break over.' : 'Nice work. Take a break.') : running ? (t.length === BREAK_S ? 'On a break' : 'Focusing') : fresh ? 'Focus timer' : 'Paused'}
-        </span>
-        <div className="cc-timer__btns">
-          {running ? (
-            <button type="button" className="cc-mini" onClick={pause}>
-              <Pause size={14} /> Pause
-            </button>
-          ) : fresh || finished ? (
-            <>
-              <button type="button" className="cc-mini cc-mini--solid" onClick={() => start(FOCUS_S)}>
-                <Play size={14} /> Start 25 min
-              </button>
-              <button type="button" className="cc-mini" onClick={() => start(BREAK_S)}>
-                5 min break
-              </button>
-            </>
-          ) : (
-            <button type="button" className="cc-mini cc-mini--solid" onClick={resume}>
-              <Play size={14} /> Carry on
-            </button>
-          )}
-          {!fresh && (
-            <button type="button" className="cc-mini cc-mini--icon" onClick={reset} aria-label="Reset the timer" title="Reset">
-              <RotateCcw size={14} />
-            </button>
-          )}
-        </div>
+        <span className="cc-timer__title">Focus timer</span>
+        <span className="cc-timer__what">{what}</span>
+      </div>
+      <div className="cc-timer__btns">
+        {fresh && !onBreak && (
+          <button type="button" className="cc-mini" onClick={() => set({ endsAt: null, left: BREAK_S, length: BREAK_S })}>
+            Break
+          </button>
+        )}
+        {!fresh && (
+          <button type="button" className="cc-mini cc-mini--icon" onClick={reset} aria-label="Reset the timer" title="Reset">
+            <RotateCcw size={14} />
+          </button>
+        )}
+        <button type="button" className="cc-timer__play" onClick={main} aria-label={mainLabel} title={mainLabel}>
+          {running ? <Pause size={20} /> : <Play size={20} />}
+        </button>
       </div>
       {(running || (!fresh && !finished)) && (
         <span className="cc-timer__bar" aria-hidden>
@@ -209,21 +214,43 @@ function FocusTimer() {
 // --------------------------------------------------------------------------------------- Today
 interface PromiseRow { id: string; task: string; due: number | null }
 
+/** Wind-down, bedtime and breaks ticked off today (kept in this browser until the day changes). */
+const TICKS_KEY = 'orion-today-ticks';
+const dayStamp = () => new Date().toDateString();
+function readTicks(): Set<string> {
+  try {
+    const v = JSON.parse(localStorage.getItem(TICKS_KEY) || 'null') as { day: string; ids: string[] } | null;
+    if (v && v.day === dayStamp()) return new Set(v.ids);
+  } catch {
+    /* storage blocked */
+  }
+  return new Set();
+}
+
 export function TodayPanel({ onOpen, telemetry, grow, rows = 4 }: WidgetProps & { telemetry?: TelemetrySnapshot | null; grow?: boolean; rows?: number }) {
   const [data, reload] = useDaemonPoll<{ promises: PromiseRow[] }>('/promises', 60_000);
-  const [done, setDone] = useState<Set<string>>(new Set());
+  const [done, setDone] = useState<Set<string>>(readTicks);
   const now = Date.now() / 1000;
   const circ = telemetry?.circadian;
   const items = todayTimeline(
-    (data?.promises ?? []).filter((p) => !done.has(p.id)),
+    (data?.promises ?? []).filter((p) => !done.has(`p-${p.id}`)),
     { wind_down_starts: circ?.wind_down_starts, bedtime: circ?.bedtime, break_due: telemetry?.pacing?.phase === 'break_due' },
     now,
-    rows,
-  );
-  const markDone = async (id: string) => {
-    setDone((s) => new Set(s).add(id));
+    rows + 3,
+  ).filter((it) => !done.has(it.id)).slice(0, rows);
+  const tick = async (id: string, promiseId?: string) => {
+    const next = new Set(done).add(id);
+    setDone(next);
+    if (!promiseId) {
+      try {
+        localStorage.setItem(TICKS_KEY, JSON.stringify({ day: dayStamp(), ids: [...next].filter((x) => !x.startsWith('p-')) }));
+      } catch {
+        /* storage blocked: ticked for this visit */
+      }
+      return;
+    }
     try {
-      await fetch(`${ORION_HTTP_URL}/promises/${encodeURIComponent(id)}/done`, { method: 'POST' });
+      await fetch(`${ORION_HTTP_URL}/promises/${encodeURIComponent(promiseId)}/done`, { method: 'POST' });
     } catch {
       /* offline: it comes back on the next look */
     }
@@ -234,13 +261,13 @@ export function TodayPanel({ onOpen, telemetry, grow, rows = 4 }: WidgetProps & 
       title="Today"
       group="life"
       grow={grow}
+      meta={items.length ? `${items.length} to do` : undefined}
       action={
         <button type="button" className="cc-mini" onClick={() => onOpen('life')}>
           Open Life
         </button>
       }
     >
-      <FocusTimer />
       {items.length === 0 ? (
         <Empty>{data ? 'Nothing else planned for today.' : 'Promises and your wind-down show here when Orion is running.'}</Empty>
       ) : (
@@ -254,11 +281,9 @@ export function TodayPanel({ onOpen, telemetry, grow, rows = 4 }: WidgetProps & 
                 <span className="cc-row__name">{it.label}</span>
                 {when.day && <span className="cc-row__sub">{when.day}</span>}
               </span>
-              {it.promiseId && (
-                <button type="button" className="cc-mini cc-mini--icon" onClick={() => void markDone(it.promiseId!)} aria-label={`Mark done: ${it.label}`} title="Mark done">
-                  <Check size={14} />
-                </button>
-              )}
+              <button type="button" className="cc-mini cc-mini--icon" onClick={() => void tick(it.id, it.promiseId)} aria-label={`Mark done: ${it.label}`} title="Mark done">
+                <Check size={14} />
+              </button>
             </li>
             );
           })}
@@ -530,6 +555,90 @@ export function MessagesPanel({
             })}
           </ul>
         </>
+      )}
+    </Panel>
+  );
+}
+
+// --------------------------------------------------------------------------------------- [context] Waiting on you / others
+function WaitList({ rows, onOpen, onOpenThread }: { rows: WaitRow[]; onOpen: (id: string) => void; onOpenThread?: (key: string) => void }) {
+  return (
+    <ul className="cc-rows">
+      {rows.map((r) => (
+        <li key={r.id}>
+          <button
+            type="button"
+            className="cc-row cc-row--button"
+            data-tone={r.tone}
+            onClick={() => (r.open.thread && onOpenThread ? onOpenThread(r.open.thread) : onOpen(r.open.window || 'chat'))}
+            aria-label={`${r.title}. ${r.sub}. Open it`}
+          >
+            <span className="cc-status cc-status--tone" aria-hidden />
+            <span className="cc-row__text">
+              <span className="cc-row__name">{r.title}</span>
+              <span className="cc-row__sub">{r.sub}</span>
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * Waiting on you: approvals (from the live list App keeps), missions that finished or asked a question
+ * (GET /missions) and the focus list's "needs you" cards. Each row opens the right place; nothing here approves.
+ */
+export function WaitingOnYouPanel({
+  onOpen, approvals, cards, grow, rows = 5,
+}: WidgetProps & { approvals?: ApprovalLike[]; cards?: CardLike[]; grow?: boolean; rows?: number }) {
+  const [data] = useDaemonPoll<{ missions: MissionLike[] }>('/missions', 15_000);
+  const list = waitingOnYou({ approvals, missions: data?.missions, cards }, 12);
+  return (
+    <Panel
+      title="Waiting on you"
+      group="work"
+      id="waiting-you"
+      grow={grow}
+      meta={list.length ? `${list.length}` : undefined}
+      action={
+        <button type="button" className="cc-mini" onClick={() => onOpen('queue')}>
+          Open queue
+        </button>
+      }
+    >
+      {list.length === 0 ? (
+        <Empty>{data || approvals ? 'Nothing is waiting for you.' : 'Approvals and questions show here when Orion is running.'}</Empty>
+      ) : (
+        <WaitList rows={list.slice(0, rows)} onOpen={onOpen} />
+      )}
+    </Panel>
+  );
+}
+
+/** Waiting on others: running and queued missions (GET /missions) and chats where you wrote last (the live chat list). */
+export function WaitingOnOthersPanel({
+  onOpen, onOpenThread, threads, grow, rows = 4,
+}: WidgetProps & { onOpenThread?: (key: string) => void; threads?: ThreadLike[]; grow?: boolean; rows?: number }) {
+  const [data] = useDaemonPoll<{ missions: MissionLike[] }>('/missions', 15_000);
+  const list = waitingOnOthers({ missions: data?.missions, threads, now: Date.now() / 1000 }, 12);
+  return (
+    <Panel
+      title="Waiting on others"
+      group="connect"
+      id="waiting-others"
+      grow={grow}
+      meta={list.length ? `${list.length}` : undefined}
+      action={
+        <button type="button" className="cc-mini" onClick={() => onOpen('missions')}>
+          Missions
+        </button>
+      }
+    >
+      {list.length === 0 ? (
+        <Empty>{data ? 'Nothing running and no replies you are waiting for.' : 'Running work shows here when Orion is running.'}</Empty>
+      ) : (
+        <WaitList rows={list.slice(0, rows)} onOpen={onOpen} onOpenThread={onOpenThread} />
       )}
     </Panel>
   );

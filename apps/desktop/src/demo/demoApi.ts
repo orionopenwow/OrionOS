@@ -68,7 +68,18 @@ function focusView() {
     .map((c) => (focusPins.has(c.id) ? { ...c, pinned: true, score: c.score + 100, why: 'You pinned this.' } : { ...c, pinned: false }))
     .sort((a, b) => b.score - a.score)
     .slice(0, 5);
-  return { cards, all_clear: cards.length === 0, line: cards.length ? '' : 'All clear. Nothing needs you right now.', generated_at: t };
+  return { cards, all_clear: cards.length === 0, line: cards.length ? '' : 'All clear. Nothing needs you right now.', generated_at: t, agenda: demoAgenda(t) };
+}
+/** [context] Sample calendar items for the console's timeline, placed around the visitor's own clock so the day
+ *  always looks alive (on 15-minute marks). The real daemon has no calendar yet; the timeline lists these when it does. */
+function demoAgenda(t: number) {
+  const q = (s: number) => Math.round(s / 900) * 900;
+  return [
+    { at: q(t - 3 * 3600), title: 'Team standup', kind: 'meeting', until: q(t - 3 * 3600) + 900 },
+    { at: q(t - 80 * 60), title: 'Devops: rotate the server logs', kind: 'task' },
+    { at: q(t + 50 * 60), title: 'Call with Sam about the level sketches', kind: 'meeting' },
+    { at: q(t + 2.5 * 3600), title: 'Synth jam prep with Maya', kind: 'meeting' },
+  ];
 }
 const FOCUS_DRAFTS: Record<string, { draft: string; thread: string }> = {
   'msg:tg:maya': { draft: "yep! sending it tonight, it's sounding good", thread: 'tg:maya' },

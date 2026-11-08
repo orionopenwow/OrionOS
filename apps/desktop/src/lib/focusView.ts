@@ -33,6 +33,10 @@ export interface FocusView {
   all_clear: boolean;
   line: string;
   generated_at: number;
+  /** [context] Calendar-like items for today, when the daemon has any (the console's timeline lists them). */
+  agenda?: Array<{ at: number; title: string; kind?: string; until?: number | null }>;
+  /** [context] A short summary from the local model, when the daemon offers one (replaces the built-in sentences). */
+  summary?: string;
 }
 
 /** The console never shows more than this many cards. */

@@ -20,3 +20,13 @@ paths = ['''(^|/)secret_shield_rules\.json$''', '''(^|/)\.gitleaks\.toml$''', ''
 [[allowlists]]
 description = "Orion's own tripwire decoys (apps/daemon/tripwires.py): every bait value carries the orntw marker"
 regexes = ['''(?i)orntw[0-9a-f]{11}''']
+
+[[allowlists]]
+description = "Public keys, not secrets: Flathub's published signing key and its checksum, and test EC public keys (SPKI header + filler)"
+paths = ['''^os/getapps/flathub\.flatpakrepo$''']
+regexes = ['''f4d6c33e44d9627ad3d2e32a5c8de25769b52f6454157e2db233e7d35d358a9a''', '''MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE''']
+
+[[allowlists]]
+description = "Sample Discord channel id in tests"
+paths = ['''^apps/daemon/tests/''']
+regexes = ['''123456789012345678''']

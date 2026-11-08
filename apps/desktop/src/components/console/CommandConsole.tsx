@@ -19,7 +19,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   Activity, Bot, Camera, Check, ChevronDown, Chrome, Clapperboard, Compass, Copy, Database, Eye, FlaskConical, FolderGit2,
   Gamepad2, HeartPulse, History, Inbox, Layers, LayoutGrid, MessageCircle, Mic, Monitor, MousePointer, Plus, Rocket, ScrollText,
-  Search, Send, SendHorizontal, Settings2, ShieldCheck, Smartphone, Sparkles, Upload, Wand2, Wrench, X, Zap, type LucideIcon,
+  Search, Send, SendHorizontal, Settings2, ShieldCheck, Smartphone, Upload, Wand2, Wrench, X, Zap, type LucideIcon,
 } from 'lucide-react';
 import type { OrchestratorResponseEvent, PersonalityMode } from '@orion/shared-types';
 import {
@@ -29,7 +29,7 @@ import { getButtonPos, BUTTON_SIZE } from '../../lib/orionButton';
 import { cosmicAudio } from '../../lib/cosmicAudio';
 import { useCalmMotion } from '../../lib/hudPrefs';
 import OrionMark from '../glass/OrionMark';
-import FocusDashboard from './FocusDashboard'; // [focus]
+import FocusDashboard, { AllClear } from './FocusDashboard'; // [focus]
 import { showDashboard } from '../../lib/focus'; // [focus]
 import '../../styles/glass.css';
 
@@ -77,7 +77,12 @@ interface Props {
 }
 
 // --------------------------------------------------------------------------------------- feature tiles
-function Tile({ item, badge, dim, lit, onPick }: { item: MenuItem; badge?: number; dim: boolean; lit: boolean; onPick: (id: string) => void }) {
+// Hierarchy pass (docs/design/CONSOLE_DESIGN.md): features are compact icon tiles (icon + short name) tinted by
+// their group's colour. The description shows in the group's info line when a tile is pointed at or focused, and
+// stays in what screen readers hear and in the search results.
+function Tile({
+  item, badge, dim, lit, onPick, onShow,
+}: { item: MenuItem; badge?: number; dim: boolean; lit: boolean; onPick: (id: string) => void; onShow: (item: MenuItem | null) => void }) {
   const Icon = ICONS[item.icon] ?? LayoutGrid;
   const main = item.group === 'main';
   return (
@@ -88,19 +93,19 @@ function Tile({ item, badge, dim, lit, onPick }: { item: MenuItem; badge?: numbe
       data-lit={lit || undefined}
       data-main={main || undefined}
       onClick={() => onPick(item.id)}
+      onMouseEnter={() => onShow(item)}
+      onMouseLeave={() => onShow(null)}
+      onFocus={() => onShow(item)}
+      onBlur={() => onShow(null)}
       aria-label={`${item.label}${badge ? `, ${badge} waiting` : ''}. ${item.description}`}
-      className="orion-feature group"
+      title={item.description}
+      className="orion-feature"
     >
       <span aria-hidden className="orion-feature__icon">
-        <Icon size={main ? 19 : 16} strokeWidth={2.1} />
+        <Icon size={main ? 21 : 18} />
+        {!!badge && <span className="orion-feature__badge">{badge > 99 ? '99+' : badge}</span>}
       </span>
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-2 orion-feature__label">
-          {item.label}
-          {!!badge && <span className="orion-feature__badge">{badge > 99 ? '99+' : badge}</span>}
-        </span>
-        <span className={`orion-feature__desc ${main ? 'line-clamp-2' : 'truncate block'}`}>{item.description}</span>
-      </span>
+      <span className="orion-feature__label">{item.label}</span>
     </button>
   );
 }
@@ -110,17 +115,27 @@ function SectionBlock({
 }: { id: MenuSection; badges: MenuBadges; hits: Set<string> | null; onPick: (id: string) => void }) {
   const meta = SECTIONS.find((s) => s.id === id)!;
   const items = sectionItems(id);
+  const [shown, setShown] = useState<MenuItem | null>(null);
   return (
-    <section aria-label={meta.label} className="orion-section">
-      <header className="mb-2 flex items-baseline justify-between gap-2 px-1">
+    <section aria-label={meta.label} className="orion-section" data-section={id}>
+      <header className="orion-section__head">
         <h2 className="orion-section__title">{meta.label}</h2>
-        <span className="orion-section__hint">{meta.hint}</span>
+        <span className="orion-section__count">{items.length}</span>
       </header>
-      <div className="flex flex-col gap-1">
+      <div className="orion-section__grid">
         {items.map((i) => (
-          <Tile key={i.id} item={i} badge={badges[i.id]} dim={!!hits && !hits.has(i.id)} lit={!!hits && hits.has(i.id)} onPick={onPick} />
+          <Tile key={i.id} item={i} badge={badges[i.id]} dim={!!hits && !hits.has(i.id)} lit={!!hits && hits.has(i.id)} onPick={onPick} onShow={setShown} />
         ))}
       </div>
+      <p className="orion-section__info" aria-hidden data-showing={shown ? true : undefined}>
+        {shown ? (
+          <>
+            <b>{shown.label}</b> {shown.description}
+          </>
+        ) : (
+          meta.hint
+        )}
+      </p>
     </section>
   );
 }
@@ -216,6 +231,7 @@ export default function CommandConsole({
         if (open) close();
         else show();
       } else if (open && e.key === 'Escape') {
+        if ((e.target as HTMLElement | null)?.closest?.('[data-popover-open]')) return; // a card's More menu closes first
         e.preventDefault();
         e.stopPropagation();
         close();
@@ -459,15 +475,10 @@ export default function CommandConsole({
                         onOpenWindow={pickItem}
                         onOpenThread={openThread}
                         fallback={
-                          <div className="mx-auto max-w-md py-10 text-center">
-                            <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-cobalt/40 bg-cobalt/15">
-                              <Sparkles size={26} className="text-cobalt-light" />
-                            </div>
-                            <h3 className="text-[17px] font-bold text-ink">Ask Orion anything</h3>
-                            <p className="mt-2 text-[14.5px] leading-relaxed text-ink-2">
-                              Ask a question, run a task on your desktop, or drop a file anywhere on the screen. Type a feature's name to find it.
-                            </p>
-                          </div>
+                          <AllClear
+                            title="Ask Orion anything"
+                            text="Ask a question, run a task on your desktop, or drop a file anywhere on the screen. Type a feature's name to find it."
+                          />
                         }
                       />
                     </motion.div>
@@ -542,7 +553,7 @@ export default function CommandConsole({
               {/* matches for what is typed */}
               {shown.length > 0 && (
                 <div className="mx-3 mb-1 rounded-xl border border-cobalt/30 bg-[#141A24]/95 p-1.5" role="listbox" aria-label="Matching features">
-                  <div className="px-2 pb-1 text-[12px] font-bold uppercase tracking-wider text-cobalt-light">Features</div>
+                  <div className="px-2 pb-1 text-[12.5px] font-bold text-ink-3">Open a feature</div>
                   {shown.map((i, n) => {
                     const Icon = ICONS[i.icon] ?? LayoutGrid;
                     return (
@@ -556,7 +567,7 @@ export default function CommandConsole({
                         onClick={() => pickItem(i.id)}
                         className={`flex w-full items-center gap-3 rounded-lg px-2.5 py-1.5 text-left ${n === pick ? 'bg-cobalt/25' : 'hover:bg-white/[0.06]'}`}
                       >
-                        <Icon size={16} className="shrink-0 text-cobalt-light" />
+                        <Icon size={16} className="shrink-0" style={{ color: `var(--cat-${i.section ?? 'work'})` }} />
                         <span className="text-[14px] font-semibold text-ink">{i.label}</span>
                         <span className="min-w-0 truncate text-[12.5px] text-ink-3">{i.description}</span>
                       </button>

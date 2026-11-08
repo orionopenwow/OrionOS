@@ -1096,3 +1096,184 @@ svg.lucide { stroke-width: 2.4px; }
 .orion-window__titlebar { cursor: grab; }
 .orion-window[data-maximised] .orion-window__titlebar, .orion-window[data-sheet] .orion-window__titlebar { cursor: default; }
 .orion-belt svg.lucide { stroke-width: 3.2px; }
+
+/* =====================================================================================================
+   Hierarchy pass (owner feedback, 2026-11-07: "all blends together ... too white and the same"). See
+   docs/design/CONSOLE_DESIGN.md. Three text tiers, colour roles for kinds of things and feature groups, compact
+   feature tiles, quieter sides so the middle leads. Still matte: no glow, thick edges and icon lines, rounded.
+   ===================================================================================================== */
+:root {
+  /* text tiers (WCAG AA on #1D222A: 16 / 9.8 / 6.5 : 1). Also mirrored in --orion-text-2/3 and Tailwind ink-2/3. */
+  --ink-1: #ffffff;
+  --ink-2: #c3cbd7;
+  --ink-3: #9aa6b8;
+  /* kinds of focus cards: a readable tint and a solid fill */
+  --role-now: #8db0ff;       --role-now-solid: #2e6bff;
+  --role-message: #4fd1c5;   --role-message-solid: #1fa99b;
+  --role-approval: #f5b942;  --role-approval-solid: #c98a12;
+  --role-needs: #ff8a6b;     --role-needs-solid: #e2553a;
+  --role-next: #b79cff;      --role-next-solid: #7c5cf0;
+  /* feature groups */
+  --cat-work: #8db0ff;       --cat-work-solid: #2e6bff;
+  --cat-life: #ffb98a;       --cat-life-solid: #e07a3c;
+  --cat-connect: #4fd1c5;    --cat-connect-solid: #1fa99b;
+  --cat-system: #a9b6c8;     --cat-system-solid: #5d6b80;
+}
+
+/* the sides: quieter than the middle (more see-through, softer edge), so the chat and focus cards lead */
+.orion-console__grid { grid-template-columns: minmax(240px, 290px) minmax(0, 820px) minmax(240px, 290px); }
+.orion-section {
+  --cat: var(--cat-work);
+  --cat-solid: var(--cat-work-solid);
+  padding: 12px 12px 10px;
+  background-color: rgba(22, 26, 33, 0.72);
+  border: var(--matte-stroke) solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+}
+.orion-section[data-section='life'] { --cat: var(--cat-life); --cat-solid: var(--cat-life-solid); }
+.orion-section[data-section='connect'] { --cat: var(--cat-connect); --cat-solid: var(--cat-connect-solid); }
+.orion-section[data-section='system'] { --cat: var(--cat-system); --cat-solid: var(--cat-system-solid); }
+.orion-section__head { display: flex; align-items: center; gap: 8px; padding: 0 4px 10px; }
+.orion-section__head::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 4px;
+  background: var(--cat);
+}
+.orion-section__title {
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: var(--cat);
+}
+.orion-section__count {
+  margin-left: auto;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-3);
+}
+.orion-section__grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; }
+.orion-section__info {
+  min-height: 2.7em;
+  margin-top: 8px;
+  padding: 8px 6px 0;
+  border-top: var(--matte-stroke) solid rgba(255, 255, 255, 0.07);
+  font-size: 12.5px;
+  font-weight: 550;
+  line-height: 1.35;
+  color: var(--ink-3);
+}
+.orion-section__info b { color: var(--ink-1); font-weight: 750; margin-right: 2px; }
+
+/* a feature: an icon chip tinted by its group with a short name under it */
+.orion-feature {
+  grid-column: span 2;
+  position: relative;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 6px;
+  min-width: 0;
+  padding: 9px 4px 8px;
+  border-radius: 14px;
+  text-align: center;
+  border: var(--matte-stroke) solid transparent;
+  background: transparent;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease, opacity 0.2s ease;
+}
+.orion-feature:hover,
+.orion-feature:focus-visible {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  transform: translateY(-2px);
+}
+.orion-feature__icon {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  color: var(--cat);
+  background: color-mix(in srgb, var(--cat-solid) 18%, transparent);
+  border: var(--matte-stroke) solid color-mix(in srgb, var(--cat) 30%, transparent);
+  box-shadow: none;
+}
+.orion-console .orion-feature__icon svg.lucide { color: var(--cat); stroke-width: 2.4px; }
+.orion-feature__label {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 100%;
+  font-size: 12.5px;
+  font-weight: 650;
+  line-height: 1.2;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+.orion-feature:hover .orion-feature__label,
+.orion-feature:focus-visible .orion-feature__label { color: var(--ink-1); }
+/* main items: wider tiles with the icon beside the name and a solid chip */
+.orion-feature[data-main] {
+  grid-column: span 3;
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 8px 8px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.035);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+.orion-feature[data-main] .orion-feature__icon {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  background: var(--cat-solid);
+  border: var(--matte-stroke) solid color-mix(in srgb, var(--cat) 55%, transparent);
+  box-shadow: none;
+}
+.orion-console .orion-feature[data-main] .orion-feature__icon svg.lucide { color: #ffffff; }
+.orion-feature[data-main] .orion-feature__label { font-size: 14px; font-weight: 750; color: var(--ink-1); }
+.orion-feature__badge {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 800;
+  line-height: 1;
+  color: #1a1206;
+  background: var(--role-approval);
+  border: 2px solid #1a1f27;
+}
+.orion-feature[data-dim] { opacity: 0.28; }
+.orion-feature[data-lit] {
+  background: color-mix(in srgb, var(--cat-solid) 20%, transparent);
+  border: var(--matte-stroke) solid color-mix(in srgb, var(--cat) 60%, transparent);
+}
+.orion-feature[data-lit] .orion-feature__label { color: var(--ink-1); }
+
+/* the middle: text tiers for the chat too */
+.orion-console__chat { border-color: rgba(255, 255, 255, 0.2); }
+.orion-bubble { color: var(--ink-1); }
+.orion-console__input::placeholder { color: var(--ink-3); }
+
+@media (max-width: 1100px) {
+  .orion-console__grid { padding-bottom: 90px; }
+  .orion-section { background-color: rgba(22, 26, 33, 0.9); } /* below the chat there is busy space behind; keep names readable */
+}
+@media (max-width: 640px) {
+  .orion-section__grid { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+  .orion-feature { grid-column: span 2; }
+  .orion-feature[data-main] { grid-column: span 4; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .orion-feature:hover, .orion-feature:focus-visible { transform: none; }
+}
+html[data-calm-motion] .orion-feature:hover, html[data-calm-motion] .orion-feature:focus-visible { transform: none; }

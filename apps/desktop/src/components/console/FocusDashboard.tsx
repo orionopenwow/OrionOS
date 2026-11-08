@@ -3,17 +3,23 @@
  * important dashboard, no more than 5 things at a time"). It shows at most five cards from GET /focus (focus.py),
  * most important first: Now, messages that matter, waiting for your OK, needs you, next up.
  *
- * Every card says why it is there and has "Pin" and "Not important", which teach Orion what matters to you.
- * "Draft reply" only fills the reply box in Messages; sending stays your tap there. Opening the approvals card goes
- * to the queue; this card never approves anything. When the daemon can't be reached, `fallback` shows instead.
+ * Hierarchy pass (docs/design/CONSOLE_DESIGN.md): the "Now" card is the hero (big, its own layout, big progress,
+ * one button). The other cards are smaller, two to a row, and told apart by kind: each kind has one colour role
+ * used only on the left bar, the icon chip and the small label. Every card has one main button; "Pin", "Not
+ * important" and "Draft a reply" live in its More menu (keyboard reachable, named for screen readers).
+ *
+ * "Pin" and "Not important" teach Orion what matters to you. "Draft a reply" only fills the reply box in Messages;
+ * sending stays your tap there. Opening the approvals card goes to the queue; this card never approves anything.
+ * When the daemon can't be reached, `fallback` shows instead.
  */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
-  AlertTriangle, CheckCircle2, Clock, EyeOff, Loader2, MessageCircle, PenLine, Pin, PinOff, Rocket, ShieldCheck, type LucideIcon,
+  AlertTriangle, Clock, EyeOff, Loader2, MessageCircle, MoreHorizontal, PenLine, Pin, PinOff, Rocket, ShieldCheck, type LucideIcon,
 } from 'lucide-react';
-import { focusApi, greeting, KIND_LABEL, topCards, type FocusCard, type FocusKind, type FocusView } from '../../lib/focus';
+import { focusApi, greeting, KIND_LABEL, PRIMARY_LABEL, summaryLine, topCards, type FocusCard, type FocusKind, type FocusView } from '../../lib/focus';
 import { useCalmMotion } from '../../lib/hudPrefs';
+import OrionMark from '../glass/OrionMark';
 import './focus.css';
 
 const KIND_ICON: Record<FocusKind, LucideIcon> = {
@@ -22,6 +28,19 @@ const KIND_ICON: Record<FocusKind, LucideIcon> = {
   approval: ShieldCheck,
   needs_you: AlertTriangle,
   next_up: Clock,
+};
+
+/** The small brand dot on message cards (the app's own colour). */
+const APP_DOT: Record<string, string> = {
+  telegram: '#2AABEE',
+  discord: '#5865F2',
+  whatsapp: '#25D366',
+  signal: '#3A76F0',
+  sms: '#34C759',
+  messages: '#34C759',
+  instagram: '#E1306C',
+  slack: '#E8A93B',
+  email: '#9AA6B8',
 };
 
 const REFRESH_MS = 20_000;
@@ -35,6 +54,109 @@ interface Props {
   fallback: ReactNode;
 }
 
+interface MenuEntry {
+  label: string;
+  icon: LucideIcon;
+  run: () => void;
+  disabled?: boolean;
+}
+
+/** The card's More menu: a small list of secondary actions. Arrow keys move, Esc closes and returns focus. */
+function MoreMenu({ title, entries }: { title: string; entries: MenuEntry[] }) {
+  const [open, setOpen] = useState(false);
+  const wrap = useRef<HTMLDivElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const first = wrap.current?.querySelector<HTMLButtonElement>('[role="menuitem"]:not(:disabled)');
+    first?.focus();
+    const away = (e: PointerEvent) => {
+      if (!wrap.current?.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener('pointerdown', away, true);
+    return () => window.removeEventListener('pointerdown', away, true);
+  }, [open]);
+
+  const onKey = (e: React.KeyboardEvent) => {
+    const items = Array.from(wrap.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)') ?? []);
+    const at = items.indexOf(document.activeElement as HTMLButtonElement);
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      setOpen(false);
+      button.current?.focus();
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      items[(at + 1) % items.length]?.focus();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      items[at <= 0 ? items.length - 1 : at - 1]?.focus();
+    } else if (e.key === 'Tab') {
+      setOpen(false);
+    }
+  };
+
+  return (
+    <div className="focus-more" ref={wrap} onKeyDown={onKey} data-popover-open={open || undefined}>
+      <button
+        ref={button}
+        type="button"
+        className="focus-more__btn"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`More for ${title}`}
+        title="More"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <MoreHorizontal size={18} />
+      </button>
+      {open && (
+        <div className="focus-more__menu" role="menu" aria-label={`More for ${title}`}>
+          {entries.map((m) => (
+            <button
+              key={m.label}
+              type="button"
+              role="menuitem"
+              disabled={m.disabled}
+              className="focus-more__item"
+              onClick={() => {
+                setOpen(false);
+                m.run();
+              }}
+            >
+              <m.icon size={16} /> {m.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Eyebrow({ card }: { card: FocusCard }) {
+  const app = card.kind === 'message' ? card.meta.app_label : undefined;
+  const dot = app ? APP_DOT[app.toLowerCase()] : undefined;
+  return (
+    <div className="focus-eyebrow">
+      {app ? (
+        <>
+          <span className="focus-eyebrow__dot" style={dot ? { background: dot } : undefined} aria-hidden />
+          {app}
+        </>
+      ) : (
+        KIND_LABEL[card.kind]
+      )}
+      {card.kind === 'now' && card.meta.step && <span className="focus-eyebrow__step">{card.meta.step}</span>}
+      {card.pinned && (
+        <span className="focus-eyebrow__pin">
+          <Pin size={12} /> Pinned
+        </span>
+      )}
+    </div>
+  );
+}
+
 function Card({
   card, busy, onOpen, onDraft, onPin, onDismiss,
 }: {
@@ -46,47 +168,78 @@ function Card({
   onDismiss: () => void;
 }) {
   const Icon = KIND_ICON[card.kind] ?? Rocket;
-  const label = card.kind === 'message' && card.meta.app_label ? `Message · ${card.meta.app_label}` : KIND_LABEL[card.kind];
-  const progress = card.kind === 'now' && typeof card.meta.progress === 'number' ? card.meta.progress : null;
+  const hero = card.kind === 'now';
+  const label = card.kind === 'message' && card.meta.app_label ? `Message on ${card.meta.app_label}` : KIND_LABEL[card.kind];
+  const progress = hero && typeof card.meta.progress === 'number' ? Math.max(0, Math.min(1, card.meta.progress)) : null;
+  const pct = progress === null ? null : Math.round(progress * 100);
+  const app = card.kind === 'message' ? card.meta.app_label : undefined;
+  const dot = app ? APP_DOT[app.toLowerCase()] : undefined;
+
+  const more: MenuEntry[] = [];
+  if (card.actions.includes('draft')) more.push({ label: busy ? 'Drafting...' : 'Draft a reply', icon: PenLine, run: onDraft, disabled: busy });
+  more.push({ label: card.pinned ? 'Unpin' : 'Pin to the top', icon: card.pinned ? PinOff : Pin, run: onPin });
+  more.push({ label: 'Not important', icon: EyeOff, run: onDismiss });
+
   return (
-    <article className="focus-card" data-kind={card.kind} data-pinned={card.pinned || undefined} data-focus-card={card.id} aria-label={`${label}: ${card.title}`}>
-      <span className="focus-card__icon" aria-hidden>
-        <Icon size={22} strokeWidth={2.4} />
-      </span>
-      <div className="focus-card__body">
-        <div className="focus-card__label">
-          {label}
-          {card.pinned && <span className="focus-card__pin"><Pin size={12} strokeWidth={2.6} /> Pinned</span>}
-        </div>
-        <h3 className="focus-card__title">{card.title}</h3>
-        {card.detail && <p className="focus-card__detail">{card.detail}</p>}
-        {progress !== null && (
-          <div className="focus-card__progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)} aria-label="Progress">
-            <span style={{ width: `${Math.max(4, Math.min(100, progress * 100))}%` }} />
+    <article
+      className={hero ? 'focus-card focus-card--hero' : 'focus-card'}
+      data-kind={card.kind}
+      data-pinned={card.pinned || undefined}
+      data-focus-card={card.id}
+      aria-label={`${label}: ${card.title}`}
+    >
+      <div className="focus-card__top">
+        <span className="focus-chip" aria-hidden>
+          <Icon size={hero ? 24 : 19} />
+          {dot && <span className="focus-chip__dot" style={{ background: dot }} />}
+        </span>
+        <Eyebrow card={card} />
+        <MoreMenu title={card.title} entries={more} />
+      </div>
+      <h3 className="focus-card__title">{card.title}</h3>
+      {card.detail && <p className="focus-card__detail">{card.detail}</p>}
+      {pct !== null && (
+        <div className="focus-progress">
+          <div className="focus-progress__bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label="Progress">
+            <span style={{ width: `${Math.max(3, pct)}%` }} />
           </div>
-        )}
-        {card.meta.waiting_on && <p className="focus-card__waiting">Waiting on: {card.meta.waiting_on}</p>}
-        <div className="focus-card__foot">
-          <p className="focus-card__why">{card.why}</p>
-          <div className="focus-card__actions">
-          <button type="button" className="focus-btn focus-btn--primary" onClick={onOpen}>
-            Open
-          </button>
-          {card.actions.includes('draft') && (
-            <button type="button" className="focus-btn" onClick={onDraft} disabled={busy} title="Write a reply for you to check. It is never sent for you.">
-              {busy ? <Loader2 size={15} className="animate-spin" /> : <PenLine size={15} />} {busy ? 'Drafting' : 'Draft reply'}
-            </button>
-          )}
-          <button type="button" className="focus-btn focus-btn--quiet focus-btn--push" onClick={onPin} aria-pressed={card.pinned} aria-label={card.pinned ? 'Unpin' : 'Pin'} title={card.pinned ? 'Unpin' : 'Pin: keep this at the top'}>
-            {card.pinned ? <PinOff size={15} /> : <Pin size={15} />} <span className="focus-btn__text">{card.pinned ? 'Unpin' : 'Pin'}</span>
-          </button>
-          <button type="button" className="focus-btn focus-btn--quiet" onClick={onDismiss} aria-label="Not important" title="Not important: hide this and show fewer like it">
-            <EyeOff size={15} /> <span className="focus-btn__text">Not important</span>
-          </button>
-          </div>
+          <span className="focus-progress__pct" aria-hidden>
+            {pct}%
+          </span>
         </div>
+      )}
+      <div className="focus-card__foot">
+        <div className="focus-card__why">
+          {card.meta.waiting_on && <span className="focus-card__waiting">Waiting on {lowerFirst(card.meta.waiting_on)}</span>}
+          <span>{card.why}</span>
+        </div>
+        <button type="button" className="focus-btn" onClick={onOpen}>
+          {PRIMARY_LABEL[card.kind]}
+        </button>
       </div>
     </article>
+  );
+}
+
+const lowerFirst = (s: string) => (s && /^[A-Z][a-z]/.test(s) ? s[0].toLowerCase() + s.slice(1) : s);
+
+/** The calm "nothing needs you" view: the Orion mark with a few stars orbiting it. Also used when offline. */
+export function AllClear({ title, text, children }: { title: string; text: string; children?: ReactNode }) {
+  return (
+    <div className="focus-clear" role="status">
+      <div className="focus-clear__art" aria-hidden>
+        <span className="focus-clear__ring" />
+        <span className="focus-clear__orbit">
+          <i />
+          <i />
+          <i />
+        </span>
+        <OrionMark size={52} />
+      </div>
+      <h3 className="focus-clear__title">{title}</h3>
+      <p className="focus-clear__text">{text}</p>
+      {children}
+    </div>
   );
 }
 
@@ -153,38 +306,50 @@ export default function FocusDashboard({ onOpenWindow, onOpenThread, fallback }:
 
   if (failed && !view) return <>{fallback}</>;
   const cards = topCards(view?.cards ?? []);
+  // the hero is the first "Now" card; everything else sits below it, two to a row
+  const heroAt = cards.findIndex((c) => c.kind === 'now');
+  const hero = heroAt >= 0 ? cards[heroAt] : null;
+  const rest = cards.filter((_, i) => i !== heroAt);
+  const detail = summaryLine(cards);
+
+  const render = (c: FocusCard, i: number) => (
+    <motion.div
+      key={c.id}
+      layout={!reduce}
+      className={c.kind === 'now' ? 'focus__hero' : 'focus__item'}
+      initial={reduce ? { opacity: 0 } : { opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0, transition: { delay: reduce ? 0 : i * 0.05 } }}
+      exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.96, transition: { duration: 0.18 } }}
+    >
+      <Card card={c} busy={drafting === c.id} onOpen={() => open(c)} onDraft={() => void draft(c)} onPin={() => void pin(c)} onDismiss={() => void dismiss(c)} />
+    </motion.div>
+  );
 
   return (
     <section className="focus" aria-label="Focus: what matters right now" data-focus-dashboard>
       <header className="focus__head">
         <h2 className="focus__title">{greeting()}.</h2>
-        <p className="focus__sub">{cards.length ? 'Here is what matters right now.' : 'Type below to talk to Orion.'}</p>
+        {view && cards.length > 0 && <p className="focus__sub">{detail}</p>}
       </header>
       {!view ? (
-        <div className="focus__loading"><Loader2 size={18} className="animate-spin" /> Looking at what needs you</div>
-      ) : cards.length === 0 ? (
-        <div className="focus__clear">
-          <CheckCircle2 size={26} strokeWidth={2.4} aria-hidden />
-          <span>{view.line || 'All clear. Nothing needs you right now.'}</span>
+        <div className="focus__loading">
+          <Loader2 size={18} className="animate-spin" /> Looking at what needs you
         </div>
+      ) : cards.length === 0 ? (
+        <AllClear title="All clear" text="Nothing needs you right now. Ask Orion anything below, or type a feature's name to open it." />
       ) : (
         <div className="focus__list">
           <AnimatePresence initial={false}>
-            {cards.map((c, i) => (
-              <motion.div
-                key={c.id}
-                layout={!reduce}
-                initial={reduce ? { opacity: 0 } : { opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0, transition: { delay: reduce ? 0 : i * 0.04 } }}
-                exit={reduce ? { opacity: 0 } : { opacity: 0, x: 24, transition: { duration: 0.18 } }}
-              >
-                <Card card={c} busy={drafting === c.id} onOpen={() => open(c)} onDraft={() => void draft(c)} onPin={() => void pin(c)} onDismiss={() => void dismiss(c)} />
-              </motion.div>
-            ))}
+            {hero && render(hero, 0)}
+            {rest.map((c, i) => render(c, i + 1))}
           </AnimatePresence>
         </div>
       )}
-      {note && <p className="focus__note" role="status">{note}</p>}
+      {note && (
+        <p className="focus__note" role="status">
+          {note}
+        </p>
+      )}
     </section>
   );
 }

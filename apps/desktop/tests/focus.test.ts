@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { FOCUS_MAX, greeting, showDashboard, topCards, type FocusCard } from '../src/lib/focusView.ts';
+import { FOCUS_MAX, greeting, showDashboard, summaryLine, topCards, type FocusCard } from '../src/lib/focusView.ts';
 
 const card = (id: string, score: number, pinned = false): FocusCard =>
   ({ id, kind: 'message', title: id, detail: '', why: 'because', score, pinned, open: {}, actions: ['open'], meta: {} });
@@ -33,4 +33,17 @@ test('greetings never use a name', () => {
 test('the dashboard can only open, draft, pin or hide: it never sends or approves', () => {
   const src = readFileSync(new URL('../src/components/console/FocusDashboard.tsx', import.meta.url), 'utf8');
   assert.ok(!/onReply|comms_reply|COMMS_REPLY|\/approvals\//.test(src));
+});
+
+test('the greeting detail counts what is on the cards in plain words', () => {
+  const k = (kind: FocusCard['kind'], meta: FocusCard['meta'] = {}): FocusCard => ({ ...card(kind, 1), kind, meta });
+  assert.equal(summaryLine([]), '');
+  assert.equal(summaryLine([k('now')]), '1 thing running.');
+  assert.equal(summaryLine([k('now'), k('approval', { count: 2 }), k('message'), k('message')]), '1 thing running, 2 waiting for your OK and 2 messages.');
+});
+
+test('each card has one main button; Pin, Not important and drafts live in a named More menu', () => {
+  const src = readFileSync(new URL('../src/components/console/FocusDashboard.tsx', import.meta.url), 'utf8');
+  assert.ok(src.includes('aria-haspopup="menu"'));
+  assert.ok(/role="menuitem"/.test(src));
 });

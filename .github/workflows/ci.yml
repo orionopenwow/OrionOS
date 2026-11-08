@@ -60,7 +60,7 @@ jobs:
             "cryptography>=42" python-multipart PyYAML RapidFuzz jsonschema pytest-timeout
       - name: Daemon tests
         working-directory: apps/daemon
-        run: python -m pytest tests -q -p no:warnings -p no:cacheprovider --timeout=180 --durations=10
+        run: python -m pytest tests -q -p no:warnings -p no:cacheprovider --timeout=120 --timeout-method=signal -v --durations=10
       - name: The daemon also runs on Windows (no bare Linux-only imports)
         working-directory: apps/daemon
         run: python -m pytest tests/test_windows_imports.py -q -p no:cacheprovider

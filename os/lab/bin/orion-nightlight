@@ -1,0 +1,60 @@
+#!/bin/sh
+# orion-nightlight: a warmer screen after sunset (wlsunset), timed from your time zone's position. No location
+# lookup: the place comes from the tz database (os/basics/orion_basics.py coords), so it works offline.
+#   orion-nightlight start | stop | restart   (Sway runs "start" when the session begins)
+#   orion-nightlight on | off | toggle         remember the choice (Super+N, Ctrl+Alt+N, Settings > Night light)
+#   orion-nightlight status | args             what it's doing / the wlsunset options it would use
+# Screens that can't change colour (most virtual machines) are detected: it stays off there without complaining.
+LIB="${ORION_BASICS_LIB:-/opt/orion/basics/orion_basics.py}"
+[ -f "$LIB" ] || LIB="$(dirname "$(readlink -f "$0")")/../../basics/orion_basics.py"
+CONF="$HOME/.config/orion/nightlight"            # "on" or "off"; missing = on
+RUN="${XDG_RUNTIME_DIR:-/tmp}"
+LOG="$RUN/orion-nightlight.log"
+NOPE="$RUN/orion-nightlight.unsupported"
+TEMP="${ORION_NIGHT_TEMP:-4000}"                   # Kelvin at night (6500 = normal daylight)
+# ORION_NIGHT_ZONE=Region/City times it for another zone than the clock's (used by the tests)
+
+enabled() { [ "$(cat "$CONF" 2>/dev/null)" != off ]; }
+running() { pgrep -u "$(id -u)" -x wlsunset >/dev/null 2>&1; }
+note() { [ "${QUIET:-0}" = 1 ] || notify-send "Night light" "$*" 2>/dev/null || printf '%s\n' "$*"; }
+
+args() {
+  # shellcheck disable=SC2086
+  if c=$(python3 "$LIB" coords ${ORION_NIGHT_ZONE:-} 2>/dev/null); then set -- $c; echo "-t $TEMP -l $1 -L $2"
+  else echo "-t $TEMP -S 07:00 -s 19:30"; fi       # UTC and other zones without a place: fixed evening hours
+}
+
+start() {
+  enabled || return 0
+  running && return 0
+  command -v wlsunset >/dev/null || { note "wlsunset isn't installed."; return 1; }
+  rm -f "$NOPE"
+  # shellcheck disable=SC2046
+  wlsunset $(args) >"$LOG" 2>&1 &
+  pid=$!
+  sleep "${ORION_NIGHT_PROBE:-2}"
+  if ! kill -0 "$pid" 2>/dev/null || grep -qi 'not support\|gamma control.*fail\|failed to' "$LOG"; then
+    kill "$pid" 2>/dev/null
+    echo "This screen can't change its colour (common in virtual machines)." > "$NOPE"
+    return 3
+  fi
+  return 0
+}
+
+stop() { pkill -u "$(id -u)" -x wlsunset 2>/dev/null; sleep 0.3; return 0; }
+
+case "${1:-status}" in
+  start)   QUIET=1 start ;;
+  stop)    stop ;;
+  restart) stop; QUIET=1 start ;;
+  on)      mkdir -p "$(dirname "$CONF")"; echo on > "$CONF"; start; rc=$?
+           if [ $rc = 3 ]; then note "$(cat "$NOPE")"; elif [ $rc = 0 ]; then note "On: warmer after sunset."; fi ;;
+  off)     mkdir -p "$(dirname "$CONF")"; echo off > "$CONF"; stop; note "Off." ;;
+  toggle)  if enabled && running; then "$0" off; else "$0" on; fi ;;
+  args)    args ;;
+  status)  if running; then echo "Night light: on ($(args))"
+           elif ! enabled; then echo "Night light: off"
+           elif [ -f "$NOPE" ]; then echo "Night light: not available here. $(cat "$NOPE")"
+           else echo "Night light: on, not running yet"; fi ;;
+  *) sed -n '2,8p' "$0"; exit 2 ;;
+esac

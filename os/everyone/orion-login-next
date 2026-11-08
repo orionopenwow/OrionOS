@@ -1,0 +1,15 @@
+#!/bin/sh
+# OrionOS: wraps the login screen command greetd runs (os/image/os-everyone.sh puts it in front of the command in
+# /etc/greetd/config.toml and the login-mode templates). If someone pressed "Start a guest session" in Settings in
+# the last 10 minutes, the guest session starts once, without a password; otherwise (or if anything goes wrong)
+# the normal login screen runs exactly as before.
+REQ=/run/orion-login/guest-next
+if [ -f "$REQ" ]; then
+  asked="$(cat "$REQ" 2>/dev/null)"
+  rm -f "$REQ" 2>/dev/null
+  case "$asked" in ''|*[!0-9]*) asked=0 ;; esac
+  if [ ! -e "$REQ" ] && [ $(( $(date +%s) - asked )) -lt 600 ] && [ -f /etc/orion/guest-enabled ]; then
+    /usr/bin/python3 /opt/orion/everyone/orion-guest-login && exit 0
+  fi
+fi
+exec "$@"

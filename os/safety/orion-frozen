@@ -1,0 +1,9 @@
+#!/bin/sh
+# orion-frozen: exit 0 when the OrionOS kill switch is on, for update scripts:  orion-frozen && exit 0
+# Frozen = the root marker the freeze helper writes, or Orion's own marker in the session user's data folder.
+[ -e "${ORION_FREEZE_MARK:-/etc/orion/frozen}" ] && exit 0
+for d in "${ORION_DATA_DIR:-}" "${HOME:-}/.orion" "$(getent passwd orion 2>/dev/null | cut -d: -f6)/.orion"; do
+  case "$d" in ""|/.orion) continue ;; esac
+  [ -e "$d/frozen" ] && exit 0
+done
+exit 1

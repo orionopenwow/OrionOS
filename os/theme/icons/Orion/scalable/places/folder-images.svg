@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="fpictures" x1="6" y1="18" x2="58" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFE1AA"/><stop offset="0.55" stop-color="#FFC66B"/><stop offset="1" stop-color="#E39B33"/>
+    </linearGradient>
+    <linearGradient id="bpictures" x1="0" y1="8" x2="0" y2="30" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#E39B33"/><stop offset="1" stop-color="#262D50"/>
+    </linearGradient>
+    <radialGradient id="gpictures" cx="18" cy="22" r="40" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.35"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <path d="M6 14.5A4.5 4.5 0 0 1 10.5 10h13.2a3 3 0 0 1 2.1.9l4.4 4.4a3 3 0 0 0 2.1.9h21.2a4.5 4.5 0 0 1 4.5 4.5V30H6z" fill="url(#bpictures)"/>
+  <rect x="9" y="15" width="46" height="14" rx="2" fill="#D8DEFF" opacity="0.22"/>
+  <rect x="4" y="20" width="56" height="34" rx="5.5" fill="url(#fpictures)"/>
+  <rect x="4" y="20" width="56" height="34" rx="5.5" fill="url(#gpictures)"/>
+  <path d="M9.5 21.2h45" stroke="#FFFFFF" stroke-opacity="0.55" stroke-width="1.2" stroke-linecap="round"/>
+  <ellipse cx="46" cy="47" rx="10" ry="3.2" fill="none" stroke="#FFFFFF" stroke-opacity="0.16" stroke-width="1" transform="rotate(-14 46 47)"/>
+  <circle cx="54.6" cy="44.2" r="1.1" fill="#FFFFFF" fill-opacity="0.55"/>
+  <g opacity="0.92"><path fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="M23.5 47l6-7 4.5 5 3-3 3.5 5z"/><circle cx="37.5" cy="35.5" r="2.4" fill="#FFFFFF"/></g>
+</svg>

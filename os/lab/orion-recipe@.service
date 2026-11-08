@@ -1,0 +1,9 @@
+[Unit]
+Description=OrionOS install recipe %i
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/orion/recipes/run %i
+TimeoutStartSec=1800

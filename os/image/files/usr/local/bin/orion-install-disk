@@ -1,0 +1,459 @@
+#!/usr/bin/env bash
+# orion-install-disk: install the OrionOS you're running from the USB stick onto this computer's drive.
+#
+#   Alongside Windows (dual boot): uses only free, unallocated space. Existing partitions are never touched;
+#     Windows stays bootable. The new partitions are found by the exact sectors they were made at (sfdisk -J,
+#     os/dualboot/orion_partsel.py), never by their numbers, and nothing is formatted unless they're empty.
+#   Whole disk: erases the chosen drive (you type ERASE to confirm).
+#
+# Which system starts by itself: Windows (the default with dual boot: the computer's own boot menu, or "Restart into
+# OrionOS"/"Restart into Windows", picks the other), or OrionOS (its menu lists Windows; with BitLocker that can make
+# Windows ask for its recovery key, which is explained before you choose it).
+#
+# It copies the system you're running, including your vault's contents if it's unlocked, so your Orion comes along.
+# With encryption on (the default), OrionOS asks for a passphrase at every start, typed with the keyboard layout you
+# pick here. With snapshots on (the default; btrfs with subvolumes @, @home, @snapshots and @swap), every update can
+# be undone and the boot menu can start an earlier system (orion-snapshot, os/safety); after an Orion update, a
+# system that doesn't start twice falls back to the one from before by itself (orion-bootcount, os/dualboot).
+# A swap file as big as the memory makes hibernation possible (when Secure Boot's lockdown allows it).
+#
+# Everything it does is logged to /var/log/orion-install-disk.log, kept on the new drive and copied to the stick's
+# EFI partition (orion-install-logs/). If anything fails, it unmounts and locks everything it opened.
+#
+# Non-interactive (tests): ORION_INSTALL_DISK=/dev/vdb ORION_INSTALL_MODE=alongside|erase ORION_INSTALL_ENCRYPT=yes|no
+#   ORION_INSTALL_PASSPHRASE=... ORION_INSTALL_FS=btrfs|ext4 ORION_INSTALL_FIRST=windows|orionos
+#   ORION_INSTALL_KEYMAP=us ORION_INSTALL_SWAP=yes|no ORION_INSTALL_YES=1
+set -euo pipefail
+C='\033[1;36m'; W='\033[1;37m'; Y='\033[1;33m'; R='\033[1;31m'; N='\033[0m'
+say() { printf "${C}%s${N}\n" "$*"; }
+warn() { printf "${Y}%s${N}\n" "$*"; }
+die() { printf "${R}%s${N}\n" "$*" >&2; exit 1; }
+[ "$(id -u)" -eq 0 ] || die "Run as admin: sudo orion-install-disk"
+grep -q orion.slot /proc/cmdline || die "This only works while OrionOS runs from its USB stick."
+MIN_GB=25
+T=/mnt/orion-target
+LIB=/opt/orion/dualboot
+PARTSEL="$LIB/orion_partsel.py"
+DUALBOOT="$LIB/orion_dualboot.py"
+W="$(mktemp -d /run/orion-install.XXXX)"
+LOG=/var/log/orion-install-disk.log
+STAGE=asking            # asking -> partitioning -> formatting -> copying -> done
+mkdir -p /var/log
+: > "$LOG"
+exec > >(tee -a "$LOG") 2>&1
+echo "orion-install-disk $(date -u +%FT%TZ), running $(cat /cdrom/slots/*/VERSION 2>/dev/null | head -n1 || echo '?')"
+
+cleanup() {
+  local rc=$?
+  set +e
+  if [ "$STAGE" != done ]; then
+    echo
+    case "$STAGE" in
+      asking) warn "Stopped. Nothing on the drive was changed." ;;
+      partitioning) warn "Stopped while making partitions. Your existing partitions weren't touched; new empty ones may be left in what was free space (Windows' Disk Management can delete them)." ;;
+      *) warn "Stopped part-way (while ${STAGE}). Your existing partitions weren't touched. Running the installer again starts over." ;;
+    esac
+  fi
+  if mountpoint -q "$T" 2>/dev/null || findmnt -rno TARGET | grep -q "^$T"; then
+    findmnt -rno TARGET | grep "^$T" | sort -r | while read -r m; do umount "$m" 2>/dev/null || umount -l "$m" 2>/dev/null; done
+  fi
+  [ -e /dev/mapper/orion-root ] && cryptsetup close orion-root 2>/dev/null
+  # a copy of the log on the stick (its EFI partition is always there, vault or not)
+  local efi; efi="$(findmnt -no TARGET -S LABEL=ORIONEFI 2>/dev/null | head -n1)"
+  if [ -z "$efi" ] && [ -n "$(blkid -L ORIONEFI 2>/dev/null)" ]; then
+    mkdir -p "$W/stick-efi" && mount -L ORIONEFI "$W/stick-efi" 2>/dev/null && efi="$W/stick-efi"
+  fi
+  if [ -n "$efi" ]; then
+    mkdir -p "$efi/orion-install-logs" && cp "$LOG" "$efi/orion-install-logs/install-$(date +%Y%m%d-%H%M%S).log" 2>/dev/null
+    [ "$efi" = "$W/stick-efi" ] && umount "$efi" 2>/dev/null
+  fi
+  mountpoint -q "$W/esp" 2>/dev/null && umount "$W/esp"
+  # never delete into something still mounted (the stick's EFI partition, the drive's)
+  findmnt -rno TARGET | grep -q "^$W" || rm -rf --one-file-system "$W"
+  [ "$STAGE" = done ] || echo "The log is in $LOG (and on the stick's EFI partition, folder orion-install-logs)."
+  exit $rc
+}
+trap cleanup EXIT
+
+# ------------------------------------------------------------------ 0. tools (some come as recommended packages)
+missing=""
+for c in sfdisk blkid lsblk wipefs partprobe udevadm mkfs.ext4 mkfs.vfat cryptsetup rsync python3 efibootmgr \
+         grub-install update-grub os-prober grub-editenv mountpoint findmnt; do
+  command -v "$c" >/dev/null || missing="$missing $c"
+done
+[ -f "$PARTSEL" ] && [ -f "$DUALBOOT" ] || missing="$missing $LIB(os/dualboot)"
+[ -z "$missing" ] || die "This stick is missing tools the installer needs:$missing. Nothing was changed. (Make a new stick from a newer release.)"
+
+stick_disk() {
+  local s; s="$(blkid -t LABEL=ORIONSYS -o device | head -n1)"
+  [ -n "$s" ] && lsblk -no PKNAME "$s" | head -n1
+}
+partsel() { python3 -I "$PARTSEL" "$@" 2>"$W/err" || die "$(cat "$W/err")"; }
+
+# ------------------------------------------------------------------ 1. which drive
+STICK="$(stick_disk || true)"
+mapfile -t DISKS < <(lsblk -dnpo NAME,TYPE | awk -v s="/dev/$STICK" '$2=="disk" && $1!=s && $1 !~ /zram|loop|sr/ {print $1}')
+[ ${#DISKS[@]} -gt 0 ] || die "No other drive found to install on."
+DISK="${ORION_INSTALL_DISK:-}"
+if [ -z "$DISK" ]; then
+  echo; say "Which drive should OrionOS go on?"
+  i=1; for d in "${DISKS[@]}"; do printf "  %d) %s  %s  %s\n" $i "$d" "$(lsblk -dno SIZE "$d" | xargs)" "$(lsblk -dno MODEL "$d" | xargs)"; i=$((i+1)); done
+  read -rp "Number: " n; DISK="${DISKS[$((n-1))]:-}"
+fi
+printf '%s\n' "${DISKS[@]}" | grep -qx "$DISK" || die "Not a drive I can install on: $DISK"
+echo; lsblk -o NAME,SIZE,FSTYPE,LABEL,PARTTYPENAME "$DISK"; echo
+BITLOCKER=0
+[ "$(lsblk -lno FSTYPE "$DISK" | grep -ci '^bitlocker$' || true)" -gt 0 ] && BITLOCKER=1
+
+# ------------------------------------------------------------------ 2. how
+MODE="${ORION_INSTALL_MODE:-}"
+if [ -z "$MODE" ]; then
+  say "How?"
+  echo "  1) Alongside what's there (dual boot; uses only free space, needs ${MIN_GB} GB+)"
+  echo "  2) Erase this whole drive and use all of it"
+  read -rp "1 or 2: " m; [ "$m" = 2 ] && MODE=erase || MODE=alongside
+fi
+case "$MODE" in alongside|erase) ;; *) die "ORION_INSTALL_MODE must be alongside or erase." ;; esac
+sfdisk -J "$DISK" > "$W/before.json" 2>/dev/null || echo '{"partitiontable": {"label": "", "partitions": []}}' > "$W/before.json"
+
+esp_room() {  # $1 = ESP: at least 50 MB free for OrionOS's start-up files
+  mkdir -p "$W/esp"
+  mount -o ro "$1" "$W/esp" || die "The EFI system partition $1 couldn't be opened to check its free space. Nothing was changed."
+  local free total own; free="$(df -B1 --output=avail "$W/esp" | tail -n1 | tr -d ' ')"; total="$(df -B1 --output=size "$W/esp" | tail -n1 | tr -d ' ')"
+  # OrionOS's files already there (an earlier install) will be replaced, so they count as free
+  own="$(du -sb "$W/esp/EFI/orionos" 2>/dev/null | cut -f1 || true)"
+  umount "$W/esp"
+  partsel esp --free-bytes "$(( free + ${own:-0} ))" --total-bytes "$total" >/dev/null
+}
+
+if [ "$MODE" = alongside ]; then
+  ESP="$(partsel esp-node --table "$W/before.json")"
+  esp_room "$ESP"
+  PLAN="$(partsel plan --table "$W/before.json" --min-gb "$MIN_GB")"
+  read -r BS BZ RS RZ <<<"$PLAN"
+  FREE_GB=$(( (BZ + RZ) * $(blockdev --getss "$DISK") / 1024 / 1024 / 1024 ))
+  say "OrionOS will use ${FREE_GB} GB of free space (sectors $BS to $((RS + RZ - 1))). Nothing else on the drive changes."
+else
+  partsel disk --size-bytes "$(blockdev --getsize64 "$DISK")" --min-gb "$MIN_GB" >/dev/null
+  warn "EVERYTHING on $DISK ($(lsblk -dno SIZE,MODEL "$DISK" | xargs)) will be erased."
+  [ "$BITLOCKER" = 1 ] && warn "That includes a BitLocker-encrypted Windows: it can't be brought back afterwards."
+  if [ "${ORION_INSTALL_YES:-0}" != 1 ]; then
+    read -rp "Type ERASE to continue: " a; [ "$a" = ERASE ] || die "Stopped. Nothing changed."
+  fi
+fi
+
+# which system starts by itself
+FIRST="${ORION_INSTALL_FIRST:-}"
+if [ "$MODE" = erase ]; then FIRST=orionos
+elif [ -z "$FIRST" ]; then
+  echo; say "When the computer starts, which system should start by itself?"
+  echo "  1) Windows, as now (recommended). Start OrionOS from the computer's boot menu (often F12, F9 or Esc at"
+  echo "     power-on), or from Windows with \"Restart into OrionOS\". OrionOS has \"Restart into Windows\"."
+  echo "  2) OrionOS. Its start menu also lists Windows."
+  read -rp "1 or 2: " a; [ "$a" = 2 ] && FIRST=orionos || FIRST=windows
+fi
+case "$FIRST" in windows|orionos) ;; *) die "ORION_INSTALL_FIRST must be windows or orionos." ;; esac
+if [ "$MODE" = alongside ]; then
+  echo
+  if [ "$BITLOCKER" = 1 ]; then
+    warn "About BitLocker: Windows on this drive is encrypted with BitLocker."
+    echo "  If Windows is started from OrionOS's start menu, Windows may stop and ask for its 48-digit recovery key,"
+    echo "  because the start-up looks different to the computer's security chip. That's not damage, but without the"
+    echo "  key you can't get into Windows. Before going on, make sure you have it: on another device go to"
+    echo "  aka.ms/myrecoverykey (the Microsoft account used on this PC), or find the printout or file you saved."
+    echo "  \"Restart into Windows\" in OrionOS avoids this: it asks the computer itself to start Windows."
+    if [ "$FIRST" = orionos ] && [ "${ORION_INSTALL_YES:-0}" != 1 ]; then
+      read -rp "Type KEY if you have the recovery key (anything else: Windows stays first): " a
+      [ "$a" = KEY ] || { FIRST=windows; say "OK: Windows stays first."; }
+    fi
+  else
+    echo "Windows stays as it is. If Windows Update ever puts itself first again, OrionOS is still in the computer's boot menu."
+  fi
+fi
+
+ENC="${ORION_INSTALL_ENCRYPT:-}"
+if [ -z "$ENC" ]; then
+  read -rp "Encrypt OrionOS on this drive (passphrase at every start; recommended)? [Y/n] " a
+  case "$a" in n|N|no) ENC=no ;; *) ENC=yes ;; esac
+fi
+chosen_layout() {  # the keyboard layout picked in OrionOS (Settings / welcome), else the system's, else us
+  local f l
+  for f in /home/orion/.config/orion/keyboard-layout /home/orion/.config/sway/config /etc/orion/sway/orion.conf; do
+    [ -r "$f" ] || continue
+    l="$(sed -n 's/^[[:space:]]*input[[:space:]].*xkb_layout[[:space:]]\+\([A-Za-z,]*\).*/\1/p; s/^\([a-z][a-z]\)$/\1/p' "$f" | head -n1)"
+    [ -n "$l" ] && { echo "${l%%,*}"; return; }
+  done
+  l="$(sed -n 's/^XKBLAYOUT="\?\([A-Za-z,]*\)"\?/\1/p' /etc/default/keyboard 2>/dev/null | head -n1)"
+  echo "${l%%,*}" | grep -q . && echo "${l%%,*}" || echo us
+}
+KEYMAP="${ORION_INSTALL_KEYMAP:-$(chosen_layout)}"
+if [ "$ENC" = yes ]; then
+  if [ -z "${ORION_INSTALL_KEYMAP:-}" ] && [ -z "${ORION_INSTALL_PASSPHRASE:-}" ]; then
+    read -rp "Keyboard layout for typing the passphrase at start [$KEYMAP] (e.g. us, gb, de, fr, es): " a
+    [ -n "$a" ] && KEYMAP="$a"
+  fi
+  KEYMAP="$(printf '%s' "$KEYMAP" | tr -cd 'a-z')"; [ -n "$KEYMAP" ] || KEYMAP=us
+  PASS="${ORION_INSTALL_PASSPHRASE:-}"
+  [ -n "$PASS" ] || echo "Type it now with the same layout ($KEYMAP), so it's the same keys at every start."
+  while [ ${#PASS} -lt 12 ]; do
+    read -rsp "Passphrase for this drive (12+ characters): " a; echo; read -rsp "Again: " b; echo
+    [ "$a" = "$b" ] && [ ${#a} -ge 12 ] && PASS="$a" || warn "Didn't match or too short."
+  done
+fi
+FS="${ORION_INSTALL_FS:-}"
+if [ -z "$FS" ]; then
+  read -rp "Turn on snapshots (undo any update, start an earlier system from the boot menu; recommended)? [Y/n] " a
+  case "$a" in n|N|no) FS=ext4 ;; *) FS=btrfs ;; esac
+fi
+case "$FS" in btrfs|ext4) ;; *) die "ORION_INSTALL_FS must be btrfs or ext4." ;; esac
+[ "$FS" = ext4 ] || command -v mkfs.btrfs >/dev/null || die "Snapshots need btrfs-progs, which this stick doesn't have. Run again and answer n."
+SWAP="${ORION_INSTALL_SWAP:-yes}"
+if [ "${ORION_INSTALL_YES:-0}" != 1 ]; then read -rp "Last chance: install now? [y/N] " a; [ "$a" = y ] || die "Stopped. Nothing changed."; fi
+
+# ------------------------------------------------------------------ 3. partitions
+say "Making partitions…"
+STAGE=partitioning
+SS="$(blockdev --getss "$DISK")"; MIBS=$(( 1048576 / SS ))     # sectors per MiB (512- or 4096-byte sectors)
+zero_region() {  # $1 start, $2 size (sectors): only ever space that was free; clears old signatures there
+  dd if=/dev/zero of="$DISK" bs="$SS" seek="$1" count="$MIBS" conv=notrunc,fsync status=none
+  dd if=/dev/zero of="$DISK" bs="$SS" seek="$(( $1 + $2 - MIBS ))" count="$MIBS" conv=notrunc,fsync status=none
+  [ "$2" -gt $(( 65 * MIBS )) ] && dd if=/dev/zero of="$DISK" bs="$SS" seek="$(( $1 + 64 * MIBS ))" count="$(( MIBS / 256 + 1 ))" conv=notrunc,fsync status=none
+  return 0
+}
+if [ "$MODE" = erase ]; then
+  wipefs -aq "$DISK"
+  printf 'label: gpt\n' | sfdisk -q "$DISK"
+  partprobe "$DISK" 2>/dev/null || true; udevadm settle
+  sfdisk -J "$DISK" > "$W/before.json"
+  PLAN="$(partsel plan --table "$W/before.json" --min-gb "$MIN_GB" --esp-mib 512)"
+  read -r ES EZ BS BZ RS RZ <<<"$PLAN"
+  for r in "$ES $EZ" "$BS $BZ" "$RS $RZ"; do zero_region $r; done
+  printf 'start=%s, size=%s, type=U, name="EFI"\nstart=%s, size=%s, type=L, name="OrionOS boot"\nstart=%s, size=%s, type=L, name="OrionOS"\n' \
+    "$ES" "$EZ" "$BS" "$BZ" "$RS" "$RZ" | sfdisk -q --append "$DISK"
+  SELPLAN="$ES:$EZ,$BS:$BZ,$RS:$RZ"
+else
+  zero_region "$BS" "$BZ"; zero_region "$RS" "$RZ"
+  printf 'start=%s, size=%s, type=L, name="OrionOS boot"\nstart=%s, size=%s, type=L, name="OrionOS"\n' \
+    "$BS" "$BZ" "$RS" "$RZ" | sfdisk -q --append "$DISK"
+  SELPLAN="$BS:$BZ,$RS:$RZ"
+fi
+partprobe "$DISK" 2>/dev/null || true; udevadm settle
+sfdisk -J "$DISK" > "$W/after.json"
+SEL="$(partsel select --before "$W/before.json" --after "$W/after.json" --plan "$SELPLAN")"
+mapfile -t NEWP <<<"$SEL"
+[ ${#NEWP[@]} -eq $(( $(tr -cd ',' <<<"$SELPLAN" | wc -c) + 1 )) ] || die "The new partitions couldn't be told apart safely. Nothing was formatted."
+if [ "$MODE" = erase ]; then ESP="${NEWP[0]}"; BOOT="${NEWP[1]}"; ROOT="${NEWP[2]}"
+else BOOT="${NEWP[0]}"; ROOT="${NEWP[1]}"; fi
+echo "New partitions: boot $BOOT, system $ROOT$( [ "$MODE" = erase ] && echo ", EFI $ESP")"
+for p in "${NEWP[@]}"; do
+  for i in 1 2 3 4 5; do [ -b "$p" ] && break; sleep 1; udevadm settle; done
+  [ -b "$p" ] || die "The new partition $p didn't appear. Nothing was formatted."
+  if blkid -p "$p" >/dev/null 2>&1; then
+    die "The new partition $p isn't empty (it has $(blkid -p -o value -s TYPE "$p" 2>/dev/null || echo 'data') on it), so it might not be the one that was just made. Nothing was formatted."
+  fi
+done
+
+# ------------------------------------------------------------------ 4. file systems
+STAGE=formatting
+[ "$MODE" = erase ] && mkfs.vfat -F32 -n EFI "$ESP" >/dev/null
+mkfs.ext4 -q -F -L orion-boot "$BOOT"
+if [ "$ENC" = yes ]; then
+  printf '%s' "$PASS" | cryptsetup luksFormat --batch-mode --type luks2 --label OrionOS "$ROOT" --key-file=-
+  printf '%s' "$PASS" | cryptsetup open "$ROOT" orion-root --key-file=-
+  PASS=""
+  RDEV=/dev/mapper/orion-root
+else RDEV="$ROOT"; fi
+MOPT=defaults,noatime
+if [ "$FS" = btrfs ]; then
+  # subvolumes: @ is the system (snapshotted), @home your files (not part of system snapshots), @snapshots the
+  # snapshots themselves, kept outside @ so going back to one keeps all the others, @swap the swap file (never
+  # snapshotted: btrfs can't snapshot a subvolume with an active swap file)
+  mkfs.btrfs -q -f -L OrionOS "$RDEV"
+  mkdir -p "$T"; mount "$RDEV" "$T"
+  for sv in @ @home @snapshots @swap; do btrfs subvolume create "$T/$sv" >/dev/null; done
+  umount "$T"
+  MOPT=noatime,compress=zstd:1
+else
+  mkfs.ext4 -q -F -L OrionOS "$RDEV"
+fi
+
+# ------------------------------------------------------------------ 5. copy the running system
+STAGE=copying
+say "Copying OrionOS (5-15 minutes)…"
+mkdir -p "$T"
+if [ "$FS" = btrfs ]; then
+  mount -o "subvol=@,$MOPT" "$RDEV" "$T"
+  mkdir -p "$T/home" "$T/.snapshots" "$T/swap"; mount -o "subvol=@home,$MOPT" "$RDEV" "$T/home"
+  mount -o "subvol=@snapshots,noatime" "$RDEV" "$T/.snapshots"; chmod 750 "$T/.snapshots"
+  mount -o "subvol=@swap,noatime" "$RDEV" "$T/swap"; chmod 700 "$T/swap"
+else mount "$RDEV" "$T"; fi
+mkdir -p "$T/boot"; mount "$BOOT" "$T/boot"
+rsync -aAXH --info=progress2 --one-file-system \
+  --exclude={/proc/*,/sys/*,/dev/*,/run/*,/tmp/*,/mnt/*,/media/*,/cdrom,/rofs,/var/tmp/*,/swapfile,/swap/*,/var/lib/orion/welcome-done} \
+  / "$T/"
+cp -a /boot/. "$T/boot/" 2>/dev/null || true
+# the live system's kernel files are on the stick, not in /boot: bring the newest ones
+ls "$T"/boot/vmlinuz-* >/dev/null 2>&1 || cp /cdrom/slots/"$(sed -n 's/.*orion\.slot=\([ab]\).*/\1/p' /proc/cmdline)"/vmlinuz "$T/boot/vmlinuz-$(uname -r)"
+mkdir -p "$T/boot/efi"; mount "$ESP" "$T/boot/efi"
+for d in dev dev/pts proc sys run sys/firmware/efi/efivars; do mkdir -p "$T/$d"; mount --bind "/$d" "$T/$d" 2>/dev/null || true; done
+
+# ------------------------------------------------------------------ 6. swap file (hibernation needs one as big as the memory)
+RESUME=""
+RUUID="$(blkid -s UUID -o value "$RDEV")"
+SWAPLINES=""
+if [ "$SWAP" = yes ]; then
+  ram_kb="$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)"
+  swap_gb=$(( (ram_kb + 1024 * 1024 - 1) / 1024 / 1024 ))
+  free_gb=$(( $(df -B1 --output=avail "$T" | tail -n1 | tr -d ' ') / 1024 / 1024 / 1024 ))
+  if [ $(( free_gb - swap_gb )) -lt 15 ]; then
+    warn "Not enough room for a ${swap_gb} GB swap file (it would leave under 15 GB), so there's none: hibernation stays off."
+  else
+    say "Swap file: ${swap_gb} GB (as big as the memory, so the computer can hibernate)…"
+    if [ "$FS" = btrfs ]; then
+      SF="$T/swap/swapfile"
+      # btrfs rules: no copy-on-write, no compression, not in a snapshotted subvolume (@swap)
+      btrfs filesystem mkswapfile --size "${swap_gb}G" "$SF" >/dev/null 2>&1 || {
+        rm -f "$SF"; touch "$SF"; chattr +C "$SF"; fallocate -l "${swap_gb}G" "$SF"; chmod 600 "$SF"; mkswap -q "$SF"; }
+      OFF="$(btrfs inspect-internal map-swapfile -r "$SF" 2>/dev/null || true)"
+      SWAPLINES="UUID=$RUUID /swap btrfs subvol=/@swap,noatime 0 0
+/swap/swapfile none swap defaults 0 0"
+    else
+      SF="$T/swapfile"
+      fallocate -l "${swap_gb}G" "$SF"; chmod 600 "$SF"; mkswap -q "$SF"
+      OFF="$(filefrag -v "$SF" 2>/dev/null | awk '$1=="0:" {sub(/\.\./, "", $4); print $4; exit}')"
+      SWAPLINES="/swapfile none swap defaults 0 0"
+    fi
+    if [ -n "${OFF:-}" ]; then
+      RESUME="resume=UUID=$RUUID resume_offset=$OFF"
+      mkdir -p "$T/etc/initramfs-tools/conf.d"
+      echo "RESUME=UUID=$RUUID" > "$T/etc/initramfs-tools/conf.d/resume"
+    fi
+  fi
+fi
+
+# ------------------------------------------------------------------ 7. make it a normal installed system
+say "Setting up the start menu…"
+{
+  if [ "$FS" = btrfs ]; then
+    echo "UUID=$RUUID / btrfs subvol=/@,$MOPT 0 0"
+    echo "UUID=$RUUID /home btrfs subvol=/@home,$MOPT 0 0"
+    echo "UUID=$RUUID /.snapshots btrfs subvol=/@snapshots,noatime 0 0"
+  else echo "UUID=$RUUID / ext4 defaults,noatime 0 1"; fi
+  echo "UUID=$(blkid -s UUID -o value "$BOOT") /boot ext4 defaults,noatime 0 2"
+  echo "UUID=$(blkid -s UUID -o value "$ESP") /boot/efi vfat umask=0077 0 1"
+  [ -n "$SWAPLINES" ] && echo "$SWAPLINES"
+  grep orion_turbo /etc/fstab || true
+} > "$T/etc/fstab"
+if [ "$ENC" = yes ]; then
+  echo "orion-root UUID=$(blkid -s UUID -o value "$ROOT") none luks,discard" > "$T/etc/crypttab"
+else : > "$T/etc/crypttab"; fi
+mkdir -p "$T/etc/orion" "$T/etc/default/grub.d" "$T/etc/initramfs-tools/conf.d" "$T/var/log"
+echo baremetal > "$T/etc/orion/profile"
+echo orionos > "$T/etc/hostname"
+# The keyboard layout for the passphrase at start (the initramfs gets the console keymap)
+if [ "$ENC" = yes ]; then
+  if [ -f "$T/etc/default/keyboard" ]; then sed -i "s/^XKBLAYOUT=.*/XKBLAYOUT=\"$KEYMAP\"/" "$T/etc/default/keyboard"
+  else printf 'XKBMODEL="pc105"\nXKBLAYOUT="%s"\nXKBVARIANT=""\nXKBOPTIONS=""\nBACKSPACE="guess"\n' "$KEYMAP" > "$T/etc/default/keyboard"; fi
+  echo KEYMAP=y > "$T/etc/initramfs-tools/conf.d/orion-keymap"
+fi
+# Nothing of the stick's own start-up stays active here: no slots, no stick grubenv, no vault unlock, no welcome,
+# no apt guard (apt works normally on an installed system), logs kept on disk.
+rm -f "$T/etc/systemd/system/multi-user.target.wants/orion-welcome.service" \
+      "$T/etc/systemd/system/graphical.target.wants/orion-slot-good.service" \
+      "$T/etc/systemd/system/orion-welcome.service" "$T/etc/systemd/system/orion-slot-good.service" \
+      "$T/usr/local/bin/orion-slot" "$T/usr/local/sbin/orion-apt-guard" "$T/etc/apt/apt.conf.d/01orion-slot-guard" \
+      "$T/etc/systemd/journald.conf.d/90-orion-usb.conf" "$T/etc/casper.conf"
+rm -f "$T"/etc/systemd/system/{apt-daily,apt-daily-upgrade,unattended-upgrades}.service.d/60-orion-slot.conf
+rm -f "$T/usr/share/initramfs-tools/scripts/casper-premount/10orion_vault" "$T/usr/share/initramfs-tools/hooks/orion_vault"
+: > "$T/etc/machine-id"
+# NVIDIA card (B4): Sway needs NVIDIA's own driver with kernel mode setting on. The NVIDIA image already has it;
+# otherwise install it now (Ubuntu's ubuntu-drivers picks the right one; else the ready-built 580 packages).
+has_nvidia() {
+  local d
+  for d in /sys/bus/pci/devices/*; do
+    [ "$(cat "$d/vendor" 2>/dev/null)" = 0x10de ] && case "$(cat "$d/class" 2>/dev/null)" in 0x03*) return 0 ;; esac
+  done
+  return 1
+}
+NVIDIA=no; has_nvidia && NVIDIA=yes
+CMDLINE="quiet splash${RESUME:+ $RESUME}"
+[ "$NVIDIA" = yes ] && CMDLINE="$CMDLINE nvidia-drm.modeset=1 nvidia-drm.fbdev=1"
+mkdir -p "$T/etc/default/grub.d"
+cat > "$T/etc/default/grub.d/90-orionos.cfg" <<CFG
+GRUB_DISTRIBUTOR="OrionOS"
+# "saved": so "Restart into Windows" can pick Windows for one start (grub-reboot) when the firmware can't
+GRUB_DEFAULT=saved
+GRUB_TIMEOUT=5
+GRUB_TIMEOUT_STYLE=menu
+GRUB_DISABLE_OS_PROBER=false
+GRUB_CMDLINE_LINUX_DEFAULT="$CMDLINE"
+CFG
+if [ "$NVIDIA" = yes ]; then
+  say "NVIDIA graphics card found: setting up its driver…"
+  printf 'options nvidia-drm modeset=1 fbdev=1\n' > "$T/etc/modprobe.d/orion-nvidia.conf"
+  chroot "$T" /bin/sh -c '
+    export DEBIAN_FRONTEND=noninteractive
+    KV="$(ls /lib/modules | sort -V | tail -n1)"
+    modinfo -k "$KV" nvidia >/dev/null 2>&1 && exit 0
+    apt-get update -q >/dev/null 2>&1 || true
+    if command -v ubuntu-drivers >/dev/null 2>&1 && ubuntu-drivers install; then :
+    else apt-get install -y -q --no-install-recommends "nvidia-driver-${ORION_NVIDIA_PKG:-580}" "linux-modules-nvidia-${ORION_NVIDIA_PKG:-580}-generic"; fi
+    modinfo -k "$KV" nvidia >/dev/null 2>&1' \
+    && say "NVIDIA driver ready." \
+    || warn "The NVIDIA driver couldn't be installed (no internet?). OrionOS starts with the basic driver; later run: sudo ubuntu-drivers install"
+fi
+REMOVABLE=""; [ "$MODE" = erase ] && REMOVABLE=1
+chroot "$T" /usr/bin/env ORION_INSTALLING=1 REMOVABLE="$REMOVABLE" /bin/sh -e <<'IN'
+export DEBIAN_FRONTEND=noninteractive
+systemd-machine-id-setup >/dev/null
+dpkg -l casper >/dev/null 2>&1 && apt-get purge -y -q casper >/dev/null || true
+userdel -r ubuntu 2>/dev/null || true
+command -v setupcon >/dev/null && setupcon --save-only --force >/dev/null 2>&1 || true
+KV="$(ls /lib/modules | sort -V | tail -n1)"
+[ -e "/boot/vmlinuz-$KV" ] || cp "/lib/modules/$KV/vmlinuz" "/boot/vmlinuz-$KV" 2>/dev/null || true
+update-initramfs -c -k "$KV" >/dev/null 2>&1 || update-initramfs -u -k all
+# Files only (--no-nvram): the firmware's boot list is set below, deliberately
+grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=orionos --uefi-secure-boot --no-nvram >/dev/null
+# A whole drive of our own: also the firmware's fallback path, in case its boot list gets lost
+[ -z "$REMOVABLE" ] || grub-install --target=x86_64-efi --efi-directory=/boot/efi --uefi-secure-boot --removable --no-nvram >/dev/null
+grub-editenv /boot/grub/grubenv create
+update-grub >/dev/null 2>&1
+IN
+# The firmware's boot list: one "OrionOS" entry, placed after Windows (default) or first
+if [ -d /sys/firmware/efi/efivars ]; then
+  efibootmgr > "$W/efi-old.txt"
+  for n in $(python3 -I "$DUALBOOT" entries --efibootmgr "$W/efi-old.txt" --label OrionOS); do efibootmgr -q -b "$n" -B || true; done
+  LOADER='\EFI\orionos\shimx64.efi'; [ -f "$T/boot/efi/EFI/orionos/shimx64.efi" ] || LOADER='\EFI\orionos\grubx64.efi'
+  ESPNUM="$(lsblk -no PARTN "$ESP" | head -n1)"
+  efibootmgr -q --create --disk "$DISK" --part "$ESPNUM" --label "OrionOS" --loader "$LOADER"
+  efibootmgr > "$W/efi.txt"
+  NEWE="$(python3 -I "$DUALBOOT" entries --efibootmgr "$W/efi.txt" --label OrionOS | head -n1)"
+  if [ -n "$NEWE" ]; then
+    ORDER="$(python3 -I "$DUALBOOT" boot-order --efibootmgr "$W/efi.txt" --new "$NEWE" --first "$FIRST")"
+    efibootmgr -q -o "$ORDER"
+    echo "Firmware boot order: $ORDER (OrionOS is $NEWE, $( [ "$FIRST" = windows ] && echo 'after Windows' || echo 'first'))"
+  else
+    warn "OrionOS couldn't be added to the computer's boot list; pick it from the boot menu as \"UEFI OS\" or add it in the firmware settings."
+  fi
+else
+  warn "This computer doesn't start in UEFI mode, so the firmware's boot list wasn't changed."
+fi
+if [ "$FS" = btrfs ]; then
+  # snapper's settings, then the first snapshot: the system exactly as installed
+  chroot "$T" /bin/sh -c 'orion-snapshot setup-btrfs && orion-snapshot take --why "as installed" --quiet' \
+    || warn "Snapshots couldn't be set up; OrionOS works without them (orion-snapshot status explains)."
+fi
+
+# ------------------------------------------------------------------ 8. done
+STAGE=done
+cp "$LOG" "$T/var/log/orion-install-disk.log" 2>/dev/null || true
+for d in sys/firmware/efi/efivars run sys proc dev/pts dev boot/efi boot swap .snapshots home; do umount "$T/$d" 2>/dev/null || true; done
+umount "$T"
+[ "$ENC" = yes ] && cryptsetup close orion-root
+[ "$FS" = btrfs ] && say "Snapshots are on: one before every update and one each night. Undo with: orion-ctl undo"
+[ -n "$RESUME" ] && echo "Hibernation is possible (Settings > Power), unless Secure Boot's lockdown blocks it on this computer."
+if [ "$MODE" = alongside ] && [ "$FIRST" = windows ]; then
+  say "Installed. Remove the USB stick. Windows still starts by itself; to start OrionOS, use the computer's boot menu (often F12, F9 or Esc at power-on) and pick OrionOS."
+else
+  say "Installed. Remove the USB stick and restart: OrionOS starts$( [ "$MODE" = alongside ] && echo ', and its menu lists Windows too')."
+fi

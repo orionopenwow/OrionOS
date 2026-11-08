@@ -1,0 +1,110 @@
+[
+  {
+    "id": 4,
+    "type": "output",
+    "name": "DP-1",
+    "make": "LG Electronics",
+    "model": "LG HDR 4K",
+    "serial": "0x0000B2F1",
+    "active": true,
+    "dpms": true,
+    "power": true,
+    "primary": false,
+    "non_desktop": false,
+    "modes": [
+      {
+        "width": 3840,
+        "height": 2160,
+        "refresh": 60000,
+        "picture_aspect_ratio": "none"
+      },
+      {
+        "width": 3840,
+        "height": 2160,
+        "refresh": 30000,
+        "picture_aspect_ratio": "none"
+      },
+      {
+        "width": 2560,
+        "height": 1440,
+        "refresh": 59951,
+        "picture_aspect_ratio": "none"
+      },
+      {
+        "width": 1920,
+        "height": 1080,
+        "refresh": 60000,
+        "picture_aspect_ratio": "none"
+      }
+    ],
+    "focused": true,
+    "subpixel_hinting": "rgb",
+    "adaptive_sync_status": "disabled",
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "width": 3840,
+      "height": 2160
+    },
+    "scale": 1.0,
+    "scale_filter": "linear",
+    "transform": "normal",
+    "current_workspace": "1",
+    "current_mode": {
+      "width": 3840,
+      "height": 2160,
+      "refresh": 60000,
+      "picture_aspect_ratio": "none"
+    },
+    "max_render_time": "off"
+  },
+  {
+    "id": 6,
+    "type": "output",
+    "name": "HDMI-A-1",
+    "make": "LG Electronics",
+    "model": "LG HDR 4K",
+    "serial": "0x0000B3A7",
+    "active": false,
+    "dpms": false,
+    "power": false,
+    "primary": false,
+    "non_desktop": false,
+    "modes": [
+      {
+        "width": 3840,
+        "height": 2160,
+        "refresh": 60000,
+        "picture_aspect_ratio": "none"
+      },
+      {
+        "width": 3840,
+        "height": 2160,
+        "refresh": 30000,
+        "picture_aspect_ratio": "none"
+      },
+      {
+        "width": 2560,
+        "height": 1440,
+        "refresh": 59951,
+        "picture_aspect_ratio": "none"
+      },
+      {
+        "width": 1920,
+        "height": 1080,
+        "refresh": 60000,
+        "picture_aspect_ratio": "none"
+      }
+    ],
+    "focused": false,
+    "subpixel_hinting": "unknown",
+    "adaptive_sync_status": "disabled",
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0
+    },
+    "current_workspace": null
+  }
+]

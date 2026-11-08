@@ -1,0 +1,25 @@
+#!/bin/sh
+# OrionOS boot splash extras for the initramfs: the reduced-motion theme (GRUB picks it with
+# plymouth.splash=orion-still when reduced motion is on) and Orion's fonts for the splash's few words.
+# Plymouth's own hook already copies the default theme (orion), its frames and the script plugin.
+PREREQ="plymouth"
+prereqs() { echo "$PREREQ"; }
+case "$1" in prereqs) prereqs; exit 0 ;; esac
+T=/usr/share/plymouth/themes
+if [ -d "$T/orion-still" ]; then
+  # orion-still shares the orion theme's pictures; the links are made here (not kept in git, so a Windows
+  # checkout can't turn them into text files). They're needed in the system too, for the shutdown splash.
+  for f in frames star.png star-cyan.png orbit.png blackhole.png; do
+    [ -e "$T/orion-still/$f" ] || ln -sfn "../orion/$f" "$T/orion-still/$f"
+  done
+  mkdir -p "${DESTDIR}$T"
+  cp -a "$T/orion-still" "${DESTDIR}$T/"
+fi
+# Figtree / Unbounded for the prompt and messages (fontconfig in the initramfs scans /usr/share/fonts)
+if [ -d /usr/share/fonts/truetype/orion ]; then
+  mkdir -p "${DESTDIR}/usr/share/fonts/truetype/orion"
+  for f in /usr/share/fonts/truetype/orion/*; do
+    case "$(basename "$f")" in [Ff]igtree*|[Uu]nbounded*) cp -a "$f" "${DESTDIR}/usr/share/fonts/truetype/orion/" ;; esac
+  done
+fi
+exit 0

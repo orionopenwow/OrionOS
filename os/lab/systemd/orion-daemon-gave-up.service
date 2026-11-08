@@ -1,0 +1,7 @@
+# OrionOS: said once when Orion's brain (orion-daemon.service) keeps stopping and systemd stops restarting it.
+[Unit]
+Description=Tell the user that Orion's brain stopped
+
+[Service]
+Type=oneshot
+ExecStart=-/usr/bin/notify-send -u critical -a Orion "Orion's brain stopped" "It kept stopping, so it isn't being restarted any more. Your apps and files are fine. Press Ctrl+Alt+Delete for the Rescue panel (Send a report, Undo the last update), or restart the computer."

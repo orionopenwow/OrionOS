@@ -1,0 +1,462 @@
+#!/usr/bin/env python3
+"""orion-selftest: OrionOS's self-test suite (docs/ORIONOS_COMPLETE_PLAN.md Part 3 "Self-test suite").
+
+    orion-selftest run [--json] [--vm-image IMG | --no-vm "why"]
+        - Orion's daemon tests, when a development copy of Orion is on this computer
+        - the health checks (Orion's brain answers and nothing fails)
+        - a screenshot check of the screen (not black, not one flat colour)
+        - a voice loopback when a microphone and speaker exist: Orion says a short phrase (espeak-ng or
+          ORION_TTS_CMD) and checks Whisper hears it (apps/daemon/voice_loopback.py); without a voice or Whisper,
+          a plain tone. Advisory: a headset or a loud room can miss it, so it never fails the run by itself
+        - with --vm-image: boot that image in QEMU with os/image/test-boot.sh (Secure Boot on, a USB stick), wait
+          for the desktop, take a screenshot, ask Orion's health route inside the VM through the debug shell, stop
+    orion-selftest can-vm [--json]      can this computer run the VM test? (QEMU, KVM, firmware, memory, disk)
+    orion-selftest after-update KIND    (root hook) tell Orion an update just ran, so it checks its health again
+
+Exit 0 when everything that ran passed. With --json the last line is {"ok", "parts": [...], "vm": {...}}.
+Everything outside goes through environment variables tests can point at fakes (ORION_TEST_BOOT, ORION_QEMU,
+ORION_KVM, ORION_OVMF_DIR, ORION_SELFTEST_MEMINFO, ORION_API, ORION_SRC, ...).
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import math
+import os
+import re
+import shutil
+import struct
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.request
+import wave
+from pathlib import Path
+from typing import Any, Optional
+
+API = os.environ.get("ORION_API", f"http://127.0.0.1:{os.environ.get('ORION_PORT', '9120')}")
+SRC = Path(os.environ.get("ORION_SRC", "/opt/orion-src"))
+BOOT_RE = re.compile(r"Reached target .*(Graphical Interface|graphical\.target)|Started greetd")
+MIN_RAM_GB = float(os.environ.get("ORION_SELFTEST_MIN_RAM_GB", "5"))
+MIN_DISK_GB = float(os.environ.get("ORION_SELFTEST_MIN_DISK_GB", "20"))
+
+
+def part(name: str, ok: bool, message: str = "", skipped: bool = False, advisory: bool = False) -> dict[str, Any]:
+    return {"name": name, "ok": bool(ok), "message": message, "skipped": skipped, "advisory": advisory}
+
+
+def sh(argv: list[str], timeout: float = 120, **kw: Any) -> tuple[int, str]:
+    try:
+        r = subprocess.run(argv, capture_output=True, text=True, timeout=timeout, **kw)
+        return r.returncode, (r.stdout or "") + (r.stderr or "")
+    except FileNotFoundError:
+        return 127, f"{argv[0]} isn't installed"
+    except subprocess.TimeoutExpired:
+        return 124, "it took too long"
+
+
+def daemon_token() -> str:
+    """Orion's per-start API key (review B1; written 0600 by the daemon, apps/daemon/api_token.py). Root helpers
+    (apt hooks, timers) look in the session user's runtime folder too. '' when Orion isn't running."""
+    import pwd as _pwd
+    cands = [os.environ.get("ORION_TOKEN_FILE", "")]
+    uid = os.getuid() if hasattr(os, "getuid") else -1
+    cands.append(os.path.join(os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{uid}", "orion", "daemon.token"))
+    homes = [os.path.expanduser(os.environ.get("ORION_DATA_DIR", "~/.orion"))]
+    if uid == 0:
+        try:
+            pw = _pwd.getpwnam(os.environ.get("ORION_USER", "orion"))
+            cands.append(f"/run/user/{pw.pw_uid}/orion/daemon.token")
+            homes.append(os.path.join(pw.pw_dir, ".orion"))
+        except KeyError:
+            pass
+    cands += [os.path.join(h, "daemon.token") for h in homes]
+    for c in cands:
+        try:
+            with open(c, encoding="utf-8") as f:
+                tok = f.read().strip()
+        except OSError:
+            continue
+        if tok:
+            return tok
+    return ""
+
+
+def daemon_headers(extra: Optional[dict] = None) -> dict:
+    tok = daemon_token()
+    return {**({"Authorization": f"Bearer {tok}"} if tok else {}), **(extra or {})}
+
+
+def http_json(url: str, body: Optional[dict] = None, timeout: float = 20) -> Optional[Any]:
+    data = json.dumps(body).encode() if body is not None else None
+    req = urllib.request.Request(url, data=data, method="POST" if data else "GET",
+                                 headers=daemon_headers({"content-type": "application/json"} if data else {}))
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310 (local daemon only)
+            return json.loads(r.read().decode() or "null")
+    except Exception:
+        return None
+
+
+# =====================================================================================  pictures
+def ppm_spread(path: Path) -> Optional[float]:
+    """Standard deviation of a sample of a binary PPM's bytes (0 = one flat colour). None if unreadable."""
+    try:
+        raw = path.read_bytes()
+    except OSError:
+        return None
+    m = re.match(rb"P6\s+(?:#[^\n]*\n\s*)*(\d+)\s+(\d+)\s+(\d+)\s", raw)
+    if not m:
+        return None
+    px = raw[m.end():]
+    if not px:
+        return None
+    step = max(1, len(px) // 200_000)
+    sample = px[::step]
+    mean = sum(sample) / len(sample)
+    return math.sqrt(sum((b - mean) ** 2 for b in sample) / len(sample))
+
+
+def looks_alive(path: Path) -> tuple[bool, str]:
+    s = ppm_spread(path)
+    if s is None:
+        return False, "the screenshot couldn't be read"
+    if s < 6:
+        return False, "the screen is one flat colour (black or blank)"
+    return True, "the screen shows something"
+
+
+# =====================================================================================  parts
+def daemon_tests() -> dict[str, Any]:
+    tests = SRC / "apps/daemon/tests"
+    if not tests.is_dir():
+        return part("Orion's own tests", True, "no development copy of Orion on this computer", skipped=True)
+    py = os.environ.get("ORION_DAEMON_PYTHON") or next(
+        (str(p) for p in (SRC / "apps/daemon/.venv/bin/python", Path("/opt/orion/venv/bin/python")) if p.exists()),
+        sys.executable)
+    rc, out = sh([py, "-m", "pytest", "-q", "-x", "-p", "no:cacheprovider", str(tests)],
+                 timeout=float(os.environ.get("ORION_SELFTEST_TEST_TIMEOUT", "1800")), cwd=str(tests.parent))
+    last = (out.strip().splitlines() or [""])[-1][:160]
+    if rc == 0:
+        return part("Orion's own tests", True, last)
+    if "No module named pytest" in out:
+        return part("Orion's own tests", True, "pytest isn't installed here", skipped=True)
+    return part("Orion's own tests", False, last or f"exit {rc}")
+
+
+def health() -> dict[str, Any]:
+    st = http_json(f"{API}/health/status?refresh=1", timeout=30)
+    if not isinstance(st, dict) or "checks" not in st:
+        return part("Health checks", False, "Orion's brain isn't answering")
+    fails = [c.get("label", c.get("id")) for c in st.get("checks") or [] if c.get("status") == "fail"]
+    if fails:
+        return part("Health checks", False, "failing: " + ", ".join(map(str, fails)))
+    return part("Health checks", True, str(st.get("words") or "fine")[:160])
+
+
+def screen() -> dict[str, Any]:
+    if not os.environ.get("WAYLAND_DISPLAY") or not shutil.which(os.environ.get("ORION_GRIM", "grim")):
+        return part("Screen check", True, "no desktop to look at here", skipped=True)
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d) / "screen.ppm"
+        rc, out = sh([os.environ.get("ORION_GRIM", "grim"), "-t", "ppm", str(p)], 30)
+        if rc != 0:
+            return part("Screen check", False, "couldn't take a screenshot: " + out.strip()[-120:])
+        ok, why = looks_alive(p)
+        return part("Screen check", ok, why)
+
+
+def tone(path: Path, seconds: float = 1.0, hz: float = 1000.0, rate: int = 48000) -> None:
+    with wave.open(str(path), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes(b"".join(struct.pack("<h", int(12000 * math.sin(2 * math.pi * hz * i / rate)))
+                               for i in range(int(rate * seconds))))
+
+
+def wav_rms(path: Path) -> float:
+    try:
+        with wave.open(str(path), "rb") as w:
+            if w.getsampwidth() != 2:
+                return 0.0
+            frames = w.readframes(w.getnframes())
+    except (OSError, wave.Error, EOFError):
+        return 0.0
+    n = len(frames) // 2
+    if not n:
+        return 0.0
+    vals = struct.unpack(f"<{n}h", frames[: n * 2])
+    return math.sqrt(sum(v * v for v in vals) / n)
+
+
+def play_and_record(play: str, rec: str, sound: Path, got: Path) -> None:
+    """Play `sound` out of the speaker while recording the microphone into `got`."""
+    recp = subprocess.Popen([rec, "--rate", "48000", "--channels", "1", "--format", "s16", str(got)],
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    time.sleep(0.3)
+    sh([play, str(sound)], 30)
+    time.sleep(0.4)
+    recp.terminate()
+    try:
+        recp.wait(5)
+    except subprocess.TimeoutExpired:
+        recp.kill()
+
+
+def daemon_python() -> str:
+    return os.environ.get("ORION_DAEMON_PYTHON") or next(
+        (str(p) for p in (SRC / "apps/daemon/.venv/bin/python", Path("/opt/orion/venv/bin/python")) if p.exists()),
+        sys.executable)
+
+
+def loopback_script() -> Optional[Path]:
+    """apps/daemon/voice_loopback.py: the phrase check, run in the daemon's Python (where Whisper lives)."""
+    for p in (os.environ.get("ORION_LOOPBACK", ""), "/opt/orion/daemon/voice_loopback.py",
+              str(SRC / "apps/daemon/voice_loopback.py"),
+              str(Path(__file__).resolve().parents[3] / "apps/daemon/voice_loopback.py")):
+        if p and Path(p).is_file():
+            return Path(p)
+    return None
+
+
+def say_to_wav(text: str, out: Path) -> bool:
+    """Orion's local speech for the test phrase: ORION_TTS_CMD (gets TEXT and OUT), else espeak-ng."""
+    custom = os.environ.get("ORION_TTS_CMD", "")
+    if custom:
+        rc, _ = sh(["sh", "-c", custom, "tts", text, str(out)], 60)
+    elif shutil.which("espeak-ng"):
+        rc, _ = sh(["espeak-ng", "-s", "150", "-w", str(out), text], 60)
+    else:
+        return False
+    return rc == 0 and out.exists() and out.stat().st_size > 1000
+
+
+def speech_loopback(play: str, rec: str) -> Optional[dict[str, Any]]:
+    """Say a phrase, record it, ask Whisper what it heard. None when TTS or Whisper isn't here (then: tone)."""
+    script = loopback_script()
+    if script is None:
+        return None
+    py = daemon_python()
+    rc, phrase = sh([py, str(script), "phrase"], 30)
+    phrase = phrase.strip().splitlines()[-1] if rc == 0 and phrase.strip() else ""
+    if not phrase:
+        return None
+    with tempfile.TemporaryDirectory() as d:
+        said, got = Path(d) / "said.wav", Path(d) / "heard.wav"
+        if not say_to_wav(phrase, said):
+            return None
+        play_and_record(play, rec, said, got)
+        rc, out = sh([py, str(script), "check", str(got), phrase],
+                     float(os.environ.get("ORION_SELFTEST_STT_TIMEOUT", "300")))
+    try:
+        res = json.loads(out.strip().splitlines()[-1])
+    except (ValueError, IndexError):
+        return part("Voice loopback", False, "the speech check didn't answer", advisory=True)
+    if res.get("skipped"):
+        return None
+    if res.get("ok"):
+        return part("Voice loopback", True, f"Orion said a phrase and heard it back (\"{res.get('heard', '')[:60]}\")",
+                    advisory=True)
+    heard = res.get("heard") or "nothing"
+    return part("Voice loopback", False, f"Orion said a phrase but heard \"{heard[:60]}\" (a headset, a muted "
+                "microphone or a loud room does this)", advisory=True)
+
+
+def voice() -> dict[str, Any]:
+    play, rec = shutil.which(os.environ.get("ORION_PW_PLAY", "pw-play")), shutil.which(os.environ.get("ORION_PW_RECORD", "pw-record"))
+    if not play or not rec:
+        return part("Voice loopback", True, "no sound system here", skipped=True, advisory=True)
+    rc, _ = sh([os.environ.get("ORION_WPCTL", "wpctl"), "inspect", "@DEFAULT_AUDIO_SOURCE@"], 10)
+    rc2, _ = sh([os.environ.get("ORION_WPCTL", "wpctl"), "inspect", "@DEFAULT_AUDIO_SINK@"], 10)
+    if rc != 0 or rc2 != 0:
+        return part("Voice loopback", True, "no microphone or speaker", skipped=True, advisory=True)
+    spoken = speech_loopback(play, rec)
+    if spoken is not None:
+        return spoken
+    # no speech voice or no Whisper here: the plain tone check (speaker -> microphone)
+    with tempfile.TemporaryDirectory() as d:
+        t, got = Path(d) / "tone.wav", Path(d) / "heard.wav"
+        tone(t)
+        play_and_record(play, rec, t, got)
+        rms = wav_rms(got)
+    if rms > float(os.environ.get("ORION_SELFTEST_HEAR_RMS", "300")):
+        return part("Voice loopback", True, "the microphone heard the speaker (tone only: no speech voice or "
+                    "Whisper here)", advisory=True)
+    return part("Voice loopback", False, "the microphone didn't hear the test tone (a headset or a muted "
+                "microphone does this)", advisory=True)
+
+
+# =====================================================================================  the VM
+def test_boot() -> Optional[str]:
+    for p in (os.environ.get("ORION_TEST_BOOT", ""), "/usr/local/share/orion/selftest/test-boot.sh",
+              str(SRC / "os/image/test-boot.sh")):
+        if p and os.path.isfile(p):
+            return p
+    return None
+
+
+def meminfo_available_gb() -> float:
+    try:
+        for line in Path(os.environ.get("ORION_SELFTEST_MEMINFO", "/proc/meminfo")).read_text().splitlines():
+            if line.startswith("MemAvailable:"):
+                return int(line.split()[1]) / 1024 ** 2
+    except (OSError, ValueError, IndexError):
+        pass
+    return 0.0
+
+
+def workdir() -> Path:
+    base = os.environ.get("ORION_SELFTEST_DIR") or os.path.join(os.environ.get("XDG_CACHE_HOME") or
+                                                                 os.path.expanduser("~/.cache"), "orion-selftest")
+    return Path(base)
+
+
+def can_vm() -> dict[str, Any]:
+    qemu = shutil.which(os.environ.get("ORION_QEMU", "qemu-system-x86_64"))
+    if not qemu:
+        return {"ok": False, "why": "QEMU isn't installed"}
+    kvm = os.environ.get("ORION_KVM", "/dev/kvm")
+    if not (os.path.exists(kvm) and os.access(kvm, os.R_OK | os.W_OK)):
+        return {"ok": False, "why": "this computer can't run VMs at full speed (no KVM access)"}
+    ovmf = Path(os.environ.get("ORION_OVMF_DIR", "/usr/share/OVMF"))
+    if not (ovmf / "OVMF_CODE_4M.secboot.fd").exists() or not (ovmf / "OVMF_VARS_4M.ms.fd").exists():
+        return {"ok": False, "why": "the VM firmware (ovmf) isn't installed"}
+    if not shutil.which(os.environ.get("ORION_MCOPY", "mcopy")):
+        return {"ok": False, "why": "mtools isn't installed"}
+    if not test_boot():
+        return {"ok": False, "why": "the boot test script isn't on this computer"}
+    ram = meminfo_available_gb()
+    if ram < MIN_RAM_GB:
+        return {"ok": False, "why": f"not enough free memory ({ram:.1f} GB free, {MIN_RAM_GB:.0f} GB needed)"}
+    w = workdir()
+    w.mkdir(parents=True, exist_ok=True)
+    free = shutil.disk_usage(w).free / 1024 ** 3
+    if free < MIN_DISK_GB:
+        return {"ok": False, "why": f"not enough free disk space ({free:.0f} GB free, {MIN_DISK_GB:.0f} GB needed)"}
+    return {"ok": True, "why": ""}
+
+
+def _wait_serial(serial: Path, pattern: re.Pattern, timeout: float, poll: float) -> Optional[str]:
+    end = time.time() + timeout
+    while time.time() < end:
+        try:
+            text = serial.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            text = ""
+        m = pattern.search(text)
+        if m:
+            return text
+        time.sleep(poll)
+    return None
+
+
+def vm(image: str) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    tb = test_boot()
+    if not tb:
+        return [part("VM boot", False, "the boot test script is missing")], {"ran": False}
+    w = workdir() / "vm"
+    w.mkdir(parents=True, exist_ok=True)
+    os.environ["ORION_TEST_DIR"] = str(w)        # test-boot.sh's "stop" only reads the folder from here
+    timeout = float(os.environ.get("ORION_SELFTEST_VM_TIMEOUT", "900"))
+    poll = float(os.environ.get("ORION_SELFTEST_POLL", "5"))
+    settle = float(os.environ.get("ORION_SELFTEST_SETTLE", "150"))
+    parts: list[dict[str, Any]] = []
+    info: dict[str, Any] = {"ran": True, "image": image}
+    rc, out = sh(["bash", tb, "start", image, str(w)], 600)
+    if rc != 0:
+        return [part("VM boot", False, "QEMU didn't start: " + out.strip()[-160:])], {"ran": False}
+    try:
+        serial = w / "serial.log"
+        booted = _wait_serial(serial, BOOT_RE, timeout, poll)
+        if booted is None:
+            parts.append(part("VM boot", False, f"the desktop didn't come up within {int(timeout // 60)} minutes"))
+            return parts, info
+        parts.append(part("VM boot", True, "the new version started to the desktop"))
+        time.sleep(settle)                       # the Orion screen and brain start after the desktop
+        sh(["bash", tb, "shot", "selftest", str(w)], 60)
+        ok, why = looks_alive(w / "selftest.ppm")
+        parts.append(part("VM screen", ok, why))
+        info["screenshot"] = str(w / "selftest.png") if (w / "selftest.png").exists() else str(w / "selftest.ppm")
+        # Orion's health route inside the VM, read through the debug shell (tty9) onto the serial log
+        sh(["bash", tb, "keys", "ctrl-alt-f9", str(w)], 30)
+        time.sleep(2)
+        sh(["bash", tb, "type", "curl -s -H \"Authorization: Bearer $(cat /run/user/$(id -u orion)/orion/daemon.token)\" "
+            "'http://127.0.0.1:9120/health/status?refresh=1' | tr -d '\\n' > "
+            "/dev/ttyS0; echo; echo ORION-HEALTH-END > /dev/ttyS0", str(w)], 120)
+        text = _wait_serial(serial, re.compile(r"ORION-HEALTH-END"), 120, poll) or ""
+        m = None
+        for m in re.finditer(r"\{\"status\":.*?\"at\":\s*[\d.]+\}", text):
+            pass
+        if m is None:
+            parts.append(part("VM health", False, "Orion's brain didn't answer inside the VM"))
+        else:
+            try:
+                st = json.loads(m.group(0))
+                fails = [c.get("label") for c in st.get("checks") or [] if c.get("status") == "fail"]
+                parts.append(part("VM health", not fails, "failing: " + ", ".join(map(str, fails)) if fails else
+                                  "Orion answered inside the VM"))
+            except ValueError:
+                parts.append(part("VM health", False, "Orion's answer inside the VM couldn't be read"))
+        return parts, info
+    finally:
+        sh(["bash", tb, "stop", str(w)], 60)
+
+
+# =====================================================================================  commands
+def run(vm_image: str = "", no_vm: str = "") -> dict[str, Any]:
+    parts = [daemon_tests(), health(), screen(), voice()]
+    vm_info: dict[str, Any] = {"ran": False, "skipped": no_vm or "no image given"}
+    if vm_image:
+        vparts, vm_info = vm(vm_image)
+        parts += vparts
+    elif no_vm:
+        parts.append(part("Test run in a VM", True, f"skipped: {no_vm}", skipped=True))
+    ok = all(p["ok"] for p in parts if not p["skipped"] and not p["advisory"])
+    return {"ok": ok, "parts": parts, "vm": vm_info, "at": time.time()}
+
+
+def after_update(kind: str) -> int:
+    res = http_json(f"{API}/self/after-update", {"kind": kind}, timeout=120)
+    if res is None:
+        print("Orion's brain isn't answering; it will notice the update at its next health check.")
+    else:
+        print("Orion checked itself after the update: " + ("fine." if res.get("ok") else
+                                                           "something needs attention (see your phone)."))
+    return 0
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    ap = argparse.ArgumentParser(prog="orion-selftest", description="OrionOS self-test")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    r = sub.add_parser("run")
+    r.add_argument("--json", action="store_true")
+    g = r.add_mutually_exclusive_group()
+    g.add_argument("--vm-image", default="")
+    g.add_argument("--no-vm", default="")
+    c = sub.add_parser("can-vm")
+    c.add_argument("--json", action="store_true")
+    a = sub.add_parser("after-update")
+    a.add_argument("kind", nargs="?", default="security_update")
+    args = ap.parse_args(argv)
+    if args.cmd == "can-vm":
+        res = can_vm()
+        print(json.dumps(res) if args.json else ("Yes, this computer can run the VM test." if res["ok"] else
+                                                 f"No: {res['why']}."))
+        return 0 if res["ok"] else 1
+    if args.cmd == "after-update":
+        return after_update(args.kind)
+    res = run(args.vm_image, args.no_vm)
+    if args.json:
+        print(json.dumps(res))
+    else:
+        for p in res["parts"]:
+            mark = "skip" if p["skipped"] else ("ok  " if p["ok"] else ("note" if p["advisory"] else "FAIL"))
+            print(f"[{mark}] {p['name']}" + (f": {p['message']}" if p["message"] else ""))
+        print("Passed." if res["ok"] else "Failed.")
+    return 0 if res["ok"] else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

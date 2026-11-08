@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!-- OrionOS dual boot (os/dualboot). By default this asks for the admin password; 51-orion-dualboot.rules lets the
+     person at the computer restart into Windows once without it, and nothing else. -->
+<policyconfig>
+  <vendor>OrionOS</vendor>
+  <action id="ai.orion.dualboot.restart-windows">
+    <description>Restart into Windows once</description>
+    <message>Restarting into Windows needs permission.</message>
+    <defaults><allow_any>no</allow_any><allow_inactive>no</allow_inactive><allow_active>auth_admin_keep</allow_active></defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/opt/orion/dualboot/orion-dualboot-helper</annotate>
+  </action>
+</policyconfig>

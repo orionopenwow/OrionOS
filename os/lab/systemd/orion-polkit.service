@@ -1,0 +1,12 @@
+# OrionOS: Admin password window (polkit agent), started with the Sway session (sway-session.target).
+[Unit]
+Description=Admin password window (polkit agent)
+PartOf=sway-session.target
+After=sway-session.target
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+ExecStart=/usr/bin/env orion-polkit-agent
+Restart=on-failure
+RestartSec=2

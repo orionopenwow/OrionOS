@@ -1,0 +1,8 @@
+[
+ {"ifindex": 1, "ifname": "lo", "addr_info": [{"family": "inet", "local": "127.0.0.1", "prefixlen": 8},
+                                              {"family": "inet6", "local": "::1", "prefixlen": 128}]},
+ {"ifindex": 2, "ifname": "wlp2s0", "addr_info": [{"family": "inet", "local": "192.168.1.20", "prefixlen": 24},
+                                                  {"family": "inet6", "local": "fe80::1234:5678", "prefixlen": 64}]},
+ {"ifindex": 3, "ifname": "tailscale0", "addr_info": [{"family": "inet", "local": "100.101.102.103", "prefixlen": 32}]},
+ {"ifindex": 4, "ifname": "podman0", "addr_info": [{"family": "inet", "local": "10.88.0.1", "prefixlen": 16}]}
+]

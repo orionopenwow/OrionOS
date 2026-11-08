@@ -1,0 +1,10 @@
+#!/bin/sh
+# NetworkManager dispatcher hook (/etc/NetworkManager/dispatcher.d/): whenever a network comes or goes, port 9121
+# (Orion Mobile) is allowed on networks marked Home and closed on the rest (os/privacy/orion-phone-port).
+case "${2:-}" in
+  up|down|connectivity-change|dhcp4-change|reapply) ;;
+  *) exit 0 ;;
+esac
+[ -x /opt/orion/privacy/orion-phone-port ] || exit 0
+/opt/orion/privacy/orion-phone-port sync >/dev/null 2>&1 || true
+exit 0

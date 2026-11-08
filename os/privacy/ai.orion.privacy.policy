@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!-- OrionOS privacy basics (os/privacy). 50-orion-privacy.rules narrows who may use these without a password. -->
+<policyconfig>
+  <vendor>OrionOS</vendor>
+  <action id="ai.orion.privacy.first-password">
+    <description>Choose a first password for your own account</description>
+    <message>Choosing your first password</message>
+    <defaults><allow_any>no</allow_any><allow_inactive>no</allow_inactive><allow_active>auth_admin</allow_active></defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/opt/orion/privacy/orion-first-password</annotate>
+  </action>
+  <action id="ai.orion.privacy.phone-port">
+    <description>Let your phone reach Orion on the local network (pairing, Home networks)</description>
+    <message>Opening the phone port needs permission.</message>
+    <defaults><allow_any>no</allow_any><allow_inactive>no</allow_inactive><allow_active>auth_admin</allow_active></defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/opt/orion/privacy/orion-phone-port</annotate>
+  </action>
+</policyconfig>

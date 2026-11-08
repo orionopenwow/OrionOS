@@ -1,0 +1,20 @@
+#!/bin/sh
+# OrionOS on the USB stick: keep the logs when the vault is unlocked (H15).
+# The stick's image keeps logs in memory only (journald Storage=volatile, os/image/build.sh), so nothing about a
+# crash survives a restart. When the vault is open (/dev/mapper/orionvault: casper keeps /var on it), this turns on
+# saved logs, capped at 100 MB so they never fill the vault; with the vault locked, logs stay in memory as before.
+# On installed disks and the VM lab it does nothing (their logs are saved already).
+# Run at boot by orion-journal-vault.service.
+# [v1gaps] With logs in RAM (orion-log2ram: /var/log is a RAM disk copied to the vault hourly and at shutdown) the
+# saved journal is capped to fit that RAM disk (JOURNAL_MAX, default 48M); the vault's copy is the same size.
+DROP=/run/systemd/journald.conf.d
+[ -e /dev/mapper/orionvault ] || exit 0
+MAX=100M KEEP=500M
+if [ -e /run/orion-log2ram ]; then MAX="${JOURNAL_MAX:-48M}" KEEP=16M; fi
+mkdir -p "$DROP" /var/log/journal
+printf '[Journal]\n# OrionOS: the vault is unlocked, so logs are kept (orion-journal-vault)\nStorage=persistent\nSystemMaxUse=%s\nSystemKeepFree=%s\nMaxRetentionSec=1month\n' \
+  "$MAX" "$KEEP" > "$DROP/95-orion-vault.conf"
+systemd-tmpfiles --create --prefix /var/log/journal >/dev/null 2>&1 || true
+systemctl restart systemd-journald.service 2>/dev/null || true
+journalctl --flush >/dev/null 2>&1 || true
+exit 0

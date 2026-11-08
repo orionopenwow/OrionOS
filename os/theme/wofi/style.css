@@ -1,0 +1,23 @@
+/* Orion launcher (wofi): a frosted Event-glass panel, Figtree, a violet-to-cyan selected row. */
+window {
+  background-color: rgba(11, 15, 30, 0.92);
+  border: 1px solid rgba(124, 92, 255, 0.75);
+  border-radius: 18px;
+  font-family: "Figtree", "Nunito", "Noto Sans", sans-serif;
+  font-size: 14px;
+}
+#input {
+  margin: 12px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid #262D50;
+  background: #070A14;
+  color: #D8DEFF;
+  caret-color: #00E5FF;
+}
+#input:focus { border-color: #7C5CFF; box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.18); }
+#inner-box, #outer-box, #scroll { background: transparent; }
+#entry { padding: 8px 14px; margin: 2px 10px; border-radius: 12px; color: #D8DEFF; }
+#entry:selected { background: linear-gradient(90deg, #7C5CFF, #00B8D9); color: #ffffff; }
+#entry:selected #text { color: #ffffff; }
+#text { color: inherit; }

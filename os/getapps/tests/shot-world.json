@@ -1,0 +1,25 @@
+{
+  "apps": {
+    "com.spotify.Client": {"name": "Spotify", "version": "1.2.42", "commit": "sp1", "runtime": "runtime/org.freedesktop.Platform/x86_64/24.08"},
+    "com.obsproject.Studio": {"name": "OBS Studio", "version": "30.2.3", "commit": "obs1", "runtime": "runtime/org.kde.Platform/x86_64/6.7"},
+    "com.discordapp.Discord": {"name": "Discord", "version": "0.0.70", "commit": "dc1", "runtime": "runtime/org.freedesktop.Platform/x86_64/24.08"},
+    "org.videolan.VLC": {"name": "VLC", "version": "3.0.21", "commit": "vlc1", "runtime": "runtime/org.kde.Platform/x86_64/5.15-23.08"},
+    "md.obsidian.Obsidian": {"name": "Obsidian", "version": "1.6.7", "commit": "ob1", "runtime": "runtime/org.freedesktop.Platform/x86_64/24.08"}
+  },
+  "runtimes": {"runtime/org.freedesktop.Platform/x86_64/24.08": "rt1", "runtime/org.kde.Platform/x86_64/6.7": "kde1"},
+  "remote": {
+    "com.spotify.Client": {"name": "Spotify", "version": "1.2.47", "commit": "sp2", "summary": "Online music streaming service"},
+    "com.obsproject.Studio": {"name": "OBS Studio", "version": "31.0.0", "commit": "obs2", "summary": "Live streaming and video recording software"},
+    "com.discordapp.Discord": {"name": "Discord", "version": "0.0.70", "commit": "dc1", "summary": "Messaging, voice and video client"},
+    "org.videolan.VLC": {"name": "VLC", "version": "3.0.21", "commit": "vlc1", "summary": "VLC media player, the open-source multimedia player"},
+    "md.obsidian.Obsidian": {"name": "Obsidian", "version": "1.6.7", "commit": "ob1", "summary": "Markdown-based knowledge base"},
+    "org.kde.kdenlive": {"name": "Kdenlive", "version": "24.08.2", "commit": "kd1", "summary": "Video editor"},
+    "org.shotcut.Shotcut": {"name": "Shotcut", "version": "24.09", "commit": "sc1", "summary": "Video editor"},
+    "org.openshot.OpenShot": {"name": "OpenShot Video Editor", "version": "3.2.1", "commit": "os1", "summary": "Create and edit amazing videos and movies"},
+    "fr.handbrake.ghb": {"name": "HandBrake", "version": "1.8.2", "commit": "hb1", "summary": "Video transcoder"},
+    "io.github.celluloid_player.Celluloid": {"name": "Celluloid", "version": "0.27", "commit": "ce1", "summary": "Plain and simple video player"}
+  },
+  "remote_runtimes": {"runtime/org.freedesktop.Platform/x86_64/24.08": "rt1", "runtime/org.kde.Platform/x86_64/6.7": "kde1"},
+  "masked": ["md.obsidian.Obsidian"],
+  "broken": []
+}

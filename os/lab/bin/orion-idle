@@ -1,0 +1,21 @@
+#!/bin/sh
+# OrionOS idle and sleep (orion-idle.service, part of the Sway session):
+#   - before the computer sleeps (lid shut, Sleep button, low battery): lock the screen
+#   - after LOCK_AFTER minutes without input: lock the screen          (default 5)
+#   - after SCREEN_OFF_AFTER minutes without input: screens off        (default 10; any key or touch wakes them)
+#   - every 5 s without input: the marker Orion's pacing tracker reads (apps/daemon/linux_desktop.py)
+# Change the times in Settings > Lock & rescue (they're kept in ~/.config/orion/idle.conf; 0 = never).
+# Locking needs a password (first-run sets one); until then only the screen goes off.
+CONF="${XDG_CONFIG_HOME:-$HOME/.config}/orion/idle.conf"
+num() { v="$(sed -n "s/^$1=//p" "$CONF" 2>/dev/null | tail -n1 | tr -cd '0-9')"; echo "${v:-$2}"; }
+LOCK="$(num LOCK_AFTER 5)"
+OFF="$(num SCREEN_OFF_AFTER 10)"
+[ "$LOCK" -gt 240 ] && LOCK=240
+[ "$OFF" -gt 240 ] && OFF=240
+set -- -w \
+  timeout 5 'date +%s > "$XDG_RUNTIME_DIR/orion-idle-since"' resume 'rm -f "$XDG_RUNTIME_DIR/orion-idle-since"' \
+  before-sleep 'orion-lock --now' \
+  lock 'orion-lock --now'
+[ "$LOCK" -gt 0 ] && set -- "$@" timeout $((LOCK * 60)) 'orion-lock --idle'
+[ "$OFF" -gt 0 ] && set -- "$@" timeout $((OFF * 60)) 'swaymsg "output * power off"' resume 'swaymsg "output * power on"'
+exec swayidle "$@"

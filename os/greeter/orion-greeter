@@ -1,0 +1,245 @@
+#!/usr/bin/python3
+"""Orion login screen: a full-screen WebKit window (GTK4 + WebKitGTK 6) showing web/index.html, run by greetd
+inside the cage kiosk compositor (see orion-greeter-start).
+
+    orion-greeter            the real thing (needs $GREETD_SOCK, i.e. started by greetd)
+    orion-greeter --try      try it on your desktop in a window: the password "orion" works, nothing starts
+
+The password goes page -> here -> greetd once. It is never logged or written anywhere, and the page clears its
+field right after sending it. No network: an ephemeral web session, and only the page's own files load.
+"""
+from __future__ import annotations
+
+import base64
+import json
+import os
+import pwd
+import sys
+import threading
+
+HERE = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, HERE)
+from greetd_ipc import GreetdClient, GreetdError  # noqa: E402
+import greeter_logic as L  # noqa: E402
+
+import gi  # noqa: E402
+
+gi.require_version("Gtk", "4.0")
+gi.require_version("Gdk", "4.0")
+gi.require_version("WebKit", "6.0")
+from gi.repository import Gdk, GLib, Gtk, WebKit  # noqa: E402
+
+CONF = "/etc/orion/login.conf"
+PAGE = os.path.join(HERE, "web", "index.html")
+AVATARS = ["/var/lib/AccountsService/icons/{u}", "/etc/orion/greeter/avatar-{u}.png", "/etc/orion/greeter/avatar.png"]
+READY_TIMEOUT_S = 20   # the page must say "ready" by then, or we hand over to the text login
+
+
+def read_conf(path: str = CONF) -> dict[str, str]:
+    return L.read_conf(path)
+
+
+def user_info(user: str) -> dict:
+    name = user
+    try:
+        gecos = pwd.getpwnam(user).pw_gecos.split(",")[0].strip()
+        if gecos:
+            name = gecos
+    except KeyError:
+        pass
+    avatar = ""
+    for pat in AVATARS:
+        p = pat.format(u=user)
+        try:
+            if os.path.getsize(p) > 2 * 1024 * 1024:
+                continue
+            with open(p, "rb") as f:
+                data = f.read()
+        except OSError:
+            continue
+        mime = "image/png" if data[:4] == b"\x89PNG" else "image/jpeg" if data[:2] == b"\xff\xd8" else ""
+        if mime:
+            avatar = f"data:{mime};base64," + base64.b64encode(data).decode()
+            break
+    return {"user": user, "name": name, "avatar": avatar}
+
+
+class FakeGreetd:
+    """--try mode: behaves like greetd with the password "orion"."""
+
+    def authenticate(self, user, password):
+        from greetd_ipc import LoginResult
+        if password is None:   # --try in auto mode: straight in
+            return LoginResult(True)
+        ok = password == "orion"
+        del password
+        return LoginResult(ok, "" if ok else "wrong_password", "" if ok else "That's not it")
+
+    def start_session(self, cmd, env):
+        print("[try] would start:", cmd, env, flush=True)
+        return {"type": "success"}
+
+    def cancel_session(self):
+        pass
+
+    def close(self):
+        pass
+
+
+class Greeter(Gtk.Application):
+    def __init__(self, trying: bool):
+        super().__init__(application_id="ai.orion.Greeter")
+        self.trying = trying
+        conf = read_conf()
+        self.conf = conf
+        self.user = os.environ.get("ORION_GREETER_USER") or conf.get("LOGIN_USER", "orion")
+        self.target = "orion"   # "Start Orion again" or "Rescue desktop" (greeter_logic.py)
+        self.greetd = FakeGreetd() if trying else GreetdClient()
+        self.authed = False
+        self.busy = False
+        self.ready = False
+        self.exit_code = 1
+        self.view = None
+
+    # ---- window ----------------------------------------------------------------------------------------
+    def do_activate(self):
+        win = Gtk.ApplicationWindow(application=self, title="Orion")
+        win.set_decorated(False)
+        ucm = WebKit.UserContentManager()
+        cfg = L.page_config(self.conf, user_info(self.user))
+        ucm.add_script(WebKit.UserScript.new(
+            "window.ORION_GREETER = " + json.dumps(cfg) + ";",
+            WebKit.UserContentInjectedFrames.TOP_FRAME, WebKit.UserScriptInjectionTime.START, None, None))
+        ucm.register_script_message_handler("orion", None)
+        ucm.connect("script-message-received::orion", self.on_message)
+
+        settings = WebKit.Settings()
+        settings.set_enable_developer_extras(False)
+        settings.set_enable_write_console_messages_to_stdout(False)
+        settings.set_allow_file_access_from_file_urls(False)
+        if os.environ.get("ORION_GREETER_SOFTWARE"):
+            settings.set_hardware_acceleration_policy(WebKit.HardwareAccelerationPolicy.NEVER)
+
+        self.view = WebKit.WebView(user_content_manager=ucm, settings=settings,
+                                   network_session=WebKit.NetworkSession.new_ephemeral())
+        black = Gdk.RGBA()
+        black.parse("black")
+        self.view.set_background_color(black)
+        self.view.connect("decide-policy", self.on_policy)
+        self.view.connect("context-menu", lambda *a: True)
+        self.view.connect("load-failed", self.on_load_failed)
+        self.view.connect("web-process-terminated", lambda *a: self.finish(3))
+        self.view.load_uri(GLib.filename_to_uri(PAGE, None))
+        win.set_child(self.view)
+        if self.trying:
+            win.set_default_size(1280, 800)
+        else:
+            win.fullscreen()
+        win.present()
+        GLib.timeout_add_seconds(READY_TIMEOUT_S, self.check_ready)
+
+    def on_policy(self, view, decision, kind):
+        # Only our own page: no links, no new windows, no downloads.
+        if kind == WebKit.PolicyDecisionType.NAVIGATION_ACTION:
+            uri = decision.get_navigation_action().get_request().get_uri()
+            if not uri.startswith(GLib.filename_to_uri(PAGE, None)):
+                decision.ignore()
+                return True
+        elif kind == WebKit.PolicyDecisionType.NEW_WINDOW_ACTION:
+            decision.ignore()
+            return True
+        return False
+
+    def on_load_failed(self, *a):
+        self.finish(3)
+        return True
+
+    def check_ready(self):
+        if not self.ready:
+            self.finish(4)
+        return False
+
+    # ---- page <-> greetd -------------------------------------------------------------------------------
+    def on_message(self, ucm, value):
+        try:
+            msg = json.loads(value.to_string())
+        except (ValueError, TypeError):
+            return
+        kind = msg.get("type")
+        if kind == "ready":
+            self.ready = True
+        elif kind == "login" and not self.busy and not self.authed:
+            password = msg.pop("password", "")
+            self.target = L.clean_target(msg.get("target"))
+            nopass = msg.get("nopass") is True and L.login_mode(self.conf) == "auto"
+            del msg
+            if nopass:
+                password = None   # "Start Orion again" without a password (auto mode only)
+            elif not isinstance(password, str) or not password:
+                self.js("orionGreeter.result", {"ok": False, "message": "Type your password, then press Enter."})
+                return
+            self.busy = True
+            threading.Thread(target=self.do_login, args=(password,), daemon=True).start()
+            del password
+        elif kind == "start" and self.authed and not self.busy:
+            self.busy = True
+            threading.Thread(target=self.do_start, daemon=True).start()
+
+    def do_login(self, password):
+        try:
+            r = self.greetd.authenticate(self.user, password)
+            del password
+            out = {"ok": r.ok, "message": r.message, "reason": r.reason}
+            self.authed = r.ok
+        except GreetdError:
+            out = {"ok": False, "message": "The login service isn't answering. Try again in a moment."}
+        except Exception:  # never let a surprise leave the screen stuck on "checking"
+            out = {"ok": False, "message": "Something went wrong. Try again."}
+        self.busy = False
+        GLib.idle_add(self.js, "orionGreeter.result", out)
+
+    def do_start(self):
+        try:
+            rep = self.greetd.start_session(L.session_cmd(self.conf, self.target), L.session_env(self.target))
+            ok = rep.get("type") == "success"
+        except GreetdError:
+            ok = False
+        if ok:
+            GLib.idle_add(self.finish, 0)
+            return
+        self.greetd.cancel_session()
+        self.authed = False
+        self.busy = False
+        GLib.idle_add(self.js, "orionGreeter.startFailed", "Orion couldn't start. Try again.")
+
+    def js(self, fn: str, arg):
+        if self.view is not None:
+            self.view.evaluate_javascript(f"{fn}({json.dumps(arg)})", -1, None, None, None, None, None)
+        return False
+
+    def finish(self, code: int):
+        self.exit_code = code
+        status = os.environ.get("ORION_GREETER_STATUS")
+        if code == 0 and status:
+            try:
+                with open(status, "w") as f:
+                    f.write("started\n")
+            except OSError:
+                pass
+        self.greetd.close()
+        self.quit()
+        return False
+
+
+def main() -> int:
+    trying = "--try" in sys.argv[1:]
+    if not trying and not os.environ.get("GREETD_SOCK"):
+        print("orion-greeter: start me from greetd (or use --try to look at it).", file=sys.stderr)
+        return 2
+    app = Greeter(trying)
+    app.run([sys.argv[0]])
+    return app.exit_code
+
+
+if __name__ == "__main__":
+    sys.exit(main())

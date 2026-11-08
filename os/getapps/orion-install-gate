@@ -1,0 +1,32 @@
+#!/bin/sh
+# OrionOS Get apps: the install gate (H9). Installing a new Flatpak app without a password needs this gate open;
+# otherwise polkit asks for your password (you, at the computer, confirm it). Updates never need it.
+#   orion-install-gate check                    exit 0 while the gate is open (polkit's rule runs this)
+#   orion-install-gate open --approval FILE     open it for 10 minutes, if FILE is a valid phone approval
+#                                               (orion-approval-check install: your phone's fingerprint, < 5 min old)
+#   orion-install-gate open                     open it for 10 minutes; polkit asks for your password first
+#   orion-install-gate close
+# Root only (pkexec, action ai.orion.getapps.gate). The gate is one root-owned file in /run (gone at restart).
+GATE="${ORION_INSTALL_GATE:-/run/orion-install-gate}"
+CHECK="${ORION_APPROVAL_CHECK:-/opt/orion/safety/orion-approval-check}"
+OPEN_S=600
+now() { date +%s; }
+case "${1:-check}" in
+  check)
+    [ -f "$GATE" ] || exit 1
+    [ -n "${ORION_INSTALL_GATE:-}" ] || [ "$(stat -c %u "$GATE" 2>/dev/null)" = 0 ] || exit 1
+    until="$(head -c 20 "$GATE" 2>/dev/null | tr -cd '0-9')"
+    [ -n "$until" ] && [ "$(now)" -lt "$until" ] && { echo open; exit 0; }
+    exit 1 ;;
+  open)
+    [ "$(id -u)" -eq 0 ] || [ -n "${ORION_INSTALL_GATE:-}" ] || { echo "needs admin rights" >&2; exit 1; }
+    if [ "${2:-}" = --approval ]; then
+      [ -n "${3:-}" ] && "$CHECK" install "$3" || { echo "That isn't a valid approval from your phone." >&2; exit 4; }
+    fi
+    echo $(( $(now) + OPEN_S )) > "$GATE.tmp" && chmod 644 "$GATE.tmp" && mv "$GATE.tmp" "$GATE"
+    echo "Installs are allowed for the next 10 minutes." ;;
+  close)
+    [ "$(id -u)" -eq 0 ] || [ -n "${ORION_INSTALL_GATE:-}" ] || { echo "needs admin rights" >&2; exit 1; }
+    rm -f "$GATE"; echo "Closed." ;;
+  *) echo "usage: orion-install-gate check | open [--approval FILE] | close" >&2; exit 2 ;;
+esac

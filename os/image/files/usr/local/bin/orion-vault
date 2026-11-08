@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# orion-vault: the encrypted vault on an OrionOS USB stick (run as root).
+#   orion-vault status     where the vault is, and whether it's unlocked
+#   orion-vault create     make the vault in the free space after OrionOS on the stick you booted from
+#   orion-vault add-key    add another passphrase (e.g. after using the recovery key)
+set -euo pipefail
+say() { printf '\033[1;36m%s\033[0m\n' "$*"; }
+warn() { printf '\033[1;33m%s\033[0m\n' "$*"; }
+die() { printf '\033[1;31m%s\033[0m\n' "$*"; exit 1; }
+[ "$(id -u)" -eq 0 ] || die "Run as root (sudo orion-vault $*)."
+
+boot_disk() {
+  local src
+  src="$(findmnt -no SOURCE /cdrom 2>/dev/null || true)"
+  [ -n "$src" ] || src="$(blkid -t LABEL=ORIONSYS -o device | head -n1)"
+  [ -n "$src" ] || return 1
+  echo "/dev/$(lsblk -no PKNAME "$src" | head -n1)"
+}
+
+vault_dev() { blkid -t LABEL=OrionVault -o device 2>/dev/null | head -n1; }
+
+status() {
+  local d; d="$(vault_dev)"
+  if [ -z "$d" ]; then echo "No vault on this stick yet (orion-vault create)."; return 0; fi
+  echo "Vault: $d ($(lsblk -no SIZE "$d" | head -n1 | tr -d ' '))"
+  if [ -e /dev/mapper/orionvault ]; then echo "Unlocked: everything you do is saved, encrypted."; else echo "Locked."; fi
+}
+
+recovery_key() {  # 8 groups of 5 letters/digits, easy to read aloud and type
+  head -c 2000 /dev/urandom | tr -dc 'ABCDEFGHJKMNPQRSTUVWXYZ23456789' | cut -c1-40 | sed 's/.\{5\}/&-/g; s/-$//'
+}
+
+ask_pass() {
+  local a b
+  while :; do
+    read -rsp "Choose your vault passphrase (12+ characters): " a; echo
+    [ ${#a} -ge 12 ] || { warn "At least 12 characters, please."; continue; }
+    read -rsp "Type it again: " b; echo
+    [ "$a" = "$b" ] && { PASS="$a"; return; }
+    warn "They didn't match. Again."
+  done
+}
+
+create() {
+  [ -z "$(vault_dev)" ] || die "This stick already has a vault."
+  local disk; disk="$(boot_disk)" || die "Couldn't find the OrionOS stick you booted from."
+  # Safe places for the vault: a USB stick, or a disk that holds nothing but OrionOS (a virtual machine's disk or a
+  # USB SSD that reports itself as an internal drive). Never a disk with other systems on it (e.g. Windows).
+  local only_orion=1 pn
+  while read -r pn; do
+    case "$pn" in ORIONEFI|ORIONSYS) ;; *) only_orion=0 ;; esac
+  done < <(lsblk -lno PARTLABEL "$disk" | sed '/^$/d')
+  [ "$(lsblk -dno RM "$disk")" = 1 ] || [ "$(lsblk -dno TRAN "$disk")" = usb ] || [ "$only_orion" = 1 ] \
+    || [ "${ORION_VAULT_ANY_DISK:-0}" = 1 ] \
+    || die "$disk has other partitions besides OrionOS, so the vault won't be made there (it's only made on the stick or disk OrionOS runs from)."
+  # A stick written from the image keeps its backup partition table where the image ended: move it to the real end.
+  sfdisk --no-reread --relocate gpt-bak-std "$disk" >/dev/null 2>&1 || true
+  local free_s
+  free_s="$(sfdisk -F "$disk" | awk '/^Unpartitioned space/ {print $(NF-1)}')"
+  local free_g=$(( ${free_s:-0} * 512 / 1024 / 1024 / 1024 ))
+  [ "$free_g" -ge 4 ] || die "Only ${free_g} GB free on the stick; the vault needs at least 4 GB. Use a bigger stick (32 GB+)."
+  say "Your vault will use the ${free_g} GB of free space on $(lsblk -dno MODEL "$disk" | xargs) ($disk)."
+  say "Everything you do in OrionOS will be saved there, encrypted. Lose the stick, and nobody can read it."
+  ask_pass
+  local rk; rk="$(recovery_key)"
+  say "Making the vault (about a minute)…"
+  # The stick is in use (OrionOS runs from it), so add the partition without re-reading the whole table.
+  echo ',,L' | sfdisk --no-reread --append "$disk" >/dev/null
+  partx --update "$disk" >/dev/null 2>&1 || partx --add "$disk" >/dev/null 2>&1 || true
+  udevadm settle
+  local part; part="$(lsblk -lnpo NAME,TYPE "$disk" | awk '$2=="part"{p=$1} END{print p}')"
+  [ -b "$part" ] || die "The new partition didn't appear."
+  printf '%s' "$PASS" | cryptsetup luksFormat --batch-mode --type luks2 --label OrionVault --pbkdf argon2id "$part" --key-file=-
+  printf '%s' "$PASS" > /run/.ov1; printf '%s' "$rk" > /run/.ov2; chmod 600 /run/.ov1 /run/.ov2
+  cryptsetup luksAddKey --batch-mode "$part" /run/.ov2 --key-file=/run/.ov1
+  cryptsetup open --type luks2 "$part" orionvault-new --key-file=/run/.ov1
+  shred -u /run/.ov1 /run/.ov2 2>/dev/null || rm -f /run/.ov1 /run/.ov2
+  PASS=""
+  mkfs.ext4 -q -L writable -E lazy_itable_init=1 /dev/mapper/orionvault-new
+  udevadm settle 2>/dev/null || true
+  for _ in 1 2 3 4 5; do cryptsetup close orionvault-new 2>/dev/null && break; sleep 1; done
+  echo
+  say "Your RECOVERY KEY (opens the vault if you forget the passphrase):"
+  echo
+  printf '      \033[1;37m%s\033[0m\n' "$rk"
+  echo
+  command -v qrencode >/dev/null && qrencode -t ANSIUTF8 -m 1 "$rk" || true
+  warn "Write it down or take a photo of it with your phone NOW. Nobody, including us, can recover the vault without it."
+  read -rp "Type the last 5 characters of the recovery key to confirm you have it: " last
+  while [ "$last" != "${rk: -5}" ]; do read -rp "That's not it. Look again and type the last 5 characters: " last; done
+  rk=""
+  say "Vault ready. OrionOS restarts now and asks for your passphrase at every start."
+}
+
+add_key() {
+  local d; d="$(vault_dev)"; [ -n "$d" ] || die "No vault."
+  cryptsetup luksAddKey "$d"
+}
+
+case "${1:-status}" in
+  status) status ;;
+  create) create ;;
+  add-key) add_key ;;
+  *) echo "orion-vault status | create | add-key"; exit 2 ;;
+esac

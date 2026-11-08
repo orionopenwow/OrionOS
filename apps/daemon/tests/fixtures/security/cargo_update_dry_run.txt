@@ -1,0 +1,6 @@
+    Updating crates.io index
+     Locking 3 packages to latest compatible versions
+    Updating serde v1.0.190 -> v1.0.210
+    Updating tokio v1.32.0 -> v1.40.0
+    Updating time v0.3.20 -> v0.3.36
+warning: not updating lockfile due to dry run

@@ -1,0 +1,8 @@
+#!/bin/sh
+# Orion Settings, the window (GTK 4 + libadwaita, os/settings). Ctrl+Alt+S / Super+, open it through orion-settings.
+#   orion-settings-app [--page network|bluetooth|sound|displays|printers|power|time|users|privacy|updates|
+#                       appearance|orion|permissions] [--demo]
+# The old menu stays available: orion-settings --text
+DIR="${ORION_SETTINGS_DIR:-/opt/orion/settings}"
+[ -d "$DIR/orion_settings" ] || DIR="$(dirname "$(readlink -f "$0")")"
+PYTHONPATH="$DIR${PYTHONPATH:+:$PYTHONPATH}" exec /usr/bin/python3 -m orion_settings "$@"

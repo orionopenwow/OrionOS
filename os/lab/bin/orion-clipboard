@@ -1,0 +1,72 @@
+#!/bin/sh
+# orion-clipboard: clipboard history (cliphist). Super+V (or Ctrl+Alt+V) shows the last 50 copies; the pick is
+# pasted where you were typing. Passwords and keys are never kept:
+#   * copies a password manager marks as secret (the x-kde-passwordManagerHint type that KeePassXC and others
+#     offer, or CLIPBOARD_STATE=sensitive from newer wl-clipboard versions) are skipped;
+#   * any text that matches Secret Shield's patterns (API keys, tokens, private keys, password=... lines; the
+#     daemon's secret_shield_rules.json) is skipped.
+# Ubuntu 24.04's cliphist 0.4.0 and wl-clipboard 2.2.1 check neither, so this script does it before storing.
+#   orion-clipboard watch    started by Sway: keeps the history
+#   orion-clipboard store    the watcher hands each copy to this on stdin; it decides whether to keep it
+#   orion-clipboard pick     the list (Super+V); ORION_CLIP_PASTE=0 only copies the pick, without pasting
+#   orion-clipboard list     the history, newest first
+#   orion-clipboard clear    forget the whole history (also the last entry in the Super+V list)
+LIB="${ORION_BASICS_LIB:-/opt/orion/basics/orion_basics.py}"
+[ -f "$LIB" ] || LIB="$(dirname "$(readlink -f "$0")")/../../basics/orion_basics.py"
+SELF="$(readlink -f "$0")"
+KEEP="${ORION_CLIP_MAX:-100}"     # entries kept on disk (~/.cache/cliphist/db); the list shows the newest 50
+SHOW=50
+CLEAR_LABEL="✕  Clear clipboard history"
+
+store() {
+  [ "$(cat "${XDG_CONFIG_HOME:-$HOME/.config}/orion/clipboard-history" 2>/dev/null)" = off ] && { cat >/dev/null; return 0; }  # Settings > Privacy
+  case "${CLIPBOARD_STATE:-data}" in sensitive|clear|nil) cat >/dev/null; return 0 ;; esac
+  if wl-paste --list-types 2>/dev/null | grep -qx 'x-kde-passwordManagerHint'; then cat >/dev/null; return 0; fi
+  tmp=$(mktemp -p "${XDG_RUNTIME_DIR:-/tmp}" orion-clip.XXXXXX) || return 1   # RAM only, private to you
+  trap 'rm -f "$tmp"' EXIT INT TERM
+  cat > "$tmp"
+  [ -s "$tmp" ] || return 0
+  if python3 "$LIB" secret < "$tmp" >/dev/null 2>&1; then return 0; fi           # looks like a key or password
+  cliphist -max-items "$KEEP" store < "$tmp"
+}
+
+paste() {
+  [ "${ORION_CLIP_PASTE:-1}" = 0 ] && return 0
+  command -v wtype >/dev/null || return 0
+  sleep 0.2                                                    # let the list close and focus come back
+  app=$(swaymsg -t get_tree 2>/dev/null | jq -r '.. | objects | select(.focused? == true) |
+        (.app_id // .window_properties.class // "")' 2>/dev/null | head -n1)
+  case "$app" in
+    foot|footclient|*[Tt]erminal*|Alacritty|kitty|org.wezfurlong.wezterm|xterm|XTerm)
+      wtype -M ctrl -M shift v -m shift -m ctrl ;;              # terminals paste with Ctrl+Shift+V
+    *) wtype -M ctrl v -m ctrl ;;
+  esac
+}
+
+clear_history() {
+  cliphist wipe 2>/dev/null
+  rm -f "${XDG_CACHE_HOME:-$HOME/.cache}/cliphist/db"
+  notify-send "Clipboard" "History cleared." 2>/dev/null || echo "History cleared."
+}
+
+pick() {
+  items=$(cliphist list 2>/dev/null | head -n "$SHOW")
+  if [ -z "$items" ]; then notify-send "Clipboard" "Nothing copied yet." 2>/dev/null; return 0; fi
+  sel=$(printf '%s\n%s\n' "$items" "$CLEAR_LABEL" | wofi --dmenu --insensitive --prompt "Clipboard history" \
+    --cache-file /dev/null --height 520) || return 0
+  case "$sel" in
+    "") return 0 ;;
+    "$CLEAR_LABEL") clear_history; return 0 ;;
+  esac
+  printf '%s\n' "$sel" | cliphist decode | wl-copy || return 1
+  paste
+}
+
+case "${1:-pick}" in
+  watch) exec wl-paste --watch "$SELF" store ;;
+  store) store ;;
+  pick)  pick ;;
+  list)  cliphist list ;;
+  clear) clear_history ;;
+  *) sed -n '2,14p' "$0"; exit 2 ;;
+esac

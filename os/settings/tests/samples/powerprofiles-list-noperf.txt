@@ -1,0 +1,5 @@
+  balanced:
+    PlatformDriver:	placeholder
+
+* power-saver:
+    PlatformDriver:	placeholder

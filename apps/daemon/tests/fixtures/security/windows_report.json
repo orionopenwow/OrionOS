@@ -1,0 +1,12 @@
+{"machine": "GAMING-PC", "source": "windows",
+ "interfaces": [{"iface": "Wi-Fi", "address": "192.168.1.40", "prefix": 24},
+                {"iface": "vEthernet (WSL)", "address": "172.20.0.1", "prefix": 20},
+                {"iface": "Loopback Pseudo-Interface 1", "address": "127.0.0.1", "prefix": 8}],
+ "firewall": {"enabled": true, "default_inbound": "block",
+              "allow": [{"name": "Remote Desktop", "port": 3389, "proto": "TCP", "from": "Anywhere"},
+                        {"name": "Steam", "port": null, "proto": "", "from": "Anywhere", "process": "steam"}]},
+ "listeners": [{"proto": "tcp", "address": "0.0.0.0", "port": 135, "process": "svchost"},
+               {"proto": "tcp", "address": "0.0.0.0", "port": 3389, "process": "svchost"},
+               {"proto": "tcp", "address": "127.0.0.1", "port": 9120, "process": "python"},
+               {"proto": "tcp", "address": "0.0.0.0", "port": 9121, "process": "python"},
+               {"proto": "tcp", "address": "0.0.0.0", "port": 27036, "process": "steam"}]}

@@ -1,0 +1,14 @@
+[Unit]
+Description=OrionOS: keep an update once Orion's session is healthy (boot counting, os/dualboot)
+# Installed drives only: the USB stick has its own (orion-slot-good.service), and a fallback start never confirms.
+ConditionKernelCommandLine=!orion.slot
+ConditionKernelCommandLine=!orion.fallback=1
+ConditionPathExists=/boot/grub/grubenv
+After=graphical.target greetd.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/orion-bootcount good --wait 900
+
+[Install]
+WantedBy=graphical.target

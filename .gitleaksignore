@@ -1,0 +1,5 @@
+# Fake credentials used on purpose by the secret-filter tests.
+# The allowlist in .gitleaks.toml now covers all of them (Secret Shield); these older fingerprints are kept for
+# gitleaks runs that don't load .gitleaks.toml.
+54c6fd33eef4da483f9f0eeb395c9b2f0149c1fd:apps/daemon/tests/test_feature_bible.py:curl-auth-user:132
+apps/daemon/tests/test_feature_bible.py:curl-auth-user:132

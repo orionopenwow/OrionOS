@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# OrionOS: collect the security reports that need admin rights, for Orion's Exposure Map and Host Health
+# (docs/ORION_TOOLKIT_PLAN.md tools 20 and 21). Run by root timers installed by os/image/os-security.sh:
+#
+#   orion-security-dump hourly    firewall rules (ufw status) -> /var/lib/orion/security/ufw-status.txt
+#   orion-security-dump weekly    Lynis audit, AIDE file watch, SMART disk health, fail2ban status
+#
+# Reports are readable by the Orion user's group only. Nothing leaves the computer.
+# AIDE and SMART are skipped in virtual machines. AIDE makes its first baseline on the first weekly run.
+set -uo pipefail
+
+OUT=/var/lib/orion/security
+GROUP="$(stat -c %G "$OUT" 2>/dev/null || echo root)"
+mkdir -p "$OUT"
+
+put() {   # put <name>: stdin -> $OUT/<name>, readable by the Orion group
+  local tmp
+  tmp="$(mktemp "$OUT/.$1.XXXXXX")"
+  cat > "$tmp"
+  chgrp "$GROUP" "$tmp" 2>/dev/null || true
+  chmod 640 "$tmp"
+  mv -f "$tmp" "$OUT/$1"
+}
+
+in_vm() {
+  [ "$(cat /etc/orion/profile 2>/dev/null)" = vm ] && return 0
+  systemd-detect-virt -q 2>/dev/null
+}
+
+hourly() {
+  if command -v ufw >/dev/null; then
+    { ufw status verbose; echo; ufw status numbered; } 2>&1 | put ufw-status.txt
+  fi
+}
+
+weekly() {
+  hourly
+  if command -v lynis >/dev/null; then
+    lynis audit system --quick --no-colors --cronjob --report-file "$OUT/.lynis.dat" \
+      --logfile /var/log/lynis.log >/dev/null 2>&1 || true
+    [ -f "$OUT/.lynis.dat" ] && put lynis-report.dat < "$OUT/.lynis.dat" && rm -f "$OUT/.lynis.dat"
+  fi
+  if ! in_vm; then
+    if command -v aide >/dev/null; then
+      if [ ! -f /var/lib/aide/aide.db ]; then
+        if command -v aideinit >/dev/null; then aideinit -y -f >/dev/null 2>&1
+        else aide --init --config /etc/aide/aide.conf >/dev/null 2>&1 && cp -f /var/lib/aide/aide.db.new /var/lib/aide/aide.db; fi
+        echo "AIDE file watch started: the first baseline was made. AIDE found NO differences yet." | put aide-check.txt
+      else
+        aide --check --config /etc/aide/aide.conf 2>&1 | head -n 400 | put aide-check.txt
+      fi
+    fi
+    if command -v smartctl >/dev/null; then
+      rm -f "$OUT"/smart-*.json
+      smartctl --scan-open 2>/dev/null | awk '{print $1}' | while read -r dev; do
+        [ -n "$dev" ] || continue
+        smartctl -j -H -A -i "$dev" 2>/dev/null | put "smart-$(basename "$dev").json"
+      done
+    fi
+  fi
+  if command -v fail2ban-client >/dev/null && systemctl is-active --quiet fail2ban; then
+    fail2ban-client status sshd 2>&1 | put fail2ban-sshd.txt
+  fi
+}
+
+case "${1:-hourly}" in
+  hourly) hourly ;;
+  weekly) weekly ;;
+  *) echo "usage: orion-security-dump hourly|weekly"; exit 2 ;;
+esac
+exit 0

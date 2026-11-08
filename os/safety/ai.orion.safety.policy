@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!-- OrionOS safety net (os/safety). By default everything here needs the admin password; 50-orion-safety.rules lets
+     the session user take and list snapshots and switch the kill switch, and nothing else (restores always ask). -->
+<policyconfig>
+  <vendor>OrionOS</vendor>
+  <action id="ai.orion.safety.snapshot">
+    <description>Snapshots of the system</description>
+    <message>Putting back a snapshot needs the admin password.</message>
+    <defaults><allow_any>no</allow_any><allow_inactive>no</allow_inactive><allow_active>auth_admin</allow_active></defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/local/bin/orion-snapshot</annotate>
+  </action>
+  <action id="ai.orion.safety.freeze">
+    <description>Pause or resume automatic updates (Orion's kill switch)</description>
+    <message>Pausing automatic updates needs permission.</message>
+    <defaults><allow_any>no</allow_any><allow_inactive>no</allow_inactive><allow_active>auth_admin_keep</allow_active></defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/opt/orion/safety/orion-freeze-helper</annotate>
+  </action>
+  <action id="ai.orion.safety.selfrun">
+    <description>Orion keeps itself running: restart a stopped service, trim the journal, update channel and levels</description>
+    <message>Changing how Orion updates itself needs the admin password.</message>
+    <defaults><allow_any>no</allow_any><allow_inactive>no</allow_inactive><allow_active>auth_admin</allow_active></defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/opt/orion/safety/orion-self-helper</annotate>
+  </action>
+</policyconfig>

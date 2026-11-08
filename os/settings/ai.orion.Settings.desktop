@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Settings
+Comment=Wi-Fi, Bluetooth, sound, displays, power, privacy, updates and Orion
+Exec=orion-settings-app
+Icon=preferences-system
+Categories=Settings;GTK;
+Keywords=wifi;network;bluetooth;sound;display;power;battery;time;users;privacy;updates;orion;
+StartupNotify=true

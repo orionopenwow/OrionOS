@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+<defs>
+<linearGradient id="iring" x1="156" y1="256" x2="356" y2="256" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#F4FDFF" stop-opacity="1"/><stop offset="0.22" stop-color="#00E5FF" stop-opacity="1"/><stop offset="0.62" stop-color="#7C5CFF" stop-opacity="0.85"/><stop offset="1" stop-color="#7C5CFF" stop-opacity="0.32"/></linearGradient>
+<radialGradient id="ihalo" cx="256" cy="256" r="200" gradientUnits="userSpaceOnUse">
+<stop offset="0.45" stop-color="#7C5CFF" stop-opacity="0.55"/><stop offset="0.7" stop-color="#7C5CFF" stop-opacity="0.16"/><stop offset="1" stop-color="#7C5CFF" stop-opacity="0"/></radialGradient>
+<radialGradient id="ibg" cx="256" cy="236" r="380" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#151B3A"/><stop offset="0.55" stop-color="#0B0F1E"/><stop offset="1" stop-color="#05070E"/></radialGradient>
+<filter id="iglow" x="-1" y="-1" width="3" height="3"><feGaussianBlur stdDeviation="6"/></filter>
+<filter id="iringglow" x="-0.5" y="-0.5" width="2" height="2"><feGaussianBlur stdDeviation="9.600000000000001"/></filter>
+</defs><rect width="512" height="512" rx="112" fill="url(#ibg)"/><circle cx="70" cy="120" r="1.6" fill="#D8DEFF" opacity="0.7"/><circle cx="110" cy="400" r="1.2" fill="#D8DEFF" opacity="0.7"/><circle cx="190" cy="70" r="1.0" fill="#D8DEFF" opacity="0.7"/><circle cx="460" cy="300" r="1.4" fill="#D8DEFF" opacity="0.7"/><circle cx="420" cy="450" r="1.1" fill="#D8DEFF" opacity="0.7"/><circle cx="60" cy="280" r="1.0" fill="#D8DEFF" opacity="0.7"/><circle cx="300" cy="470" r="1.3" fill="#D8DEFF" opacity="0.7"/><circle cx="480" cy="190" r="0.9" fill="#D8DEFF" opacity="0.7"/><circle cx="150" cy="210" r="0.8" fill="#D8DEFF" opacity="0.7"/><g transform="translate(-16 16)"><circle cx="256" cy="256" r="200" fill="url(#ihalo)"/>
+<circle cx="256" cy="256" r="100" fill="none" stroke="url(#iring)" stroke-width="23.400000000000002" opacity="0.55" filter="url(#iringglow)"/>
+<circle cx="256" cy="256" r="96.0" fill="#000000"/>
+<circle cx="256" cy="256" r="115" fill="none" stroke="#7C5CFF" stroke-width="2.2" stroke-opacity="0.4"/>
+<circle cx="256" cy="256" r="100" fill="none" stroke="url(#iring)" stroke-width="9"/>
+<g transform="translate(432 82) rotate(135.3)"><ellipse rx="26.4" ry="26.4" fill="#D8DEFF" opacity="0.35" filter="url(#iglow)"/><ellipse rx="11.5" ry="11.5" fill="#D8DEFF"/><ellipse rx="6.3" ry="6.3" fill="#FFFFFF"/></g><path transform="translate(432 82)" d="M-34.5 0 L0 -3.0 L34.5 0 L0 3.0Z M0 -34.5 L3.0 0 L0 34.5 L-3.0 0Z" fill="#FFFFFF" opacity="0.8"/>
+<g transform="translate(385 123) rotate(134.1)"><ellipse rx="24.1" ry="24.1" fill="#D8DEFF" opacity="0.35" filter="url(#iglow)"/><ellipse rx="10.5" ry="10.5" fill="#D8DEFF"/><ellipse rx="5.8" ry="5.8" fill="#FFFFFF"/></g>
+<g transform="translate(340 166) rotate(133.0)"><ellipse rx="29.5" ry="21.8" fill="#D8DEFF" opacity="0.35" filter="url(#iglow)"/><ellipse rx="12.8" ry="9.5" fill="#D8DEFF"/><ellipse rx="7.1" ry="5.2" fill="#FFFFFF"/></g></g>
+</svg>

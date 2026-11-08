@@ -1,0 +1,14 @@
+# OrionOS: first-run (your password, screen reading, phone, brain, voice) opens once in a terminal window.
+# Not on the VM lab (/etc/orion/no-firstrun) and not once it's done.
+[Unit]
+Description=Orion first-run
+PartOf=sway-session.target
+After=sway-session.target orion-hud.service
+ConditionPathExists=!%h/.config/orion/firstrun-done
+ConditionPathExists=!/etc/orion/no-firstrun
+
+[Service]
+Type=oneshot
+TimeoutStartSec=infinity
+ExecStartPre=/bin/sleep 6
+ExecStart=-/usr/bin/foot --title=orion-tool /usr/local/bin/orion-firstrun

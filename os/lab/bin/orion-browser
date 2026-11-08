@@ -1,0 +1,8 @@
+#!/bin/sh
+# Orion browser key (Super+B): open the web browser, or a link given as the first argument.
+if [ -n "${1:-}" ]; then exec xdg-open "$1"; fi
+command -v firefox >/dev/null && exec firefox
+command -v flatpak >/dev/null && flatpak info org.chromium.Chromium >/dev/null 2>&1 && exec flatpak run org.chromium.Chromium
+notify-send Orion "No web browser is installed yet. In a terminal: orion-ctl install firefox" 2>/dev/null || \
+  echo "No web browser is installed yet: orion-ctl install firefox"
+exit 1

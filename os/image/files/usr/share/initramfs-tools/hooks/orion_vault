@@ -1,0 +1,9 @@
+#!/bin/sh
+# Put cryptsetup and dm-crypt into the initramfs so the vault can be unlocked before casper starts.
+PREREQ="cryptroot"
+prereqs() { echo "$PREREQ"; }
+case "$1" in prereqs) prereqs; exit 0 ;; esac
+. /usr/share/initramfs-tools/hook-functions
+copy_exec /sbin/cryptsetup /sbin
+copy_exec /sbin/blkid /sbin
+manual_add_modules dm_crypt dm_mod

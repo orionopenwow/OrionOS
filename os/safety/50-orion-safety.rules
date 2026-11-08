@@ -1,0 +1,43 @@
+// OrionOS safety net (os/safety): what the session user "orion" may do without the admin password.
+//  - take, list and look at snapshots (also from the weekly Get apps run, so not only when sitting at the computer)
+//  - "Undo the last update" (orion-snapshot undo, the Rescue panel / Settings): with your own password
+//  - freeze (pause automatic updates) at any time; UNFREEZE needs your password, or a phone approval token that
+//    orion-freeze-helper then checks itself (orion-approval-check: signed by your paired phone's fingerprint key)
+//  - pin a newly paired phone's approval key: with your password (orion-ctl pair-phone asks)
+//  - self-repair: restart an allow-listed service and trim the journal (orion-self-helper checks the list)
+// Restoring any other snapshot is not in this list: it always asks for the admin password.
+// Note: polkit treats the user's own background services (the Orion daemon, agents running as "orion") as part of
+// the active session, so only a password (AUTH_SELF) or the phone token separates "you" from "a program of yours".
+polkit.addRule(function(action, subject) {
+    if (subject.user != "orion") return polkit.Result.NOT_HANDLED;
+    if (action.id == "ai.orion.safety.snapshot") {
+        var cl = action.lookup("command_line") || "";
+        if (/^\/usr\/local\/bin\/orion-snapshot (take|list|status)( |$)/.test(cl) && cl.indexOf("restore") < 0) {
+            return polkit.Result.YES;
+        }
+        if (/^\/usr\/local\/bin\/orion-snapshot undo( --yes)?$/.test(cl) && subject.local && subject.active) {
+            return polkit.Result.AUTH_SELF_KEEP;
+        }
+        return polkit.Result.NOT_HANDLED;
+    }
+    if (action.id == "ai.orion.safety.selfrun") {   // self-repair: allow-listed restarts and journal trim only
+        var c3 = action.lookup("command_line") || "";
+        if (/^\/opt\/orion\/safety\/orion-self-helper (restart-unit [A-Za-z0-9@._-]+\.service|vacuum-journal)$/.test(c3)) {
+            return polkit.Result.YES;
+        }
+        return polkit.Result.NOT_HANDLED;   // channel and levels ask for the admin password
+    }
+    if (action.id == "ai.orion.safety.freeze") {
+        var c2 = action.lookup("command_line") || "";
+        var h = "/opt/orion/safety/orion-freeze-helper ";
+        if (c2 == h + "on" || c2 == h + "status") return polkit.Result.YES;
+        // the helper refuses unless the file is a valid, fresh, unused phone approval
+        if (/^\/opt\/orion\/safety\/orion-freeze-helper off --approval \/[A-Za-z0-9._\/-]{1,200}$/.test(c2) &&
+            c2.indexOf("..") < 0) return polkit.Result.YES;
+        if (c2 == h + "off" && subject.local && subject.active) return polkit.Result.AUTH_SELF;
+        if (/^\/opt\/orion\/safety\/orion-freeze-helper (pin-phone [A-Za-z0-9_-]{8,64} [A-Za-z0-9+\/=]{40,400}|unpin-phone ([A-Za-z0-9_-]{8,64}|all))$/.test(c2) &&
+            subject.local && subject.active) return polkit.Result.AUTH_SELF;
+        return polkit.Result.NOT_HANDLED;
+    }
+    return polkit.Result.NOT_HANDLED;
+});

@@ -1,0 +1,2 @@
+device for Label: socket://192.0.2.11
+device for Office_Laser: ipp://192.0.2.10/ipp/print

@@ -1,0 +1,263 @@
+#!/usr/bin/env python3
+"""orion-bootcount: boot counting for OrionOS installed on a drive with snapshots (review feature 7).
+
+The USB stick has had this from the start (two system slots; grub.cfg's next/tries). Installed systems get the same
+idea with snapper: after an update, the updated system gets two starts to reach a healthy Orion session (Orion's
+brain answers and the Orion screen stays up: orion-healthy). If neither start gets there, the third start is the
+snapshot taken just before the update, by itself, and Orion explains what happened and what you can do.
+
+State lives in GRUB's environment block (/boot/grub/grubenv, on the plain /boot partition GRUB can write to):
+  orion_trial     the update being tried (its version)          orion_tries     starts left (2, 1, 0)
+  orion_fallback  the snapshot from just before the update      orion_failed    the update that didn't start
+/etc/grub.d/01_orion_bootcount counts the starts; orion-snapshot grub-entries adds the "orion-fallback" entry.
+
+  orion-bootcount arm --snapshot N --version V   (orion-update, as root) start counting after an update
+  orion-bootcount good [--wait SECONDS]          (orion-bootcount-good.service) a healthy session: keep the update
+  orion-bootcount status [--json]                what's going on, in plain words
+  orion-bootcount notify                         (the session) say so when the earlier system had to be started
+  orion-bootcount keep-earlier                   (root) make the earlier system the real one again (a rollback)
+  orion-bootcount try-again                      (root) give the update two more starts
+  orion-bootcount disarm                         (root) stop counting (orion-update after rolling back by itself)
+
+Tests: outside commands and paths are swapped with ORION_BC_* environment variables.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+from typing import Any, Optional
+
+TRIES = 2
+
+
+class Env:
+    def __init__(self, environ: Optional[dict[str, str]] = None) -> None:
+        e = os.environ if environ is None else environ
+        self.grubenv = e.get("ORION_BC_GRUBENV", "/boot/grub/grubenv")
+        self.editenv = e.get("ORION_BC_EDITENV", "grub-editenv")
+        self.update_grub = e.get("ORION_BC_UPDATE_GRUB", "update-grub")
+        self.healthy = e.get("ORION_BC_HEALTHY", "/usr/local/bin/orion-healthy")
+        self.snapshot = e.get("ORION_BC_SNAPSHOT", "/usr/local/bin/orion-snapshot")
+        self.notify = e.get("ORION_BC_NOTIFY", "notify-send")
+        self.cmdline = Path(e.get("ORION_BC_CMDLINE", "/proc/cmdline"))
+        self.snapshots_dir = Path(e.get("ORION_BC_SNAPSHOTS_DIR", "/.snapshots"))
+        self.grubd = Path(e.get("ORION_BC_GRUBD", "/etc/grub.d/01_orion_bootcount"))
+        self.boot_fstype = e.get("ORION_BC_BOOT_FSTYPE", "")
+        self.root = e.get("ORION_BC_AS_ROOT", "") == "1" or os.geteuid() == 0
+        self.log = Path(e.get("ORION_BC_LOG", "/var/log/orion-bootcount.log"))
+
+    def run(self, argv: list[str], timeout: float = 900) -> subprocess.CompletedProcess:
+        try:
+            return subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
+        except (FileNotFoundError, PermissionError):
+            return subprocess.CompletedProcess(argv, 127, "", f"{argv[0]}: not installed")
+        except subprocess.TimeoutExpired:
+            return subprocess.CompletedProcess(argv, 124, "", f"{argv[0]}: took too long")
+
+
+class Failed(Exception):
+    pass
+
+
+# =====================================================================================  GRUB's environment block
+def env_list(env: Env) -> dict[str, str]:
+    if not Path(env.grubenv).exists():
+        return {}
+    r = env.run([env.editenv, env.grubenv, "list"], timeout=10)
+    out = {}
+    for line in (r.stdout or "").splitlines():
+        if "=" in line:
+            k, v = line.split("=", 1)
+            out[k.strip()] = v.strip()
+    return out
+
+
+def env_set(env: Env, **kv: str) -> None:
+    if not Path(env.grubenv).exists():
+        env.run([env.editenv, env.grubenv, "create"], timeout=10)
+    r = env.run([env.editenv, env.grubenv, "set"] + [f"{k}={v}" for k, v in kv.items()], timeout=10)
+    if r.returncode != 0:
+        raise Failed("Couldn't write GRUB's start-up notes: " + (r.stderr or "").strip()[-200:])
+
+
+def env_unset(env: Env, *keys: str) -> None:
+    if Path(env.grubenv).exists():
+        env.run([env.editenv, env.grubenv, "unset"] + list(keys), timeout=10)
+
+
+def clean_version(v: str) -> str:
+    return re.sub(r"[^A-Za-z0-9._+-]", "", v or "")[:40] or "update"
+
+
+def note(env: Env, text: str) -> None:
+    try:
+        with env.log.open("a", encoding="utf-8") as fh:
+            fh.write(text + "\n")
+    except OSError:
+        pass
+
+
+# =====================================================================================  state
+def fallback_boot(env: Env) -> bool:
+    try:
+        return "orion.fallback=1" in env.cmdline.read_text().split()
+    except OSError:
+        return False
+
+
+def status(env: Env) -> dict[str, Any]:
+    e = env_list(env)
+    st: dict[str, Any] = {"trial": e.get("orion_trial", ""), "tries": e.get("orion_tries", ""),
+                          "fallback": e.get("orion_fallback", ""), "failed": e.get("orion_failed", ""),
+                          "on_fallback_boot": fallback_boot(env)}
+    if st["failed"]:
+        st["state"] = "fell-back"
+        st["words"] = (f"The update to {st['failed']} didn't reach the Orion screen in two starts, so OrionOS started "
+                       f"the system from just before that update (snapshot {st['fallback'] or '?'}). Your files are "
+                       "fine: they aren't part of system snapshots. You can keep this earlier system (Settings > "
+                       "Updates > Keep the earlier system), or give the update another try.")
+    elif st["trial"]:
+        st["state"] = "trial"
+        st["words"] = (f"Trying the update to {st['trial']}: it's kept once Orion is up and running. If it doesn't "
+                       "start twice, OrionOS goes back to the system from before it by itself.")
+    else:
+        st["state"] = "idle"
+        st["words"] = "Nothing waiting: the system that's running is the one that's kept."
+    return st
+
+
+def can_arm(env: Env, snapshot: str) -> str:
+    """'' when boot counting can work here, else why not."""
+    if not env.grubd.exists():
+        return "the boot counting part of the start menu isn't installed"
+    if not (snapshot.isdigit() and (env.snapshots_dir / snapshot / "snapshot").is_dir()):
+        return "there's no snapshot from before the update to go back to"
+    fs = env.boot_fstype
+    if not fs:
+        r = env.run(["findmnt", "-no", "FSTYPE", "/boot"], timeout=10)
+        fs = (r.stdout or "").strip()
+    if fs not in ("ext2", "ext3", "ext4", "vfat"):
+        return "/boot isn't a separate plain partition, so GRUB can't count the starts"
+    return ""
+
+
+# =====================================================================================  commands
+def arm(env: Env, snapshot: str, version: str) -> dict[str, Any]:
+    why = can_arm(env, snapshot)
+    if why:
+        return {"ok": True, "armed": False, "message": f"Boot counting is off for this update: {why}."}
+    env_unset(env, "orion_failed")
+    env_set(env, orion_trial=clean_version(version), orion_tries=str(TRIES), orion_fallback=snapshot)
+    env.run([env.update_grub], timeout=600)            # puts the fallback entry into the start menu
+    note(env, f"armed: trying {clean_version(version)}, fallback snapshot {snapshot}")
+    return {"ok": True, "armed": True,
+            "message": "If the updated system doesn't reach the Orion screen in two starts, OrionOS goes back to "
+                       f"the system from before the update (snapshot {snapshot}) by itself."}
+
+
+def good(env: Env, wait: int) -> dict[str, Any]:
+    st = status(env)
+    if st["on_fallback_boot"] or st["state"] != "trial":
+        return {"ok": True, "kept": False, "message": st["words"]}
+    r = env.run([env.healthy, "--wait", str(wait), "--stable", "60"], timeout=wait + 300)
+    if r.returncode != 0:
+        note(env, f"not healthy yet: {(r.stdout or r.stderr).strip()[-200:]}")
+        return {"ok": False, "kept": False,
+                "message": "Orion isn't up yet, so the update isn't confirmed: " + (r.stdout or r.stderr).strip()}
+    env_unset(env, "orion_trial", "orion_tries")
+    note(env, f"kept {st['trial']}")
+    return {"ok": True, "kept": True, "message": f"The update to {st['trial']} started fine; it's kept."}
+
+
+def keep_earlier(env: Env) -> dict[str, Any]:
+    st = status(env)
+    sid = st["fallback"]
+    if not sid:
+        raise Failed("There's no earlier system waiting to be kept.")
+    r = env.run([env.snapshot, "restore", sid, "--yes"], timeout=1800)
+    if r.returncode != 0:
+        raise Failed("The earlier system couldn't be made the real one: " + (r.stderr or r.stdout).strip()[-300:])
+    env_unset(env, "orion_failed", "orion_trial", "orion_tries", "orion_fallback")
+    env.run([env.update_grub], timeout=600)
+    note(env, f"kept the earlier system (snapshot {sid})")
+    return {"ok": True, "message": "Done. Restart now: OrionOS starts as it was before the update, and stays that way. "
+                                   "The updated system is kept aside too, so this can be undone."}
+
+
+def try_again(env: Env) -> dict[str, Any]:
+    st = status(env)
+    if not st["failed"]:
+        raise Failed("No update is waiting for another try.")
+    env_unset(env, "orion_failed")
+    env_set(env, orion_trial=st["failed"], orion_tries=str(TRIES))
+    note(env, f"trying {st['failed']} again")
+    return {"ok": True, "message": f"Restart now to try the update to {st['failed']} again (two more starts)."}
+
+
+def disarm(env: Env) -> dict[str, Any]:
+    env_unset(env, "orion_failed", "orion_trial", "orion_tries", "orion_fallback")
+    return {"ok": True, "message": "Boot counting is off."}
+
+
+def notify(env: Env) -> dict[str, Any]:
+    st = status(env)
+    if st["state"] != "fell-back":
+        return {"ok": True, "shown": False, "message": st["words"]}
+    if shutil.which(env.notify) or os.path.isabs(env.notify):
+        env.run([env.notify, "-u", "critical", "-a", "Orion", "OrionOS went back to before the update",
+                 st["words"]], timeout=10)
+    return {"ok": True, "shown": True, "message": st["words"]}
+
+
+def main(argv: Optional[list[str]] = None, env: Optional[Env] = None) -> int:
+    env = env or Env()
+    ap = argparse.ArgumentParser(prog="orion-bootcount", description="Boot counting after updates.")
+    sub = ap.add_subparsers(dest="cmd")
+    s = sub.add_parser("arm")
+    s.add_argument("--snapshot", required=True)
+    s.add_argument("--version", default="update")
+    s = sub.add_parser("good")
+    s.add_argument("--wait", type=int, default=600)
+    for n in ("status", "notify", "keep-earlier", "try-again", "disarm"):
+        s = sub.add_parser(n)
+        s.add_argument("--json", action="store_true")
+    a = ap.parse_args(argv)
+    as_json = bool(getattr(a, "json", False))
+    if a.cmd in ("arm", "good", "keep-earlier", "try-again", "disarm") and not env.root:
+        print("Run as admin: sudo orion-bootcount " + a.cmd, file=sys.stderr)
+        return 2
+    try:
+        if a.cmd == "arm":
+            res = arm(env, a.snapshot, a.version)
+        elif a.cmd == "good":
+            res = good(env, a.wait)
+        elif a.cmd == "keep-earlier":
+            res = keep_earlier(env)
+        elif a.cmd == "try-again":
+            res = try_again(env)
+        elif a.cmd == "disarm":
+            res = disarm(env)
+        elif a.cmd == "notify":
+            res = notify(env)
+        elif a.cmd == "status":
+            st = status(env)
+            print(json.dumps(st) if as_json else st["words"])
+            return 0
+        else:
+            ap.print_help()
+            return 2
+    except Failed as exc:
+        print(json.dumps({"ok": False, "message": str(exc)}) if as_json else str(exc), file=sys.stderr)
+        return 1
+    print(json.dumps(res) if as_json else res["message"])
+    return 0 if res.get("ok") else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

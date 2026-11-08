@@ -1,0 +1,8 @@
+# OrionOS: sets the default paper size in /etc/papersize (read by CUPS and the print filters).
+# %i = a4, letter, or auto (from the time zone's country). The session user may start it (50-orion-hardware.rules).
+[Unit]
+Description=Default paper size: %i
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/orion-printers paper %i --system

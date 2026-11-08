@@ -1,0 +1,1410 @@
+#!/usr/bin/env python3
+"""orion-move-in: bring your stuff from Windows into OrionOS.
+
+"Move my stuff to Orion.cmd" on Windows (os/windows/Move-ToOrion.ps1) makes a folder called OrionMove on a USB
+drive or external disk. This finds it on any attached drive, shows what's in it, checks every file against its
+SHA256SUMS, and then, one part at a time and only after you say yes:
+  - copies your files into your home folders (Documents, Pictures, ...). A file that's already there is never
+    overwritten: a different one is kept next to it as "name (from Windows).ext";
+  - imports your bookmarks into Firefox (and always saves them as "Bookmarks from Windows.html" in Documents);
+  - adds your Wi-Fi networks (passwords only if you brought them, after you type their passphrase);
+  - offers the Linux versions of your apps; you pick which (installed through Get apps or OrionOS's recipes).
+  - [move-kit] sets Firefox up like your Chrome: adds the Firefox versions of your extensions (Firefox asks you to
+    turn each one on), makes Firefox your default browser, and opens a page listing your Tampermonkey scripts with
+    an Install link for each (served only to this computer while the page is open).
+Nothing on the drive is changed.
+
+"bring" does all of it after one yes, shows progress, and picks up where it stopped if it's interrupted (the first
+start runs it; it also finds a move kit on the Windows drive of a dual-boot PC, or in a VM's shared folder).
+
+    orion-move-in                 find, show, then ask about each part (a terminal: Settings opens it)
+    orion-move-in find [--json]   which OrionMove folders are attached
+    orion-move-in show [DIR] [--json]
+    orion-move-in files|bookmarks|wifi|apps|browser [DIR]   just that part
+    orion-move-in bring [DIR] [--yes] [--restart]          everything after one yes; resumable
+    orion-move-in userscripts [DIR]                        the "install your userscripts" page again
+    orion-move-in windows-drive                            exit 0 if this PC has a Windows drive to look on
+"""
+from __future__ import annotations
+
+import argparse
+import configparser
+import glob
+import hashlib
+import html
+import json
+import os
+import re
+import shutil
+import sqlite3
+import struct
+import subprocess
+import sys
+import time
+import urllib.request
+import zipfile
+from pathlib import Path
+from typing import Any, Callable, Iterable, Optional
+
+FOLDERS = {"Documents": "DOCUMENTS", "Desktop": "DESKTOP", "Pictures": "PICTURES", "Videos": "VIDEOS",
+           "Music": "MUSIC", "Downloads": "DOWNLOAD"}
+PASS_ITER = 200000            # must match Protect-OrionBytes in Move-ToOrion.ps1
+NMCLI = os.environ.get("ORION_NMCLI", "nmcli")
+APPS_CMD = os.environ.get("ORION_APPS_CMD", "orion-apps")
+SYSTEMCTL = os.environ.get("ORION_SYSTEMCTL", "systemctl")
+FIREFOX = os.environ.get("ORION_FIREFOX", "firefox")
+XDG_SETTINGS = os.environ.get("ORION_XDG_SETTINGS", "xdg-settings")
+WINDOWS_FILES = os.environ.get("ORION_WINDOWS_FILES", "orion-windows-files")
+GATE = os.environ.get("ORION_INSTALL_GATE", "/opt/orion/getapps/orion-install-gate")
+
+
+def home() -> Path:
+    return Path(os.environ.get("HOME") or Path.home())
+
+
+# ===================================================================================================== finding
+def search_roots() -> list[Path]:
+    if os.environ.get("ORION_MOVE_SEARCH"):
+        return [Path(p) for p in os.environ["ORION_MOVE_SEARCH"].split(":") if p]
+    user = os.environ.get("USER", "")
+    # [move-kit] also a folder you put it in yourself (home, Downloads, Desktop) and VM shared folders (/media/sf_*)
+    roots = [Path("/media") / user, Path("/run/media") / user, Path("/media"), Path("/mnt"), home(),
+             home() / "Downloads", home() / "Desktop"]
+    return [r for r in roots if r.is_dir()]
+
+
+def find_moves(roots: Optional[Iterable[Path]] = None) -> list[Path]:
+    """OrionMove folders at the top of any mounted drive (or one level down)."""
+    found: list[Path] = []
+    for root in roots if roots is not None else search_roots():
+        cands = [root / "OrionMove"]
+        try:
+            cands += [d / "OrionMove" for d in sorted(root.iterdir()) if d.is_dir()]
+        except OSError:
+            pass
+        for c in cands:
+            if (c / "manifest.json").is_file() and c.resolve() not in [f.resolve() for f in found]:
+                found.append(c)
+    return found
+
+
+def mount_usb_drives() -> list[str]:
+    """Mount unmounted partitions on USB drives (udisksctl, as yourself). Returns what was mounted."""
+    done: list[str] = []
+    try:
+        out = subprocess.run(["lsblk", "-J", "-o", "PATH,FSTYPE,MOUNTPOINT,TRAN,HOTPLUG,TYPE"],
+                             capture_output=True, text=True, timeout=10).stdout
+        devs = json.loads(out).get("blockdevices", [])
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return done
+
+    def walk(nodes: list[dict[str, Any]], usb: bool) -> None:
+        for n in nodes:
+            on_usb = usb or n.get("tran") == "usb" or n.get("hotplug") in (True, "1")
+            if (on_usb and n.get("type") == "part" and not n.get("mountpoint")
+                    and n.get("fstype") in ("ntfs", "ntfs3", "exfat", "vfat", "ext4", "btrfs")):
+                r = subprocess.run(["udisksctl", "mount", "--no-user-interaction", "-b", n["path"]],
+                                   capture_output=True, text=True, timeout=30)
+                if r.returncode == 0:
+                    done.append(n["path"])
+            walk(n.get("children") or [], on_usb)
+    walk(devs, False)
+    return done
+
+
+# ===================================================================================================== reading
+def safe_rel(rel: str) -> Optional[Path]:
+    """A relative path inside the OrionMove folder, or None if it tries to leave it."""
+    rel = rel.replace("\\", "/").strip()
+    if not rel or rel.startswith("/") or re.match(r"^[A-Za-z]:", rel):
+        return None
+    p = Path(rel)
+    if any(part in ("..", "") for part in p.parts):
+        return None
+    return p
+
+
+def load_manifest(move: Path) -> dict[str, Any]:
+    try:
+        return json.loads((move / "manifest.json").read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError):
+        return {}
+
+
+def read_json(move: Path, rel: Optional[str], default: Any) -> Any:
+    p = safe_rel(rel or "")
+    if p is None or not (move / p).is_file():
+        return default
+    try:
+        return json.loads((move / p).read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError):
+        return default
+
+
+def read_sums(move: Path) -> dict[str, str]:
+    sums: dict[str, str] = {}
+    try:
+        lines = (move / "SHA256SUMS").read_text(encoding="utf-8-sig").splitlines()
+    except OSError:
+        return sums
+    for line in lines:
+        m = re.match(r"^([0-9a-fA-F]{64}) [ *](.+)$", line.strip("\r"))
+        if m and safe_rel(m.group(2)) is not None:
+            sums[m.group(2).replace("\\", "/")] = m.group(1).lower()
+    return sums
+
+
+def sha256(p: Path) -> str:
+    h = hashlib.sha256()
+    with p.open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def summary(move: Path) -> dict[str, Any]:
+    man = load_manifest(move)
+    files: dict[str, dict[str, int]] = {}
+    for name in FOLDERS:
+        d = move / "files" / name
+        if d.is_dir():
+            n = size = 0
+            for f in d.rglob("*"):
+                if f.is_file() and not f.is_symlink():
+                    n += 1
+                    size += f.stat().st_size
+            files[name] = {"files": n, "bytes": size}
+    wifi = read_json(move, (man.get("wifi") or {}).get("networks", "wifi/networks.json"), [])
+    apps = read_json(move, man.get("apps", "apps/installed.json"), [])
+    return {"path": str(move), "made": man.get("made", ""), "computer": man.get("computer", ""),
+            "files": files, "extra": man.get("extra") or [], "bookmarks": man.get("bookmarks") or [],
+            "wifi_networks": [w.get("ssid", "") for w in wifi if isinstance(w, dict)],
+            "wifi_passwords": bool((man.get("wifi") or {}).get("passwords")),
+            "apps": len(apps) if isinstance(apps, list) else 0, "boardroom": man.get("boardroom")}
+
+
+def describe(s: dict[str, Any]) -> str:
+    gb = lambda b: f"{b / 1e9:.1f} GB" if b >= 1e8 else f"{b / 1e6:.0f} MB"
+    out = [f"OrionMove from {s['computer'] or 'your Windows PC'}, made {s['made'][:16].replace('T', ' ')}",
+           f"  at {s['path']}"]
+    for name, v in s["files"].items():
+        out.append(f"  {name}: {v['files']} files, {gb(v['bytes'])}")
+    for e in s["extra"]:
+        out.append(f"  Extra folder: {e.get('name')}" + (" (a WoW client)" if e.get("wow_client") else ""))
+    if s["bookmarks"]:
+        out.append("  Bookmarks: " + ", ".join(f"{b.get('browser')} ({b.get('profile')})" for b in s["bookmarks"]))
+    if s["wifi_networks"]:
+        out.append(f"  Wi-Fi: {len(s['wifi_networks'])} networks" + (", with passwords (locked)" if s["wifi_passwords"]
+                                                                       else ", names only"))
+    if s["apps"]:
+        out.append(f"  Apps: a list of {s['apps']} Windows apps")
+    if s["boardroom"]:
+        out.append("  The boardroom VM's disk")
+    return "\n".join(out)
+
+
+def verify(move: Path, progress: Optional[Callable[[int, int], None]] = None) -> dict[str, list[str]]:
+    """Check every file listed in SHA256SUMS. bad = damaged or missing."""
+    sums = read_sums(move)
+    bad: list[str] = []
+    for i, (rel, want) in enumerate(sorted(sums.items()), 1):
+        p = move / rel
+        if not p.is_file() or p.is_symlink() or sha256(p) != want:
+            bad.append(rel)
+        if progress:
+            progress(i, len(sums))
+    return {"checked": sorted(sums), "bad": bad}
+
+
+# ===================================================================================================== files
+def xdg_dir(key: str, fallback: str) -> Path:
+    h = home()
+    cfg = Path(os.environ.get("XDG_CONFIG_HOME") or h / ".config") / "user-dirs.dirs"
+    try:
+        for line in cfg.read_text().splitlines():
+            m = re.match(rf'^XDG_{key}_DIR="(.*)"\s*$', line)
+            if m:
+                v = m.group(1).replace("$HOME", str(h))
+                if v and Path(v) != h:
+                    return Path(v)
+    except OSError:
+        pass
+    return h / fallback
+
+
+def free_name(dst: Path) -> Path:
+    stem, suf = dst.stem, dst.suffix
+    if dst.name.startswith(".") and not suf:
+        stem, suf = dst.name, ""
+    cand = dst.with_name(f"{stem} (from Windows){suf}")
+    n = 2
+    while cand.exists():
+        cand = dst.with_name(f"{stem} (from Windows {n}){suf}")
+        n += 1
+    return cand
+
+
+def same_file(a: Path, b: Path) -> bool:
+    return a.is_file() and a.stat().st_size == b.stat().st_size and sha256(a) == sha256(b)
+
+
+def same_copy(target: Path, src: Path) -> Optional[Path]:
+    """target itself, or a '... (from Windows N)' copy next to it, if it already holds this file."""
+    if same_file(target, src):
+        return target
+    stem, suf = (target.name, "") if target.name.startswith(".") and not target.suffix else (target.stem, target.suffix)
+    for c in target.parent.glob(f"{glob.escape(stem)} (from Windows*){glob.escape(suf)}"):
+        if same_file(c, src):
+            return c
+    return None
+
+
+def copy_tree(src: Path, dst: Path, rel_base: str, skip: set[str], log: dict[str, list[str]]) -> None:
+    """Copy src into dst. Never overwrites: same file -> skipped, different file -> kept next to it."""
+    for f in sorted(src.rglob("*")):
+        if f.is_symlink() or not f.is_file():
+            continue
+        rel = f.relative_to(src)
+        key = f"{rel_base}/{rel.as_posix()}"
+        if key in skip:
+            log["damaged"].append(key)
+            continue
+        target = dst / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if target.exists():
+            twin = same_copy(target, f)
+            if twin:
+                log["same"].append(str(twin))
+                continue
+            target = free_name(target)
+            log["renamed"].append(str(target))
+        shutil.copy2(f, target)
+        log["copied"].append(str(target))
+
+
+def move_files(move: Path, bad: Iterable[str] = ()) -> dict[str, Any]:
+    skip = set(bad)
+    log: dict[str, list[str]] = {"copied": [], "same": [], "renamed": [], "damaged": []}
+    where: dict[str, str] = {}
+    for name, key in FOLDERS.items():
+        src = move / "files" / name
+        if src.is_dir():
+            dst = xdg_dir(key, name)
+            copy_tree(src, dst, f"files/{name}", skip, log)
+            where[name] = str(dst)
+    man = load_manifest(move)
+    wow = {e.get("name") for e in man.get("extra") or [] if isinstance(e, dict) and e.get("wow_client")}
+    extra = move / "extra"
+    if extra.is_dir():
+        for d in sorted(p for p in extra.iterdir() if p.is_dir() and not p.is_symlink()):
+            is_wow = d.name in wow or (d / "WoW.exe").is_file() or (d / "Wow.exe").is_file()
+            dst = home() / "Games" / d.name if is_wow else home() / d.name
+            copy_tree(d, dst, f"extra/{d.name}", skip, log)
+            where[d.name] = str(dst)
+    return {"ok": True, "where": where, **{k: len(v) for k, v in log.items()}, "renamed_files": log["renamed"],
+            "damaged_files": log["damaged"]}
+
+
+# ===================================================================================================== bookmarks
+def lz4_block(src: bytes, size: int) -> bytes:
+    """Decompress one LZ4 block (Firefox's .jsonlz4 bookmark backups)."""
+    out = bytearray()
+    i, n = 0, len(src)
+    while i < n:
+        token = src[i]
+        i += 1
+        lit = token >> 4
+        if lit == 15:
+            while True:
+                b = src[i]
+                i += 1
+                lit += b
+                if b != 255:
+                    break
+        out += src[i:i + lit]
+        i += lit
+        if i >= n:
+            break
+        off = src[i] | (src[i + 1] << 8)
+        i += 2
+        if off == 0 or off > len(out):
+            raise ValueError("bad lz4 offset")
+        ml = token & 15
+        if ml == 15:
+            while True:
+                b = src[i]
+                i += 1
+                ml += b
+                if b != 255:
+                    break
+        ml += 4
+        start = len(out) - off
+        for k in range(ml):
+            out.append(out[start + k])
+        if len(out) > size:
+            raise ValueError("lz4 output too long")
+    return bytes(out)
+
+
+def read_mozlz4(p: Path) -> Any:
+    data = p.read_bytes()
+    if not data.startswith(b"mozLz40\0"):
+        raise ValueError("not a Firefox bookmark backup")
+    size = struct.unpack("<I", data[8:12])[0]
+    return json.loads(lz4_block(data[12:], size).decode("utf-8"))
+
+
+GOOD_URL = re.compile(r"^(https?|ftp)://", re.I)
+
+
+def tree_from_chromium(data: dict[str, Any]) -> list[dict[str, Any]]:
+    def conv(node: dict[str, Any]) -> Optional[dict[str, Any]]:
+        if node.get("type") == "url":
+            return {"title": node.get("name", ""), "url": node.get("url", "")} if GOOD_URL.match(node.get("url", "")) else None
+        kids = [c for c in (conv(k) for k in node.get("children", [])) if c]
+        return {"title": node.get("name", ""), "children": kids} if kids else None
+    roots = data.get("roots", {})
+    names = {"bookmark_bar": "Bookmarks bar", "other": "Other bookmarks", "synced": "Mobile bookmarks"}
+    out = []
+    for key, title in names.items():
+        if isinstance(roots.get(key), dict):
+            c = conv(roots[key])
+            if c:
+                c["title"] = title
+                out.append(c)
+    return out
+
+
+def tree_from_firefox(data: dict[str, Any]) -> list[dict[str, Any]]:
+    def conv(node: dict[str, Any]) -> Optional[dict[str, Any]]:
+        t = node.get("type")
+        if t == "text/x-moz-place":
+            uri = node.get("uri", "")
+            return {"title": node.get("title", "") or uri, "url": uri} if GOOD_URL.match(uri) else None
+        if t == "text/x-moz-place-container":
+            kids = [c for c in (conv(k) for k in node.get("children", [])) if c]
+            return {"title": node.get("title", ""), "children": kids} if kids else None
+        return None
+    names = {"bookmarksMenuFolder": "Bookmarks menu", "toolbarFolder": "Bookmarks toolbar",
+             "unfiledBookmarksFolder": "Other bookmarks", "mobileFolder": "Mobile bookmarks"}
+    out = []
+    for child in data.get("children", []):
+        c = conv(child)
+        if c:
+            c["title"] = names.get(child.get("root", ""), c["title"] or "Bookmarks")
+            out.append(c)
+    return out
+
+
+def load_bookmarks(move: Path, bad: Iterable[str] = ()) -> list[dict[str, Any]]:
+    """[{title: 'Chrome (Default)', children: [...]}] from every bookmark file in the folder."""
+    skip = set(bad)
+    groups = []
+    labels = {"chrome": "Chrome", "edge": "Edge", "brave": "Brave", "firefox": "Firefox"}
+    for b in load_manifest(move).get("bookmarks") or []:
+        rel = safe_rel(str(b.get("file", "")))
+        if rel is None or rel.as_posix() in skip or not (move / rel).is_file():
+            continue
+        try:
+            if b.get("format") == "mozlz4-json":
+                tree = tree_from_firefox(read_mozlz4(move / rel))
+            else:
+                tree = tree_from_chromium(json.loads((move / rel).read_text(encoding="utf-8-sig")))
+        except (OSError, ValueError, IndexError):
+            continue
+        if tree:
+            groups.append({"title": f"{labels.get(b.get('browser'), b.get('browser', 'Browser'))} ({b.get('profile', '')})",
+                           "children": tree})
+    return groups
+
+
+def count_links(nodes: list[dict[str, Any]]) -> int:
+    return sum(1 if "url" in n else count_links(n.get("children", [])) for n in nodes)
+
+
+def bookmarks_html(groups: list[dict[str, Any]]) -> str:
+    now = str(int(time.time()))
+    lines = ["<!DOCTYPE NETSCAPE-Bookmark-file-1>",
+             '<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">',
+             "<TITLE>Bookmarks</TITLE>", "<H1>Bookmarks</H1>", "<DL><p>",
+             f'    <DT><H3 ADD_DATE="{now}" PERSONAL_TOOLBAR_FOLDER="false">From Windows</H3>', "    <DL><p>"]
+
+    def emit(nodes: list[dict[str, Any]], depth: int) -> None:
+        pad = "    " * depth
+        for n in nodes:
+            if "url" in n:
+                lines.append(f'{pad}<DT><A HREF="{html.escape(n["url"], quote=True)}" ADD_DATE="{now}">'
+                             f'{html.escape(n.get("title") or n["url"])}</A>')
+            else:
+                lines.append(f'{pad}<DT><H3 ADD_DATE="{now}">{html.escape(n.get("title") or "Folder")}</H3>')
+                lines.append(f"{pad}<DL><p>")
+                emit(n.get("children", []), depth + 1)
+                lines.append(f"{pad}</DL><p>")
+    emit(groups, 2)
+    lines += ["    </DL><p>", "</DL><p>", ""]
+    return "\n".join(lines)
+
+
+def firefox_profile() -> Optional[Path]:
+    base = home() / ".mozilla" / "firefox"
+    ini = base / "profiles.ini"
+    if not ini.is_file():
+        return None
+    cp = configparser.ConfigParser(interpolation=None)
+    try:
+        cp.read(ini)
+    except configparser.Error:
+        return None
+
+    def path_of(sec: str) -> Path:
+        p = cp.get(sec, "Path", fallback="")
+        return base / p if cp.get(sec, "IsRelative", fallback="1") == "1" else Path(p)
+    for sec in cp.sections():            # the profile this Firefox install uses
+        if sec.startswith("Install") and cp.get(sec, "Default", fallback=""):
+            p = cp.get(sec, "Default")
+            return base / p if not p.startswith("/") else Path(p)
+    profs = [s for s in cp.sections() if s.startswith("Profile")]
+    for sec in profs:
+        if cp.get(sec, "Default", fallback="0") == "1":
+            return path_of(sec)
+    return path_of(profs[0]) if profs else None
+
+
+def firefox_running(profile: Path) -> bool:
+    if (profile / "lock").is_symlink() or (profile / "lock").exists():
+        return True
+    try:
+        return subprocess.run(["pgrep", "-x", "firefox"], capture_output=True, timeout=5).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def firefox_has_own_bookmarks(profile: Path) -> bool:
+    db = profile / "places.sqlite"
+    if not db.is_file():
+        return False
+    try:
+        con = sqlite3.connect(f"file:{db}?mode=ro&immutable=1", uri=True)
+        n = con.execute("SELECT count(*) FROM moz_bookmarks b JOIN moz_places p ON p.id = b.fk WHERE b.type = 1 "
+                        "AND p.url NOT LIKE 'place:%' AND p.url NOT LIKE '%mozilla.org%' "
+                        "AND p.url NOT LIKE '%mozilla.com%' AND p.url NOT LIKE '%firefox.com%'").fetchone()[0]
+        con.close()
+        return n > 0
+    except sqlite3.Error:
+        return True       # can't tell: be careful and don't replace anything
+
+
+def move_bookmarks(move: Path, bad: Iterable[str] = ()) -> dict[str, Any]:
+    groups = load_bookmarks(move, bad)
+    n = count_links(groups)
+    if not n:
+        return {"ok": True, "links": 0, "message": "No bookmarks in this OrionMove folder."}
+    docs = xdg_dir("DOCUMENTS", "Documents")
+    docs.mkdir(parents=True, exist_ok=True)
+    out = docs / "Bookmarks from Windows.html"
+    if out.exists():
+        out = free_name(out)
+    out.write_text(bookmarks_html(groups), encoding="utf-8")
+    manual = ("In Firefox: Bookmarks > Manage bookmarks > Import and Backup > Import Bookmarks from HTML, "
+              f"and pick {out}.")
+    prof = firefox_profile()
+    res: dict[str, Any] = {"ok": True, "links": n, "file": str(out), "firefox": "manual"}
+    if prof is None:
+        res["message"] = f"Saved {n} bookmarks to {out}. Open Firefox once, then: {manual}"
+    elif firefox_running(prof):
+        res["message"] = f"Saved {n} bookmarks to {out}. Firefox is open, so import them yourself: {manual}"
+    elif firefox_has_own_bookmarks(prof):
+        res["message"] = (f"Saved {n} bookmarks to {out}. Firefox already has bookmarks of yours, so they're left "
+                          f"alone. To add these: {manual}")
+    else:
+        # Firefox imports this file the next time it starts (it then turns the setting off by itself).
+        with (prof / "prefs.js").open("a", encoding="utf-8") as f:
+            f.write('\nuser_pref("browser.places.importBookmarksHTML", true);\n')
+            f.write(f'user_pref("browser.bookmarks.file", {json.dumps(str(out))});\n')
+        res["firefox"] = "on-next-start"
+        res["message"] = f"{n} bookmarks will be in Firefox the next time you open it (in the folder From Windows)."
+    return res
+
+
+# ===================================================================================================== Wi-Fi
+def decrypt(data: bytes, passphrase: str) -> bytes:
+    """Open passwords.enc (openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -md sha256 format)."""
+    if not data.startswith(b"Salted__") or len(data) < 32:
+        raise ValueError("not a locked OrionMove file")
+    salt, body = data[8:16], data[16:]
+    try:
+        from cryptography.hazmat.primitives import padding
+        from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+        kb = hashlib.pbkdf2_hmac("sha256", passphrase.encode(), salt, PASS_ITER, 48)
+        d = Cipher(algorithms.AES(kb[:32]), modes.CBC(kb[32:])).decryptor()
+        raw = d.update(body) + d.finalize()
+        u = padding.PKCS7(128).unpadder()
+        return u.update(raw) + u.finalize()
+    except ImportError:
+        pass
+    env = dict(os.environ, ORION_MOVE_PASS=passphrase)
+    r = subprocess.run(["openssl", "enc", "-d", "-aes-256-cbc", "-pbkdf2", "-iter", str(PASS_ITER), "-md", "sha256",
+                        "-pass", "env:ORION_MOVE_PASS"], input=data, capture_output=True, env=env, timeout=60)
+    if r.returncode != 0:
+        raise ValueError("wrong passphrase")
+    return r.stdout
+
+
+def read_wifi_passwords(move: Path, passphrase: str) -> list[dict[str, str]]:
+    rel = safe_rel(str((load_manifest(move).get("wifi") or {}).get("passwords") or ""))
+    if rel is None or not (move / rel).is_file():
+        return []
+    try:
+        data = json.loads(decrypt((move / rel).read_bytes(), passphrase).decode("utf-8-sig"))
+    except ValueError as e:      # includes a wrong passphrase (bad padding or not JSON)
+        raise ValueError("That passphrase didn't open the Wi-Fi passwords.") from e
+    nets = data.get("networks", [])
+    if isinstance(nets, dict):
+        nets = [nets]
+    return [n for n in nets if isinstance(n, dict) and n.get("ssid")]
+
+
+def known_wifi() -> set[str]:
+    try:
+        r = subprocess.run([NMCLI, "-t", "-f", "NAME,TYPE", "connection", "show"], capture_output=True, text=True,
+                           timeout=15)
+    except (OSError, subprocess.SubprocessError):
+        return set()
+    names = set()
+    for line in r.stdout.splitlines():
+        name, _, typ = line.rpartition(":")
+        if "wireless" in typ:
+            names.add(name.replace("\\:", ":"))
+    return names
+
+
+def key_mgmt(auth: str) -> Optional[str]:
+    a = (auth or "").upper()
+    if a == "OPEN":
+        return ""
+    if a.startswith("WPA3SAE"):
+        return "sae"
+    if a in ("WPA2PSK", "WPAPSK", "WPA3SAE-TRANSITION") or a.endswith("PSK"):
+        return "wpa-psk"
+    return None       # enterprise (WPA2 / WPA3ENT) or unknown: can't be added from a password alone
+
+
+def move_wifi(move: Path, passphrase: Optional[str] = None) -> dict[str, Any]:
+    man = load_manifest(move)
+    nets = read_json(move, (man.get("wifi") or {}).get("networks", "wifi/networks.json"), [])
+    if isinstance(nets, dict):
+        nets = [nets]
+    secrets = {n["ssid"]: n for n in read_wifi_passwords(move, passphrase)} if passphrase else {}
+    have = known_wifi()
+    added, already, names_only, skipped, failed = [], [], [], [], []
+    for n in nets:
+        if not isinstance(n, dict) or not n.get("ssid"):
+            continue
+        ssid = str(n["ssid"])
+        if ssid in have:
+            already.append(ssid)
+            continue
+        s = secrets.get(ssid)
+        km = key_mgmt((s or n).get("auth", ""))
+        if km is None:
+            skipped.append(ssid)
+            continue
+        if km and not (s and s.get("key")):
+            names_only.append(ssid)
+            continue
+        cmd = [NMCLI, "connection", "add", "type", "wifi", "ifname", "*", "con-name", ssid, "ssid", ssid]
+        if km:
+            # The password is passed to nmcli once; NetworkManager keeps it in its own protected store.
+            cmd += ["wifi-sec.key-mgmt", km, "wifi-sec.psk", str(s["key"])]
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        (added if r.returncode == 0 else failed).append(ssid)
+    secrets.clear()
+    msg = []
+    if added:
+        msg.append(f"Added {len(added)} Wi-Fi network(s): {', '.join(added)}.")
+    if already:
+        msg.append(f"Already known: {', '.join(already)}.")
+    if names_only:
+        msg.append(f"Pick these in Wi-Fi and type their password once: {', '.join(names_only)}.")
+    if skipped:
+        msg.append(f"Work or school networks to set up by hand in Wi-Fi: {', '.join(skipped)}.")
+    if failed:
+        msg.append(f"Couldn't add: {', '.join(failed)}.")
+    return {"ok": not failed, "added": added, "already": already, "names_only": names_only, "skipped": skipped,
+            "failed": failed, "message": " ".join(msg) or "No Wi-Fi networks in this OrionMove folder."}
+
+
+# ===================================================================================================== apps
+def app_offers(move: Path) -> list[dict[str, Any]]:
+    """What can be installed for the Windows apps in the list (one line per thing to install)."""
+    apps = read_json(move, load_manifest(move).get("apps", "apps/installed.json"), [])
+    if isinstance(apps, dict):
+        apps = [apps]
+    offers: dict[str, dict[str, Any]] = {}
+    wine = False
+    for a in apps if isinstance(apps, list) else []:
+        if not isinstance(a, dict):
+            continue
+        kind = a.get("kind", "")
+        wine = wine or kind in ("wine", "proton")
+        label = a.get("match") or a.get("name", "")
+        if a.get("flatpak") and re.match(r"^[A-Za-z0-9_.-]+$", a["flatpak"]):
+            key = "flatpak:" + a["flatpak"]
+            o = offers.setdefault(key, {"key": key, "flatpak": a["flatpak"], "for": [], "how": a.get("how", ""),
+                                        "kind": kind})
+            o["for"].append(label)
+        elif a.get("recipe") and re.match(r"^[a-z0-9-]+$", a["recipe"]) and kind not in ("builtin",):
+            key = "recipe:" + a["recipe"]
+            o = offers.setdefault(key, {"key": key, "recipe": a["recipe"], "for": [], "how": a.get("how", ""),
+                                        "kind": kind})
+            o["for"].append(label)
+    if wine and "recipe:windows-apps" not in offers:
+        offers["recipe:windows-apps"] = {"key": "recipe:windows-apps", "recipe": "windows-apps",
+                                         "for": ["Windows apps and games"], "kind": "wine",
+                                         "how": "Bottles (for Windows apps) and Steam (Proton, for games)."}
+    for o in offers.values():
+        o["for"] = sorted(set(o["for"]))
+    return sorted(offers.values(), key=lambda o: (o["kind"] != "linux", ", ".join(o["for"]).lower()))
+
+
+def app_notes(move: Path) -> list[str]:
+    """Plain lines for apps that need something other than an install: web versions, tools, no replacement."""
+    apps = read_json(move, load_manifest(move).get("apps", "apps/installed.json"), [])
+    out = []
+    for a in apps if isinstance(apps, list) else []:
+        if isinstance(a, dict) and (a.get("kind") in ("web", "none") or a.get("tool")):
+            out.append(f"{a.get('match') or a.get('name')}: {a.get('how', '')}")
+    return sorted(set(out))
+
+
+def install_offer(o: dict[str, Any]) -> tuple[bool, str]:
+    if o.get("flatpak"):
+        r = subprocess.run([APPS_CMD, "install", o["flatpak"], "--json"], capture_output=True, text=True, timeout=3600)
+        try:
+            msg = json.loads(r.stdout).get("message", "")
+        except ValueError:
+            msg = r.stdout.strip()[-300:]
+        return r.returncode == 0, msg or ("Installed." if r.returncode == 0 else "That didn't work.")
+    r = subprocess.run([SYSTEMCTL, "start", f"orion-recipe@{o['recipe']}.service"], capture_output=True, text=True,
+                       timeout=3600)
+    return r.returncode == 0, ("Installed." if r.returncode == 0 else
+                               f"That didn't work; see /var/log/orion-recipes/{o['recipe']}.log")
+
+
+
+# ===================================================================================================== [move-kit]
+AMO_SLUG = re.compile(r"^[a-z0-9][a-z0-9-]{0,80}$")
+GECKO_ID = re.compile(r"^(\{[0-9a-fA-F-]{36}\}|[A-Za-z0-9._+-]{1,80}@[A-Za-z0-9._-]{1,80})$")
+AMO_DOWNLOAD = "https://addons.mozilla.org/firefox/downloads/latest/{slug}/latest.xpi"
+AMO_PAGE = "https://addons.mozilla.org/firefox/addon/{slug}/"
+MAX_XPI = 60 * 1024 * 1024
+
+
+def kit_info(move: Path) -> dict[str, Any]:
+    """What the Windows side's move kit (Export-ForOrion.ps1) put in the folder."""
+    man = load_manifest(move)
+    kit = man.get("kit") or {}
+    ranked = read_json(move, kit.get("apps_ranked", "apps/ranked.json"), {})
+    exts = read_json(move, kit.get("extensions", "browser/extensions.json"), [])
+    scripts = read_json(move, kit.get("userscripts", "browser/userscripts.json"), [])
+    engines = read_json(move, kit.get("search_engines", "browser/search-engines.json"), [])
+    return {"ranked": ranked if isinstance(ranked, dict) else {},
+            "extensions": [e for e in exts if isinstance(e, dict)] if isinstance(exts, list) else [],
+            "userscripts": [s for s in scripts if isinstance(s, dict)] if isinstance(scripts, list) else [],
+            "engines": [e for e in engines if isinstance(e, dict)] if isinstance(engines, list) else [],
+            "profiles": kit.get("browser_profiles") or [], "kit_only": bool(man.get("kit_only"))}
+
+
+def ranked_offers(move: Path) -> list[dict[str, Any]]:
+    """Things to install, most-used app first (apps/ranked.json). Apps you didn't use lately are left out when
+    Windows said how often you used them. Falls back to the plain list (app_offers) for older OrionMove folders."""
+    info = kit_info(move)
+    apps = info["ranked"].get("apps")
+    if not isinstance(apps, list) or not apps:
+        return app_offers(move)
+    known = bool(info["ranked"].get("usage_known"))
+    offers: dict[str, dict[str, Any]] = {}
+    for a in apps:
+        if not isinstance(a, dict) or not a.get("install"):
+            continue
+        if known and not a.get("used"):
+            continue
+        label = a.get("match") or a.get("name", "")
+        if a.get("flatpak") and re.match(r"^[A-Za-z0-9_.-]+$", str(a["flatpak"])):
+            key = "flatpak:" + a["flatpak"]
+            o = offers.setdefault(key, {"key": key, "flatpak": a["flatpak"], "for": [], "how": a.get("how", ""),
+                                        "kind": a.get("kind", ""), "runs": 0})
+        elif a.get("recipe") and re.match(r"^[a-z0-9-]+$", str(a["recipe"])):
+            key = "recipe:" + a["recipe"]
+            o = offers.setdefault(key, {"key": key, "recipe": a["recipe"], "for": [], "how": a.get("how", ""),
+                                        "kind": a.get("kind", ""), "runs": 0})
+        else:
+            continue
+        if label not in o["for"]:
+            o["for"].append(label)
+        o["runs"] += int(a.get("runs") or 0)
+    return list(offers.values())
+
+
+def unused_apps(move: Path) -> list[str]:
+    info = kit_info(move)
+    if not info["ranked"].get("usage_known"):
+        return []
+    return [str(a.get("match") or a.get("name")) for a in info["ranked"].get("apps") or []
+            if isinstance(a, dict) and a.get("install") and not a.get("used")]
+
+
+def ensure_firefox_profile(wait_s: float = 40) -> Optional[Path]:
+    """The Firefox profile, starting Firefox once in the background (no window) if it has never run."""
+    prof = firefox_profile()
+    if prof is not None or not shutil.which(FIREFOX):
+        return prof
+    try:
+        p = subprocess.Popen([FIREFOX, "--headless", "--no-remote", "about:blank"], stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL, start_new_session=True)
+    except OSError:
+        return None
+    end = time.time() + wait_s
+    try:
+        while time.time() < end:
+            prof = firefox_profile()
+            if prof is not None and (prof / "prefs.js").exists():
+                time.sleep(2)
+                break
+            time.sleep(1)
+    finally:
+        p.terminate()
+        try:
+            p.wait(timeout=15)
+        except subprocess.TimeoutExpired:
+            p.kill()
+    return firefox_profile()
+
+
+def default_fetch(url: str) -> bytes:
+    req = urllib.request.Request(url, headers={"User-Agent": "OrionOS-move-in"})
+    with urllib.request.urlopen(req, timeout=60) as r:          # addons.mozilla.org only (see install_extensions)
+        data = r.read(MAX_XPI + 1)
+    if len(data) > MAX_XPI:
+        raise ValueError("too big")
+    return data
+
+
+def xpi_id(data: bytes) -> Optional[str]:
+    """The add-on id inside a signed Firefox add-on (.xpi), or None if it isn't one."""
+    import io
+    try:
+        z = zipfile.ZipFile(io.BytesIO(data))
+        names = set(z.namelist())
+        if "manifest.json" not in names or not ({"META-INF/mozilla.rsa", "META-INF/cose.sig"} & names):
+            return None
+        man = json.loads(z.read("manifest.json").decode("utf-8-sig"))
+    except (zipfile.BadZipFile, ValueError, KeyError, OSError):
+        return None
+    for k in ("browser_specific_settings", "applications"):
+        gid = ((man.get(k) or {}).get("gecko") or {}).get("id")
+        if isinstance(gid, str) and GECKO_ID.match(gid):
+            return gid
+    return None
+
+
+def extension_plan(move: Path) -> dict[str, list[dict[str, Any]]]:
+    plan: dict[str, list[dict[str, Any]]] = {"install": [], "builtin": [], "skip": [], "none": [], "unknown": []}
+    seen = set()
+    for e in kit_info(move)["extensions"]:
+        what = str(e.get("firefox", "unknown"))
+        if what not in plan:
+            what = "unknown"
+        key = (what, e.get("amo") or e.get("name"))
+        if key in seen:
+            continue
+        seen.add(key)
+        if what == "install" and not AMO_SLUG.match(str(e.get("amo", ""))):
+            what = "unknown"
+        plan[what].append(e)
+    return plan
+
+
+def install_extensions(move: Path, profile: Optional[Path], fetch: Callable[[str], bytes] = default_fetch,
+                       say: Callable[[str], None] = lambda _m: None) -> dict[str, Any]:
+    """Adds the Firefox version of each Chrome extension to your Firefox profile (its extensions folder). Firefox
+    asks you once to turn each one on: nothing runs until you say yes there. Only addons.mozilla.org files, only
+    signed ones, and each saved under the id it says inside."""
+    plan = extension_plan(move)
+    added, already, failed = [], [], []
+    if profile is None:
+        return {"ok": False, "added": [], "already": [], "failed": [e.get("firefox_name") or e.get("name")
+                                                                    for e in plan["install"]],
+                "message": "Firefox isn't set up yet, so no extensions were added. Open Firefox once, then run: "
+                           "orion-move-in browser", "plan": plan}
+    ext_dir = profile / "extensions"
+    have = {p.stem for p in ext_dir.glob("*.xpi")} if ext_dir.is_dir() else set()
+    for i, e in enumerate(plan["install"], 1):
+        name = e.get("firefox_name") or e.get("name") or e["amo"]
+        say(f"  ({i}/{len(plan['install'])}) {name}")
+        try:
+            data = fetch(AMO_DOWNLOAD.format(slug=e["amo"]))
+        except Exception:      # network down, add-on gone: the page still links to it
+            failed.append(name)
+            continue
+        gid = xpi_id(data)
+        if not gid:
+            failed.append(name)
+            continue
+        if gid in have:
+            already.append(name)
+            continue
+        ext_dir.mkdir(parents=True, exist_ok=True)
+        tmp = ext_dir / f".{gid}.xpi.part"
+        tmp.write_bytes(data)
+        os.replace(tmp, ext_dir / f"{gid}.xpi")
+        have.add(gid)
+        added.append(name)
+    msg = []
+    if added:
+        msg.append(f"Added {len(added)} extension(s) to Firefox: {', '.join(added)}. Next time Firefox opens it asks "
+                   "you to turn each one on (the menu button shows them).")
+    if already:
+        msg.append(f"Already in Firefox: {', '.join(already)}.")
+    if failed:
+        msg.append(f"Couldn't add: {', '.join(failed)} (no internet?). The page of your scripts links to them.")
+    return {"ok": not failed, "added": added, "already": already, "failed": failed, "plan": plan,
+            "message": " ".join(msg) or "No extensions to add."}
+
+
+def set_default_browser() -> dict[str, Any]:
+    try:
+        r = subprocess.run([XDG_SETTINGS, "set", "default-web-browser", "firefox.desktop"], capture_output=True,
+                           text=True, timeout=20)
+        ok = r.returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        ok = False
+    return {"ok": ok, "message": "Firefox is your default browser." if ok else
+            "Couldn't make Firefox the default browser; Settings > Default apps can."}
+
+
+def userscripts_dir() -> Path:
+    return xdg_dir("DOCUMENTS", "Documents") / "Userscripts from Windows"
+
+
+def stage_userscripts(move: Path, bad: Iterable[str] = ()) -> dict[str, Any]:
+    """Copies the .user.js files into Documents/Userscripts from Windows and writes index.html there, a page with an
+    Install link per script (Tampermonkey installs a script when you open its .user.js address)."""
+    skip = set(bad)
+    src = move / "browser" / "userscripts"
+    dst = userscripts_dir()
+    files = []
+    if src.is_dir():
+        for f in sorted(src.glob("*.user.js")):
+            if f.is_symlink() or f"browser/userscripts/{f.name}" in skip or f.stat().st_size > 8 * 1024 * 1024:
+                continue
+            dst.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(f, dst / f.name)
+            files.append(f.name)
+    info = kit_info(move)
+    meta = {s.get("file"): s for s in info["userscripts"]}
+    plan = extension_plan(move)
+    if not files and not plan["install"] and not plan["unknown"] and not info["engines"]:
+        return {"ok": True, "scripts": 0, "page": None, "message": "No userscripts or extensions in this OrionMove folder."}
+    dst.mkdir(parents=True, exist_ok=True)
+    (dst / "index.html").write_text(scripts_page(files, meta, plan, info["engines"]), encoding="utf-8")
+    return {"ok": True, "scripts": len(files), "page": str(dst / "index.html"),
+            "message": f"{len(files)} userscript(s) ready in {dst}. Install them from the page: orion-move-in userscripts"}
+
+
+def scripts_page(files: list[str], meta: dict[str, Any], plan: dict[str, list[dict[str, Any]]],
+                 engines: list[dict[str, Any]]) -> str:
+    e = html.escape
+    rows = []
+    for f in files:
+        m = meta.get(f) or {}
+        ver = f" <small>{e(str(m.get('version')))}</small>" if m.get("version") else ""
+        rows.append(f'<li><a class="btn" href="{e(urllib.request.pathname2url(f))}">Install</a> '
+                    f'{e(str(m.get("name") or f))}{ver}</li>')
+    ext_rows = []
+    for x in plan["install"]:
+        ext_rows.append(f'<li><a href="{e(AMO_PAGE.format(slug=x["amo"]))}">{e(x.get("firefox_name") or x.get("name", ""))}</a>'
+                        + (f" <small>{e(str(x.get('note')))}</small>" if x.get("note") else "") + "</li>")
+    for x in plan["unknown"]:
+        q = urllib.request.quote(str(x.get("name", "")))
+        ext_rows.append(f'<li>{e(str(x.get("name", "")))}: <a href="https://addons.mozilla.org/firefox/search/?q={q}">'
+                        "look for it</a> <small>(not in Orion's list)</small></li>")
+    for x in plan["builtin"] + plan["none"] + plan["skip"]:
+        ext_rows.append(f"<li>{e(str(x.get('name', '')))}: <small>{e(str(x.get('note') or 'Not needed in Firefox.'))}</small></li>")
+    eng_rows = [f"<li>{e(str(g.get('name', '')))}{' (your default)' if g.get('default') else ''}: <code>{e(str(g.get('url', '')))}</code></li>"
+                for g in engines]
+    return f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Your stuff from Chrome</title>
+<style>
+body{{font:16px/1.5 system-ui,sans-serif;max-width:46rem;margin:2rem auto;padding:0 1rem;background:#0b0d14;color:#e8e8f0}}
+a{{color:#8fc7ff}} .btn{{display:inline-block;padding:.15rem .7rem;margin-right:.5rem;border-radius:.4rem;background:#2a4f8a;color:#fff;text-decoration:none}}
+li{{margin:.35rem 0}} small{{color:#9aa0b4}} code{{font-size:.85em;word-break:break-all}}
+</style></head><body>
+<h1>Your stuff from Chrome</h1>
+<h2>Userscripts ({len(files)})</h2>
+<p>Install Tampermonkey first (below, or it's already added: Firefox asks you to turn it on). Then click Install next to
+each script and confirm in Tampermonkey. Another way: Tampermonkey &gt; Utilities &gt; Import from file, and pick the
+files in this folder (or Tampermonkey's own zip export from Chrome).</p>
+<ul>{''.join(rows) or '<li>None found.</li>'}</ul>
+<h2>Extensions</h2>
+<p>The ones Orion could add are already in Firefox, waiting for you to turn them on. Links are here in case one
+didn't come.</p>
+<ul>{''.join(ext_rows) or '<li>None.</li>'}</ul>
+<h2>Search engines</h2>
+<p>To add one: Firefox Settings &gt; Search &gt; Search Shortcuts &gt; Add, and paste its address
+(<code>%s</code> where Chrome had <code>{{searchTerms}}</code>).</p>
+<ul>{''.join(eng_rows) or '<li>None.</li>'}</ul>
+<h2>Passwords</h2>
+<p>Passwords were never copied. Sign in to your password manager in Firefox, or export them from Chrome yourself
+(Settings &gt; Passwords &gt; Export passwords) and import the file here: Firefox &gt; Passwords &gt; ... &gt; Import from
+a File. Delete that file afterwards: it isn't locked.</p>
+</body></html>
+"""
+
+
+def serve_userscripts(minutes: int = 30, open_browser: bool = True) -> int:
+    """Serves the userscripts folder to this computer only (127.0.0.1) and opens the page in Firefox."""
+    import functools
+    import http.server
+    import threading
+    d = userscripts_dir()
+    if not (d / "index.html").is_file():
+        print("No userscripts page yet. Run: orion-move-in browser")
+        return 1
+
+    class Quiet(http.server.SimpleHTTPRequestHandler):
+        def log_message(self, *_a: Any) -> None:
+            pass
+
+        def guess_type(self, path: Any) -> str:
+            return "text/javascript; charset=utf-8" if str(path).endswith(".js") else super().guess_type(path)
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(Quiet, directory=str(d)))
+    url = f"http://127.0.0.1:{srv.server_address[1]}/index.html"
+    timer = threading.Timer(minutes * 60, srv.shutdown)
+    timer.daemon = True          # Ctrl+C ends everything at once
+    timer.start()
+    print(f"Your userscripts page: {url} (only this computer can open it; it closes in {minutes} minutes, or press Ctrl+C)")
+    if open_browser and shutil.which(FIREFOX):
+        subprocess.Popen([FIREFOX, url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    try:
+        srv.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        srv.server_close()
+    return 0
+
+
+def move_browser(move: Path, bad: Iterable[str] = (), fetch: Callable[[str], bytes] = default_fetch,
+                 say: Callable[[str], None] = lambda _m: None) -> dict[str, Any]:
+    prof = ensure_firefox_profile()
+    ext = install_extensions(move, prof, fetch, say)
+    dflt = set_default_browser()
+    staged = stage_userscripts(move, bad)
+    return {"ok": ext["ok"] and dflt["ok"], "extensions": {k: v for k, v in ext.items() if k != "plan"},
+            "default": dflt, "userscripts": staged,
+            "message": " ".join(x["message"] for x in (ext, dflt, staged))}
+
+
+def windows_drive_present() -> bool:
+    py = "/opt/orion/dualboot/orion_dualboot.py"
+    if os.environ.get("ORION_DUALBOOT_PY"):
+        py = os.environ["ORION_DUALBOOT_PY"]
+    if not Path(py).is_file():
+        return False
+    try:
+        r = subprocess.run([sys.executable, py, "windows-parts", "--json"], capture_output=True, text=True, timeout=20)
+        return bool(json.loads(r.stdout or "[]"))
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return False
+
+
+def open_windows_drive() -> bool:
+    """Opens the Windows drive read-only (orion-windows-files: admin password; BitLocker asks for its key)."""
+    try:
+        return subprocess.run([WINDOWS_FILES, "mount"], timeout=600).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+# ------------------------------------------------------------------------------------------- bring (all at once)
+STEPS = [("check", "Checking every file"), ("files", "Your files"), ("bookmarks", "Bookmarks into Firefox"),
+         ("wifi", "Wi-Fi networks"), ("apps", "Installing your apps"), ("browser", "Firefox like your Chrome")]
+
+
+def progress_path() -> Path:
+    return Path(os.environ.get("XDG_STATE_HOME") or home() / ".local/state") / "orion" / "bring-my-stuff.json"
+
+
+def load_progress(move: Path) -> dict[str, Any]:
+    try:
+        st = json.loads(progress_path().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        st = {}
+    made = load_manifest(move).get("made", "")
+    if st.get("kit") != str(move) or st.get("made") != made:
+        st = {"kit": str(move), "made": made, "done": {}, "apps_done": [], "bad": []}
+    return st
+
+
+def save_progress(st: dict[str, Any]) -> None:
+    p = progress_path()
+    try:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        tmp = p.with_suffix(".tmp")
+        tmp.write_text(json.dumps(st, indent=1), encoding="utf-8")
+        os.replace(tmp, p)
+    except OSError:
+        pass
+
+
+def bring_summary(move: Path) -> str:
+    s = summary(move)
+    info = kit_info(move)
+    lines = [describe(s)]
+    offers = ranked_offers(move)
+    if offers:
+        names = [", ".join(o["for"]) for o in offers]
+        lines.append(f"  Apps to install ({len(offers)}, most used first): " + "; ".join(names[:8])
+                     + (" ..." if len(names) > 8 else ""))
+    plan = extension_plan(move)
+    if info["extensions"]:
+        lines.append(f"  Firefox extensions: {len(plan['install'])} to add"
+                     + (f", {len(plan['unknown'])} for you to look up" if plan["unknown"] else ""))
+    if info["userscripts"]:
+        lines.append(f"  Userscripts for Tampermonkey: {len(info['userscripts'])}")
+    if info["extensions"] or info["userscripts"] or s["bookmarks"]:
+        lines.append("  Firefox becomes your default browser. Passwords and cookies were never copied.")
+    return "\n".join(lines)
+
+
+def install_gate_open() -> None:
+    """One password for the next 10 minutes of app installs (Get apps' install gate), when it's there."""
+    if Path(GATE).is_file() and shutil.which("pkexec"):
+        subprocess.run(["pkexec", GATE, "open"], timeout=300)
+
+
+def run_bring(move: Path, assume_yes: bool = False, restart: bool = False,
+              fetch: Callable[[str], bytes] = default_fetch, ask_fn: Callable[[str, bool], bool] = None,
+              out: Callable[[str], None] = print) -> dict[str, Any]:
+    ask_fn = ask_fn or ask
+    if restart:
+        try:
+            progress_path().unlink()
+        except OSError:
+            pass
+    st = load_progress(move)
+    out(bring_summary(move))
+    if st["done"]:
+        out(f"\nPicking up where you left off ({', '.join(st['done'])} already done).")
+    if not assume_yes:
+        if not ask_fn("\nBring all of this in now? (Ctrl+C stops at any time; running this again carries on.)", True):
+            out("Skipped. Any time later: Settings > Bring my stuff from Windows, or orion-move-in bring.")
+            return {"ok": True, "skipped": True}
+    s = summary(move)
+    total = len(STEPS)
+    for n, (step, label) in enumerate(STEPS, 1):
+        if step in st["done"]:
+            continue
+        out(f"\n[{n}/{total}] {label} ...")
+        res: dict[str, Any]
+        if step == "check":
+            v = verify(move, lambda i, k: out(f"  {i}/{k}") if i % 500 == 0 else None)
+            st["bad"] = v["bad"]
+            res = {"ok": True, "checked": len(v["checked"]), "bad": len(v["bad"]),
+                   "message": (f"{len(v['bad'])} damaged file(s) will be skipped." if v["bad"] else
+                               f"All {len(v['checked'])} files are fine.")}
+        elif step == "files":
+            if not (s["files"] or s["extra"]):
+                res = {"ok": True, "message": "No files in this kit (on a dual-boot PC, Open Windows files shows them)."}
+            else:
+                r = move_files(move, st["bad"])
+                res = {"ok": True, "copied": r["copied"], "message": f"Copied {r['copied']} files ({r['same']} were already there)."}
+        elif step == "bookmarks":
+            res = move_bookmarks(move, st["bad"]) if s["bookmarks"] else move_kit_bookmarks(move)
+        elif step == "wifi":
+            pw = None
+            if s["wifi_passwords"] and not assume_yes:
+                import getpass
+                try:
+                    pw = getpass.getpass("  Passphrase you chose for the Wi-Fi passwords (Enter to skip them): ") or None
+                    if pw:
+                        read_wifi_passwords(move, pw)
+                except (ValueError, EOFError) as e:
+                    out(f"  {e} Adding the network names only.")
+                    pw = None
+            res = move_wifi(move, pw) if s["wifi_networks"] else {"ok": True, "message": "No Wi-Fi networks."}
+            pw = None
+        elif step == "apps":
+            offers = [o for o in ranked_offers(move) if o["key"] not in st["apps_done"]]
+            if offers and not assume_yes:
+                install_gate_open()
+            fails = []
+            for i, o in enumerate(offers, 1):
+                out(f"  ({i}/{len(offers)}) {', '.join(o['for'])}: {o.get('flatpak') or o['recipe']}")
+                ok, msg = install_offer(o)
+                out(f"     {msg}")
+                if ok:
+                    st["apps_done"].append(o["key"])
+                    save_progress(st)
+                else:
+                    fails.append(o["key"])
+            left = unused_apps(move)
+            res = {"ok": not fails, "failed": fails,
+                   "message": (f"{len(offers) - len(fails)} installed" + (f", {len(fails)} didn't (try again later)" if fails else "")
+                               + "." + (f" Not used lately, so not installed (Get apps has them): {', '.join(left[:10])}." if left else ""))}
+            for note in app_notes(move):
+                out(f"  Also: {note}")
+        else:
+            res = move_browser(move, st["bad"], fetch, out)
+        record(move, step, res)
+        out(f"  {res.get('message', '')}")
+        if res.get("ok", True) or step not in ("apps", "browser"):
+            st["done"][step] = time.strftime("%Y-%m-%dT%H:%M:%S")
+        save_progress(st)
+    pending = [label for step, label in STEPS if step not in st["done"]]
+    if pending:
+        out(f"\nNot finished: {', '.join(pending)}. Run orion-move-in bring again to try those once more.")
+    else:
+        out("\nAll done. Nothing on the drive was changed.")
+    if (userscripts_dir() / "index.html").is_file():
+        out("Your userscripts and extension links: orion-move-in userscripts (opens the page in Firefox).")
+    return {"ok": not pending, "pending": pending, "done": list(st["done"])}
+
+
+def move_kit_bookmarks(move: Path) -> dict[str, Any]:
+    """Bookmarks from the kit's browser/bookmarks-*.html (a kit made with -KitOnly has no raw bookmark files)."""
+    files = sorted((move / "browser").glob("bookmarks-*.html")) if (move / "browser").is_dir() else []
+    if not files:
+        return {"ok": True, "links": 0, "message": "No bookmarks."}
+    docs = xdg_dir("DOCUMENTS", "Documents")
+    docs.mkdir(parents=True, exist_ok=True)
+    saved = []
+    for f in files:
+        out = docs / f"Bookmarks from Windows ({f.stem[len('bookmarks-'):]}).html"
+        if out.exists():
+            out = free_name(out)
+        shutil.copyfile(f, out)
+        saved.append(out)
+    prof = firefox_profile()
+    manual = "In Firefox: Bookmarks > Manage bookmarks > Import and Backup > Import Bookmarks from HTML."
+    if prof is not None and not firefox_running(prof) and not firefox_has_own_bookmarks(prof) and len(saved) == 1:
+        with (prof / "prefs.js").open("a", encoding="utf-8") as fh:
+            fh.write('\nuser_pref("browser.places.importBookmarksHTML", true);\n')
+            fh.write(f'user_pref("browser.bookmarks.file", {json.dumps(str(saved[0]))});\n')
+        return {"ok": True, "files": [str(p) for p in saved], "firefox": "on-next-start",
+                "message": "Your bookmarks will be in Firefox the next time you open it."}
+    return {"ok": True, "files": [str(p) for p in saved], "firefox": "manual",
+            "message": f"Saved your bookmarks to {', '.join(str(p) for p in saved)}. {manual}"}
+
+# ===================================================================================================== talking
+def ask(q: str, default: bool = True) -> bool:
+    try:
+        a = input(f"{q} {'[Y/n]' if default else '[y/N]'} ").strip().lower()
+    except EOFError:
+        return default
+    return default if not a else a.startswith("y")
+
+
+def pick_numbers(text: str, n: int) -> list[int]:
+    text = text.strip().lower()
+    if text in ("all", "a"):
+        return list(range(n))
+    picks = []
+    for part in re.split(r"[,\s]+", text):
+        m = re.match(r"^(\d+)(?:-(\d+))?$", part)
+        if m:
+            lo, hi = int(m.group(1)), int(m.group(2) or m.group(1))
+            picks += [i - 1 for i in range(lo, hi + 1) if 1 <= i <= n]
+    return sorted(set(picks))
+
+
+def record(move: Path, what: str, res: dict[str, Any]) -> None:
+    st = Path(os.environ.get("XDG_STATE_HOME") or home() / ".local/state") / "orion"
+    try:
+        st.mkdir(parents=True, exist_ok=True)
+        with (st / "move-in.jsonl").open("a", encoding="utf-8") as f:
+            f.write(json.dumps({"time": time.strftime("%Y-%m-%dT%H:%M:%S"), "from": str(move), "part": what,
+                                **{k: v for k, v in res.items() if k != "renamed_files"}}) + "\n")
+    except OSError:
+        pass
+
+
+def choose_move(arg: Optional[str], interactive: bool) -> Optional[Path]:
+    if arg:
+        p = Path(arg)
+        p = p if (p / "manifest.json").is_file() else p / "OrionMove"
+        return p if (p / "manifest.json").is_file() else None
+    found = find_moves()
+    if not found and interactive and shutil.which("udisksctl"):
+        mounted = mount_usb_drives()
+        if mounted:
+            print(f"Opened {', '.join(mounted)}.")
+            found = find_moves()
+    if not found and interactive and windows_drive_present():   # [move-kit] the kit can be on the Windows drive
+        if ask("No OrionMove folder on a USB drive. Look on this PC's Windows drive (read-only)?"):
+            if open_windows_drive():
+                found = find_moves()
+    if len(found) <= 1 or not interactive:
+        return found[0] if found else None
+    for i, f in enumerate(found, 1):
+        print(f"  {i}) {f}")
+    nums = pick_numbers(input("Which one? "), len(found))
+    return found[nums[0]] if nums else None
+
+
+def run_interactive(move: Path, only: Optional[str] = None) -> int:
+    s = summary(move)
+    print(describe(s))
+    print()
+    print("Checking every file against its checksum (nothing is changed on the drive)...")
+    v = verify(move, lambda i, n: print(f"\r  {i}/{n}", end="", flush=True) if i % 50 == 0 or i == n else None)
+    print()
+    if not v["checked"]:
+        print("There's no checksum list (SHA256SUMS), so files can't be checked. They'll still be copied.")
+    elif v["bad"]:
+        print(f"{len(v['bad'])} file(s) are damaged or missing and will be skipped, for example: {v['bad'][0]}")
+    else:
+        print(f"All {len(v['checked'])} files are fine.")
+    bad = v["bad"]
+
+    if only in (None, "files") and (s["files"] or s["extra"]):
+        if only == "files" or ask("\nCopy your files into your home folders? (Nothing already there is replaced.)"):
+            r = move_files(move, bad)
+            record(move, "files", r)
+            print(f"Copied {r['copied']} files ({r['same']} were already there"
+                  + (f"; {r['renamed']} kept next to a different file, named '... (from Windows)'" if r["renamed"] else "")
+                  + ").")
+            for name, where in r["where"].items():
+                print(f"  {name} -> {where}")
+    if only in (None, "bookmarks") and s["bookmarks"]:
+        if only == "bookmarks" or ask("\nImport your bookmarks into Firefox?"):
+            r = move_bookmarks(move, bad)
+            record(move, "bookmarks", r)
+            print(r["message"])
+    if only in (None, "wifi") and s["wifi_networks"]:
+        if only == "wifi" or ask(f"\nAdd your Wi-Fi networks ({len(s['wifi_networks'])})?"):
+            pw = None
+            if s["wifi_passwords"]:
+                import getpass
+                for _ in range(3):
+                    pw = getpass.getpass("Passphrase you chose for the Wi-Fi passwords (Enter to skip them): ")
+                    if not pw:
+                        pw = None
+                        break
+                    try:
+                        read_wifi_passwords(move, pw)
+                        break
+                    except ValueError as e:
+                        print(e)
+                        pw = None
+            r = move_wifi(move, pw)
+            pw = None
+            record(move, "wifi", r)
+            print(r["message"])
+    if only in (None, "apps"):
+        offers = ranked_offers(move)   # [move-kit] most used first when the kit says
+        notes = app_notes(move)
+        if offers:
+            print("\nApps for OrionOS, for the apps you had on Windows:")
+            for i, o in enumerate(offers, 1):
+                what = o.get("flatpak") or f"OrionOS recipe '{o['recipe']}'"
+                print(f"  {i:2}) for {', '.join(o['for'])}: {what}")
+            try:
+                text = input("Type the numbers to install (for example 1 3 5, or all), or press Enter for none: ")
+            except EOFError:
+                text = ""
+            done = []
+            for i in pick_numbers(text, len(offers)):
+                o = offers[i]
+                print(f"Installing {o.get('flatpak') or o['recipe']} ...")
+                ok, msg = install_offer(o)
+                print(f"  {msg}")
+                done.append({"what": o["key"], "ok": ok})
+            record(move, "apps", {"ok": all(d["ok"] for d in done), "installed": done})
+        if notes:
+            print("\nAlso:")
+            for n in notes:
+                print(f"  {n}")
+    if only in (None, "browser") and (kit_info(move)["extensions"] or kit_info(move)["userscripts"]):   # [move-kit]
+        if only == "browser" or ask("\nSet Firefox up like your Chrome (extensions, default browser, userscripts)?"):
+            r = move_browser(move, bad, say=print)
+            record(move, "browser", r)
+            print(r["message"])
+    if s["boardroom"] and only is None:
+        rel = safe_rel(str(s["boardroom"]))
+        if rel is not None:
+            print("\nYour boardroom VM is on the drive. To run it on OrionOS (asks for the orion-admin password):")
+            print(f"  su -P - orion-admin -c \"sudo orion-boardroom-vm import '{move / rel}'\"")
+    print("\nDone. Nothing on the drive was changed. Once everything's here, you can wipe it (it holds copies of"
+          " your files).")
+    return 0
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    ap = argparse.ArgumentParser(prog="orion-move-in", description="Bring your stuff from Windows into OrionOS.")
+    ap.add_argument("cmd", nargs="?", default="",
+                    help="find | show | files | bookmarks | wifi | apps (or a folder; nothing: all, asking first)")
+    ap.add_argument("dir", nargs="?", default=None)
+    ap.add_argument("--json", action="store_true")
+    ap.add_argument("--yes", action="store_true", help="bring: don't ask first")
+    ap.add_argument("--restart", action="store_true", help="bring: forget earlier progress")
+    a = ap.parse_args(argv)
+    cmd, d = a.cmd, a.dir
+    if cmd == "windows-drive":
+        return 0 if windows_drive_present() else 1
+    if cmd == "userscripts" and not d:
+        return serve_userscripts()
+    if cmd and cmd not in ("find", "show", "files", "bookmarks", "wifi", "apps", "browser", "bring", "userscripts"):
+        cmd, d = "", cmd
+    if cmd == "find":
+        found = [str(p) for p in find_moves()]
+        if a.json:
+            print(json.dumps({"ok": True, "found": found}))
+        else:
+            print("\n".join(found) or "No OrionMove folder on any attached drive. Plug in the drive you used with "
+                                       "'Move my stuff to Orion.cmd'.")
+        return 0 if found else 1
+    move = choose_move(d, interactive=not a.json and sys.stdin.isatty())
+    if move is None:
+        msg = ("No OrionMove folder found. Plug in the drive you used with 'Move my stuff to Orion.cmd' on Windows "
+               "(open it once in Files if it doesn't appear), then try again.")
+        print(json.dumps({"ok": False, "message": msg}) if a.json else msg)
+        return 1
+    if cmd == "show":
+        s = summary(move)
+        print(json.dumps({"ok": True, **s, "kit": kit_info(move)}) if a.json else bring_summary(move))
+        return 0
+    if cmd == "userscripts":
+        stage_userscripts(move)
+        return serve_userscripts()
+    if cmd == "bring":
+        if a.json:
+            r = run_bring(move, assume_yes=True, restart=a.restart, out=lambda _m: None)
+            print(json.dumps(r))
+            return 0 if r["ok"] else 1
+        return 0 if run_bring(move, assume_yes=a.yes, restart=a.restart)["ok"] else 1
+    if a.json:
+        bad = verify(move)["bad"]
+        res: dict[str, Any] = {"ok": True, "path": str(move), "damaged": bad}
+        if cmd in ("", "files"):
+            res["files"] = move_files(move, bad)
+        if cmd in ("", "bookmarks"):
+            res["bookmarks"] = move_bookmarks(move, bad)
+        if cmd == "wifi":
+            res["wifi"] = move_wifi(move, None)
+        if cmd == "apps":
+            res["apps"] = {"offers": ranked_offers(move), "notes": app_notes(move), "not_used": unused_apps(move)}
+        if cmd == "browser":
+            res["browser"] = move_browser(move, bad)
+        print(json.dumps(res))
+        return 0
+    return run_interactive(move, cmd or None)
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        print("\nStopped. What was already copied stays; nothing on the drive was changed.")
+        sys.exit(130)

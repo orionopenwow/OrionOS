@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="ffolderopen" x1="6" y1="18" x2="58" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8E72FF"/><stop offset="0.55" stop-color="#6E8BFF"/><stop offset="1" stop-color="#00D2F0"/>
+    </linearGradient>
+    <linearGradient id="bfolderopen" x1="0" y1="8" x2="0" y2="30" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#00D2F0"/><stop offset="1" stop-color="#262D50"/>
+    </linearGradient>
+    <radialGradient id="gfolderopen" cx="18" cy="22" r="40" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.35"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <path d="M6 14.5A4.5 4.5 0 0 1 10.5 10h13.2a3 3 0 0 1 2.1.9l4.4 4.4a3 3 0 0 0 2.1.9h21.2a4.5 4.5 0 0 1 4.5 4.5V30H6z" fill="url(#bfolderopen)"/>
+  <rect x="9" y="15" width="46" height="14" rx="2" fill="#D8DEFF" opacity="0.22"/>
+  <path d="M3.5 27.5a4 4 0 0 1 4-4h49a4 4 0 0 1 4 4.6l-2.4 21.5a5 5 0 0 1-5 4.4H10.9a5 5 0 0 1-5-4.4z" fill="url(#ffolderopen)"/>
+  <path d="M3.5 27.5a4 4 0 0 1 4-4h49a4 4 0 0 1 4 4.6l-2.4 21.5a5 5 0 0 1-5 4.4H10.9a5 5 0 0 1-5-4.4z" fill="url(#gfolderopen)"/>
+  <path d="M9.5 21.2h45" stroke="#FFFFFF" stroke-opacity="0.55" stroke-width="1.2" stroke-linecap="round"/>
+  <ellipse cx="46" cy="47" rx="10" ry="3.2" fill="none" stroke="#FFFFFF" stroke-opacity="0.16" stroke-width="1" transform="rotate(-14 46 47)"/>
+  <circle cx="54.6" cy="44.2" r="1.1" fill="#FFFFFF" fill-opacity="0.55"/>
+  <g opacity="0.92"></g>
+</svg>

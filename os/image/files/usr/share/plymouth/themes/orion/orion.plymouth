@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=OrionOS
+Description=The black hole forming from star dust (frames rendered from Orion's shader), and the vault prompt as stars on an orbit
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/orion
+ScriptFile=/usr/share/plymouth/themes/orion/orion.script

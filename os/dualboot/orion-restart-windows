@@ -1,0 +1,18 @@
+#!/bin/sh
+# Restart into Windows, once (os/dualboot). OrionOS stays the normal choice afterwards.
+#   orion-restart-windows            restart now (Settings > Updates > Windows, and the launcher)
+#   orion-restart-windows status     can it, and how (--json for Orion)
+PY=/opt/orion/dualboot/orion_dualboot.py
+[ -r "$PY" ] || PY="$(dirname "$(readlink -f "$0")")/orion_dualboot.py"
+case "${1:-now}" in
+  status) shift; exec python3 "$PY" status "$@" ;;
+  now|--yes)
+    if ! python3 "$PY" status >/dev/null; then
+      msg="$(python3 "$PY" status 2>&1)"
+      notify-send "Orion" "$msg" 2>/dev/null || true; echo "$msg"; exit 1
+    fi
+    # unsaved work: give the session a moment to say so (the HUD and apps get the normal shutdown signal)
+    notify-send "Orion" "Restarting into Windows…" 2>/dev/null || true
+    exec pkexec /opt/orion/dualboot/orion-dualboot-helper restart-windows ;;
+  *) sed -n '2,4p' "$0"; exit 2 ;;
+esac

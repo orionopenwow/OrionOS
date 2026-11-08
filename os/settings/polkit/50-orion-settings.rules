@@ -1,0 +1,9 @@
+// Orion Settings: the session user "orion", sitting at the computer, may change the lid / power-button choice and
+// switch the camera without a password (the same rule shape as 50-orion-basics.rules). Only these two fixed
+// helpers; everything else Settings does as root still asks for the admin password in a terminal.
+polkit.addRule(function(action, subject) {
+    if ((action.id == "ai.orion.settings.power" || action.id == "ai.orion.settings.camera") &&
+        subject.user == "orion" && subject.local && subject.active) {
+        return polkit.Result.YES;
+    }
+});

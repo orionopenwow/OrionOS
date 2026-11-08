@@ -1,0 +1,21 @@
+#!/bin/sh
+# Orion Settings > Power: what the lid and the power button do. Root helper, started with pkexec (polkit action
+# ai.orion.settings.power). Accepts only the fixed choices below and writes one systemd-logind drop-in.
+#   orion-settings-power lid|lid-plugged-in|power-button suspend|lock|ignore|poweroff|hibernate|suspend-then-hibernate
+set -eu
+F=/etc/systemd/logind.conf.d/60-orion-settings.conf
+case "${1:-}" in
+  lid) KEY=HandleLidSwitch ;;
+  lid-plugged-in) KEY=HandleLidSwitchExternalPower ;;
+  power-button) KEY=HandlePowerKey ;;
+  *) echo "usage: orion-settings-power lid|lid-plugged-in|power-button <choice>" >&2; exit 2 ;;
+esac
+case "${2:-}" in suspend|lock|ignore|poweroff|hibernate|suspend-then-hibernate) VAL="$2" ;; *) echo "unknown choice" >&2; exit 2 ;; esac
+[ "$(id -u)" -eq 0 ] || { echo "needs admin rights" >&2; exit 1; }
+install -d -m 755 "$(dirname "$F")"
+[ -f "$F" ] || printf '[Login]\n# Orion Settings > Power\n' > "$F"
+if grep -q "^$KEY=" "$F"; then sed -i "s/^$KEY=.*/$KEY=$VAL/" "$F"; else printf '%s=%s\n' "$KEY" "$VAL" >> "$F"; fi
+chmod 644 "$F"
+# logind re-reads its settings on SIGHUP (no log-out needed); nothing to do inside an image build.
+if [ -d /run/systemd/system ]; then systemctl kill -s HUP systemd-logind 2>/dev/null || true; fi
+echo "Saved."

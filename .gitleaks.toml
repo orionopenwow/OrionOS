@@ -1,0 +1,22 @@
+# Orion Secret Shield: gitleaks settings for the pre-commit hook (.githooks/pre-commit), the history scan
+# (scripts/secret-shield/scan-history.mjs) and CI (.github/workflows/ci.yml).
+# It keeps all of gitleaks' built-in rules and only adds the allowlist below.
+# Keep the allowlist in step with "allow" in apps/daemon/secret_shield_rules.json (the built-in scanner).
+title = "Orion Secret Shield"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Fake credentials used on purpose by Orion's secret-filter tests (alphabet runs, hunter2 and so on)"
+condition = "AND"
+paths = ['''^apps/daemon/tests/''']
+regexes = ['''(?i)(abcdefgh|abc123def456|hunter2|zx9qw3er5ty7|0123456789|xxxxxxxx|s3cret|pw1234|supersecret)''']
+
+[[allowlists]]
+description = "Secret Shield's own pattern files describe secrets; local caches that git ignores"
+paths = ['''(^|/)secret_shield_rules\.json$''', '''(^|/)\.gitleaks\.toml$''', '''(^|/)\.pytest_cache/''', '''(^|/)node_modules/''']
+
+[[allowlists]]
+description = "Orion's own tripwire decoys (apps/daemon/tripwires.py): every bait value carries the orntw marker"
+regexes = ['''(?i)orntw[0-9a-f]{11}''']

@@ -1,0 +1,8 @@
+{"json_format_version": [1, 0], "smartctl": {"version": [7, 4], "exit_status": 4},
+ "device": {"name": "/dev/sda", "type": "sat", "protocol": "ATA"},
+ "model_family": "Seagate BarraCuda 3.5", "model_name": "ST2000DM008",
+ "smart_status": {"passed": true},
+ "ata_smart_attributes": {"revision": 10, "table": [
+   {"id": 1, "name": "Raw_Read_Error_Rate", "value": 80, "raw": {"value": 100}},
+   {"id": 5, "name": "Reallocated_Sector_Ct", "value": 99, "raw": {"value": 24}},
+   {"id": 197, "name": "Current_Pending_Sector", "value": 100, "raw": {"value": 0}}]}}

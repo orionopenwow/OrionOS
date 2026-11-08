@@ -1,0 +1,63 @@
+#!/bin/sh
+# OrionOS on the USB stick: logs live in RAM and are copied to the vault now and then (OrionOS 1.0 plan, A.
+# "Write-wear reduction (zram, logs in RAM, noatime)"; the same idea as log2ram, which isn't in Ubuntu's archive).
+#
+# Without this, saved logs (H15, orion-journal-vault) are written straight to the stick all day. With it:
+#   start  at boot, after the vault is unlocked: the vault's /var/log is kept aside (bind mount at /var/log.hdd), a
+#          RAM disk goes over /var/log, and the saved logs are copied into it, so `journalctl -b -1` still shows the
+#          last boot
+#   sync   every hour (orion-log2ram-sync.timer) and at shutdown: changed files are copied back to the vault, so a
+#          crash loses at most an hour of logs and the stick sees one write burst an hour instead of constant writes
+#   stop   at shutdown: a last sync, then the RAM disk goes away
+#   status what's happening, in words
+# Only when the vault is unlocked (/dev/mapper/orionvault); installed and enabled for the USB image only
+# (os/image/os-rescue.sh, profile "image"). orion-journal-vault sees /run/orion-log2ram and caps the saved journal
+# at JOURNAL_MAX so it always fits in the RAM disk.
+set -u
+LOGDIR="${ORION_LOGDIR:-/var/log}"
+HDD="${ORION_LOG_HDD:-/var/log.hdd}"
+MARK="${ORION_LOG2RAM_MARK:-/run/orion-log2ram}"
+VAULT="${ORION_VAULT_DEV:-/dev/mapper/orionvault}"
+CONF="${ORION_LOG2RAM_CONF:-/etc/orion/log2ram.conf}"
+SIZE=128M
+[ -r "$CONF" ] && . "$CONF"   # SIZE=256M to give logs more room
+
+copy() {   # copy SRC/ into DST/ (only what changed when rsync is there)
+  if command -v rsync >/dev/null 2>&1; then rsync -aX --delete --inplace "$1/" "$2/" 2>/dev/null || rsync -a --delete "$1/" "$2/"
+  else cp -a "$1/." "$2/"; fi
+}
+
+case "${1:-status}" in
+  start)
+    [ -e "$VAULT" ] || { echo "vault locked: logs stay in memory only"; exit 0; }
+    [ -e "$MARK" ] && { echo "already running"; exit 0; }
+    mkdir -p "$LOGDIR" "$HDD"
+    mount --bind "$LOGDIR" "$HDD" || { echo "couldn't keep the vault's logs aside; logs go to the vault directly"; exit 0; }
+    if ! mount -t tmpfs -o "nosuid,nodev,noexec,mode=0755,size=$SIZE" orion-log2ram "$LOGDIR"; then
+      umount "$HDD" 2>/dev/null; echo "no RAM disk; logs go to the vault directly"; exit 0
+    fi
+    copy "$HDD" "$LOGDIR"
+    echo "$SIZE" > "$MARK"
+    echo "logs in RAM ($SIZE), copied to the vault every hour"
+    ;;
+  sync)
+    [ -e "$MARK" ] || exit 0
+    journalctl --sync >/dev/null 2>&1 || true
+    copy "$LOGDIR" "$HDD"
+    ;;
+  stop)
+    [ -e "$MARK" ] || exit 0
+    journalctl --sync >/dev/null 2>&1 || true
+    copy "$LOGDIR" "$HDD"
+    umount -l "$LOGDIR" 2>/dev/null || true
+    umount -l "$HDD" 2>/dev/null || true
+    rm -f "$MARK"
+    ;;
+  status)
+    if [ -e "$MARK" ]; then echo "Logs are in RAM ($(cat "$MARK")) and copied to the vault every hour and at shutdown."
+    elif [ -e "$VAULT" ]; then echo "Logs go straight to the vault (RAM logs aren't running)."
+    else echo "The vault is locked: logs are kept in memory only and go at shutdown."; fi
+    ;;
+  *) echo "usage: orion-log2ram start|sync|stop|status" >&2; exit 2 ;;
+esac
+exit 0

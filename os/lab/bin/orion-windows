@@ -1,0 +1,193 @@
+#!/usr/bin/env python3
+"""orion-windows: Windows-style window handling on OrionOS (H13).
+
+    orion-windows list [--json]     the open app windows (the HUD taskbar and Settings read --json)
+    orion-windows switch            Alt+Tab: a small glass list, the window you used before first; Tab moves, Enter picks
+    orion-windows focus ID          bring that window to the front (a minimised one comes back)
+    orion-windows menu              right click on a title bar (or Super+W): Close, Maximise, Minimise, Float, Move
+    orion-windows do ACTION [ID]    one of those without the menu (close, maximise, minimise, float, next)
+    orion-windows buttons [on|off|status]   title bars on app windows (Settings > Keyboard & windows)
+    orion-windows watch             (started by the session) remembers which windows you used last, for Alt+Tab
+
+The logic is in os/desktop/orion_windows.py (tested without a screen). The compositor (Sway, or the optional Hyprland
+session) is reached only through os/desktop/orion_compositor.py.
+"""
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+
+def _lib():
+    here = Path(__file__).resolve()
+    for d in (os.environ.get("ORION_DESKTOP_DIR", ""), "/opt/orion/desktop", str(here.parent.parent.parent / "desktop")):
+        if d and (Path(d) / "orion_windows.py").is_file():
+            sys.path.insert(0, d)
+            break
+    import orion_compositor  # noqa: E402
+    import orion_windows  # noqa: E402
+    return orion_windows, orion_compositor
+
+
+W, C = _lib()
+COMP = C.detect()
+RUNTIME = Path(os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}")
+MRU_FILE = RUNTIME / "orion-windows-mru.json"
+CONF = Path.home() / ".config" / "orion" / "sway.d" / "windows.conf"
+
+
+def tree() -> dict:
+    return (COMP.get_tree() if COMP else None) or {}
+
+
+def focus(w: dict) -> None:
+    if COMP:
+        COMP.focus(w["id"], minimised=bool(w.get("minimised")))
+
+
+def mru() -> list[int]:
+    try:
+        return W.parse_mru(MRU_FILE.read_text())
+    except OSError:
+        return []
+
+
+def wofi(lines: list[str], prompt: str, height: int) -> str:
+    try:
+        r = subprocess.run(["wofi", "--dmenu", "--insensitive", "--prompt", prompt, "--height", str(height),
+                            "--width", "560", "--cache-file", "/dev/null"],
+                           input="\n".join(lines), capture_output=True, text=True, timeout=120)
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    return r.stdout.strip("\n")
+
+
+def cmd_list(args: list[str]) -> int:
+    wins = W.windows(tree())
+    if "--json" in args:
+        print(json.dumps({"windows": wins}))
+    else:
+        for w in W.mru_order(wins, mru()):
+            print(f"{w['id']:>6}  {W.label(w)}")
+    return 0
+
+
+def cmd_switch() -> int:
+    wins = W.mru_order(W.windows(tree()), mru())
+    if not wins:
+        subprocess.run(["notify-send", "--app-name=Orion", "No app windows open", "Super+D opens an app."])
+        return 0
+    choice = wofi([W.label(w) for w in wins], "Switch to…", min(80 + 44 * len(wins), 460))
+    w = W.pick(wins, choice) if choice else None
+    if w:
+        focus(w)
+    return 0
+
+
+def cmd_focus(cid: str) -> int:
+    wins = W.windows(tree())
+    w = next((x for x in wins if str(x["id"]) == cid), None)
+    if not w:
+        print("That window isn't open any more.", file=sys.stderr)
+        return 1
+    focus(w)
+    return 0
+
+
+def cmd_menu() -> int:
+    w = W.focused(W.windows(tree()))
+    if not w:
+        return 0
+    labels = [lab for _a, lab in W.MENU]
+    title = w["title"] if len(w["title"]) <= 40 else w["title"][:39] + "…"
+    choice = wofi(labels, f"{title}:", 300)
+    act = next((a for a, lab in W.MENU if lab == choice), None)
+    if act and COMP:
+        COMP.window_action(act, w["id"])
+    return 0
+
+
+def cmd_do(action: str, cid: str = "") -> int:
+    if not cid:
+        w = W.focused(W.windows(tree()))
+        if not w:
+            return 0
+        cid = str(w["id"])
+    if action not in C.ACTIONS or not cid.isdigit():
+        print("orion-windows do close|maximise|minimise|float|next [ID]", file=sys.stderr)
+        return 2
+    if COMP:
+        COMP.window_action(action, int(cid))
+    return 0
+
+
+def cmd_buttons(arg: str) -> int:
+    try:
+        cur = W.buttons_state(CONF.read_text())
+    except OSError:
+        cur = True
+    if arg in ("", "status"):
+        print("on" if cur else "off")
+        return 0
+    if arg not in ("on", "off"):
+        print("orion-windows buttons on|off|status", file=sys.stderr)
+        return 2
+    on = arg == "on"
+    CONF.parent.mkdir(parents=True, exist_ok=True)
+    CONF.write_text(W.buttons_conf(on), encoding="utf-8")
+    if COMP and COMP.name == "sway":
+        COMP.reload()
+        COMP.set_borders(on)
+    print("Window buttons are on: right-click a title bar for Close, Maximise and Minimise." if on else
+          "Window buttons are off: thin edges only.")
+    return 0
+
+
+def cmd_watch() -> int:
+    """Follow the compositor's focus events and keep the most-recently-used list (in memory and in XDG_RUNTIME_DIR)."""
+    order = mru()
+    w = W.focused(W.windows(tree()))
+    if w:
+        order = W.remember(order, w["id"])
+    if not COMP:
+        return 1
+    for ev in COMP.subscribe(["window"]):
+        con = ev.get("container") or {}
+        if ev.get("change") == "focus" and con.get("id") and not W.is_hud(con):
+            order = W.remember(order, int(con["id"]))
+        elif ev.get("change") == "close" and con.get("id"):
+            order = [i for i in order if i != con["id"]]
+        else:
+            continue
+        tmp = MRU_FILE.with_suffix(".tmp")
+        tmp.write_text(json.dumps(order))
+        tmp.replace(MRU_FILE)
+    return 0
+
+
+def main(argv: list[str]) -> int:
+    cmd = argv[0] if argv else "list"
+    rest = argv[1:]
+    if cmd == "list":
+        return cmd_list(rest)
+    if cmd == "switch":
+        return cmd_switch()
+    if cmd == "focus" and rest:
+        return cmd_focus(rest[0])
+    if cmd == "menu":
+        return cmd_menu()
+    if cmd == "do" and rest:
+        return cmd_do(rest[0], rest[1] if len(rest) > 1 else "")
+    if cmd == "buttons":
+        return cmd_buttons(rest[0] if rest else "")
+    if cmd == "watch":
+        return cmd_watch()
+    print(__doc__)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

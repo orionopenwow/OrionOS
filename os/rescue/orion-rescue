@@ -1,0 +1,16 @@
+#!/bin/sh
+# The Rescue panel (os/rescue): Terminal, Files, Browser, Undo the last update, Restart into Windows, Send a report
+# to my phone, Try Orion again. Opens by itself when the Orion screen keeps crashing; Ctrl+Alt+Delete opens it too.
+#   orion-rescue [--after-crash|--session] | record-crash SECONDS | reset-crashes | plan-undo [update|change] | report
+DIR="${ORION_RESCUE_DIR:-/opt/orion/rescue}"
+[ -d "$DIR/orion_rescue" ] || DIR="$(dirname "$(readlink -f "$0")")"
+# Software drawing: the panel must work exactly when the graphics stack is what's failing.
+export GSK_RENDERER="${GSK_RENDERER:-cairo}"
+case "${1:-}" in
+  ''|--after-crash|--session)
+    # one panel at a time
+    if command -v swaymsg >/dev/null 2>&1 && swaymsg -t get_tree 2>/dev/null | grep -q '"app_id": "ai.orion.Rescue"'; then
+      swaymsg -q '[app_id="^ai\.orion\.Rescue$"] focus' 2>/dev/null; exit 0
+    fi ;;
+esac
+PYTHONPATH="$DIR${PYTHONPATH:+:$PYTHONPATH}" exec /usr/bin/python3 -m orion_rescue "$@"

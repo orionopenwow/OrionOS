@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!-- OrionOS Get apps: the install gate (os/getapps/orion-install-gate). 50-orion-getapps.rules says who may open it. -->
+<policyconfig>
+  <vendor>OrionOS</vendor>
+  <action id="ai.orion.getapps.gate">
+    <description>Allow installing new apps for 10 minutes</description>
+    <message>Installing a new app needs your password.</message>
+    <defaults><allow_any>no</allow_any><allow_inactive>no</allow_inactive><allow_active>auth_admin</allow_active></defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/opt/orion/getapps/orion-install-gate</annotate>
+  </action>
+</policyconfig>

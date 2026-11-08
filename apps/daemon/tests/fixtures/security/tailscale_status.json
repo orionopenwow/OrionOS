@@ -1,0 +1,4 @@
+{"Version": "1.76.1", "BackendState": "Running",
+ "Self": {"ID": "n1", "HostName": "orionos", "DNSName": "orionos.tail1234.ts.net.", "OS": "linux",
+          "TailscaleIPs": ["100.101.102.103", "fd7a:115c:a1e0::1"], "Online": true},
+ "Peer": {"nodekey:a": {"HostName": "phone", "Online": true}, "nodekey:b": {"HostName": "server", "Online": true}}}

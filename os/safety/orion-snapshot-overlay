@@ -1,0 +1,19 @@
+#!/bin/sh
+# OrionOS initramfs (local-bottom): when the boot menu starts a snapshot (orion.snapshot=N on the kernel command
+# line), the snapshot is read-only; lay a RAM overlay on top so the system can start normally. Every change made
+# while looking around vanishes at the next restart. Same idea as grub-btrfs's overlayfs hook.
+PREREQ=""
+prereqs() { echo "$PREREQ"; }
+case "$1" in prereqs) prereqs; exit 0 ;; esac
+grep -q 'orion.snapshot=' /proc/cmdline || exit 0
+. /scripts/functions
+mkdir -p /run/orion-snap/ro /run/orion-snap/rw
+mount --move "${rootmnt}" /run/orion-snap/ro || { log_failure_msg "orion snapshot: couldn't move the root"; exit 0; }
+mount -t tmpfs -o mode=0755 orion-snap-rw /run/orion-snap/rw
+mkdir -p /run/orion-snap/rw/upper /run/orion-snap/rw/work
+if ! mount -t overlay -o lowerdir=/run/orion-snap/ro,upperdir=/run/orion-snap/rw/upper,workdir=/run/orion-snap/rw/work \
+     orion-snapshot "${rootmnt}"; then
+  mount --move /run/orion-snap/ro "${rootmnt}"
+  log_failure_msg "orion snapshot: no overlay, starting read-only"
+fi
+exit 0

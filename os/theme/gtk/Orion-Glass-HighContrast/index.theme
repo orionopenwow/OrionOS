@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=X-GNOME-Metatheme
+Name=Orion Glass High Contrast
+Comment=OrionOS: white and yellow on black, thick edges (Settings > Accessibility > High contrast)
+Encoding=UTF-8
+
+[X-GNOME-Metatheme]
+GtkTheme=Orion-Glass-HighContrast
+IconTheme=Orion
+CursorTheme=Orion
+ButtonLayout=close,minimize,maximize:minimize,maximize,close

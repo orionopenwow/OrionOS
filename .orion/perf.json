@@ -1,0 +1,7 @@
+{
+  "benches": [
+    {"name": "HUD build size", "size": "apps/desktop/dist"}
+  ],
+  "when": ["nightly"],
+  "threshold_pct": 10
+}

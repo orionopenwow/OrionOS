@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# orion-ufw-forget: remove only Orion's own firewall rules, so provision.sh can add the current ones again, and
+# every rule you added yourself stays (review H10: no more "ufw --force reset" on every update).
+# Orion's rules are recognised by their comments (the ones provision.sh step 9 uses, and anything starting "orion:").
+# Works with ufw on or off (it reads "ufw show added").
+set -uo pipefail
+PATTERN="${ORION_UFW_PATTERN:-^(boardroom verdicts|Orion Mobile.*|SSH over Tailscale only|orion:.*)$}"
+command -v ufw >/dev/null || exit 0
+n=0
+while IFS=$'\t' read -r rule comment; do
+  [ -n "$rule" ] || continue
+  printf '%s\n' "$comment" | grep -qE "$PATTERN" || continue
+  # shellcheck disable=SC2086
+  ufw --force delete $rule >/dev/null 2>&1 && n=$((n + 1))
+done < <(ufw show added 2>/dev/null | sed -n "s/^ufw \(.*\) comment '\(.*\)'$/\1\t\2/p")
+echo "   firewall: refreshed $n of Orion's own rules; your rules are kept"

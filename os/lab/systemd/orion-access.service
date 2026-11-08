@@ -1,0 +1,10 @@
+# OrionOS: put your accessibility choices back at login (os/lab/bin/orion-access session).
+[Unit]
+Description=Accessibility choices
+PartOf=sway-session.target
+After=sway-session.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=-/usr/local/bin/orion-access session

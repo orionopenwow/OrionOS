@@ -1,0 +1,32 @@
+#!/bin/sh
+# Orion Settings: the admin jobs that used to need a terminal (H5). Root helper, started with pkexec (polkit action
+# ai.orion.settings.admin): the graphical password window asks for the admin (orion-admin) password first.
+# Accepts only these fixed jobs:
+#   orion-settings-admin set-password              the password of the account that asked (one line on stdin)
+#   orion-settings-admin login auto|password       how OrionOS starts (password: only once the account has one)
+#   orion-settings-admin login reduced-motion on|off
+set -eu
+[ "$(id -u)" -eq 0 ] || { echo "needs admin rights" >&2; exit 1; }
+WHO="$(getent passwd "${PKEXEC_UID:-x}" | cut -d: -f1)"
+[ -n "$WHO" ] || { echo "Run this from Settings (pkexec)." >&2; exit 2; }
+MODE=/opt/orion/greeter/orion-login-mode
+case "${1:-}" in
+  set-password)
+    case "$WHO" in root|orion-admin|orion-agent|_greetd) echo "Not for this account." >&2; exit 2 ;; esac
+    IFS= read -r PW || true
+    [ "${#PW}" -ge 8 ] || { echo "Passwords need at least 8 characters." >&2; exit 3; }
+    printf '%s:%s\n' "$WHO" "$PW" | chpasswd
+    PW=""
+    echo "Password set." ;;
+  login)
+    case "${2:-}" in
+      auto) exec "$MODE" auto ;;
+      password)
+        # the login screen needs a password to check; Settings sets one first (set-password)
+        [ "$(passwd -S "$WHO" 2>/dev/null | awk '{print $2}')" = P ] || { echo "Choose a password first." >&2; exit 3; }
+        exec "$MODE" password </dev/null ;;
+      reduced-motion) case "${3:-}" in on|off) exec "$MODE" reduced-motion "$3" ;; esac ;;
+    esac
+    echo "usage: orion-settings-admin login auto|password|reduced-motion on|off" >&2; exit 2 ;;
+  *) echo "usage: orion-settings-admin set-password | login ..." >&2; exit 2 ;;
+esac

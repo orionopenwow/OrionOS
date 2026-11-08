@@ -1,0 +1,15 @@
+# OrionOS: idle and sleep (os/lab/bin/orion-idle): lock before sleep, lock after 5 minutes away, screen off after
+# 10 (Settings > Lock & rescue changes the times), and the seconds-since-input marker Orion's pacing reads.
+[Unit]
+Description=Lock and screen-off when idle, lock before sleep (swayidle)
+PartOf=sway-session.target
+After=sway-session.target
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+ExecStart=/usr/local/bin/orion-idle
+# Only swayidle itself is stopped on a restart: a lock screen it started must never be killed along with it.
+KillMode=process
+Restart=on-failure
+RestartSec=2

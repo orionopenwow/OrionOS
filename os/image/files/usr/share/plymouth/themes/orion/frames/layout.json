@@ -1,0 +1,30 @@
+{
+  "fps": 15,
+  "renderSize": [
+    1280,
+    720
+  ],
+  "crop": [
+    800,
+    680
+  ],
+  "bootFrames": 91,
+  "idleFrames": 24,
+  "timeline": {
+    "spark": 0,
+    "starfall": 0.8,
+    "collapse": 2.6,
+    "accretion": 3.3,
+    "wordmark": 4.3,
+    "settled": 6
+  },
+  "wordmarkY": 0.37,
+  "wordmarkPx": 45,
+  "handoff": {
+    "u_time": 6,
+    "u_boot": -1,
+    "note": "the last boot frame is u_boot = 6.0 at u_time = 6.0; scale = min(screen)/720"
+  },
+  "shader": "os/theme/blackhole/blackhole.frag",
+  "font": "Unbounded-Variable.ttf"
+}

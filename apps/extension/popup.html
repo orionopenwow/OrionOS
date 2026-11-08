@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font: 13px/1.4 system-ui, sans-serif; margin: 0; padding: 12px; width: 260px; background: #14141c; color: #eee; }
+    h1 { font-size: 14px; margin: 0 0 8px; }
+    button { width: 100%; font: inherit; color: #fff; background: #2a2a38; border: 1px solid #444; border-radius: 8px;
+             padding: 8px; margin: 4px 0; cursor: pointer; }
+    button.rec { background: #8a1f2b; border-color: #ff4d5e; }
+    button:disabled { opacity: .5; cursor: default; }
+    p { margin: 6px 0; color: #aaa; font-size: 12px; }
+    input { box-sizing: border-box; width: 100%; font: 15px/1.4 ui-monospace, monospace; letter-spacing: 2px;
+            text-transform: uppercase; color: #fff; background: #1d1d28; border: 1px solid #444; border-radius: 8px;
+            padding: 8px; margin: 4px 0; }
+    label { display: flex; gap: 6px; align-items: center; margin-top: 8px; font-size: 12px; color: #ccc; }
+  </style>
+</head>
+<body>
+  <h1>Orion Bridge</h1>
+  <div id="pairbox" hidden>
+    <p>Connect this browser to Orion once. In Orion open Control, then Pair, and type the code shown there.</p>
+    <input id="code" placeholder="ABCD-1234" maxlength="12" autocomplete="off" spellcheck="false">
+    <button id="pairbtn">Connect to Orion</button>
+    <p id="pairmsg"></p>
+  </div>
+  <button id="record">Record a skill on this page</button>
+  <p id="status">Orion copies what you do here into a skill it can repeat. Passwords, card numbers and codes are never recorded.</p>
+  <button id="pin" hidden>Pin this chat so Orion mirrors it</button>
+  <label><input type="checkbox" id="notice"> Notice tasks I repeat and suggest skills</label>
+  <p id="linked" hidden>Connected to Orion. <a href="#" id="unpair" style="color:#9ab">Disconnect</a></p>
+  <script src="popup.js"></script>
+</body>
+</html>

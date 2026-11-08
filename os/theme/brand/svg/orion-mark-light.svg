@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+<defs>
+<linearGradient id="pring" x1="156" y1="256" x2="356" y2="256" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#00A3C4" stop-opacity="1"/><stop offset="0.35" stop-color="#0090B8" stop-opacity="1"/><stop offset="0.75" stop-color="#7C5CFF" stop-opacity="0.9"/><stop offset="1" stop-color="#7C5CFF" stop-opacity="0.55"/></linearGradient>
+<radialGradient id="phalo" cx="256" cy="256" r="200" gradientUnits="userSpaceOnUse">
+<stop offset="0.45" stop-color="#7C5CFF" stop-opacity="0.55"/><stop offset="0.7" stop-color="#7C5CFF" stop-opacity="0.16"/><stop offset="1" stop-color="#7C5CFF" stop-opacity="0"/></radialGradient>
+<radialGradient id="pbg" cx="256" cy="236" r="380" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#151B3A"/><stop offset="0.55" stop-color="#0B0F1E"/><stop offset="1" stop-color="#05070E"/></radialGradient>
+<filter id="pglow" x="-1" y="-1" width="3" height="3"><feGaussianBlur stdDeviation="6"/></filter>
+<filter id="pringglow" x="-0.5" y="-0.5" width="2" height="2"><feGaussianBlur stdDeviation="9.600000000000001"/></filter>
+</defs><circle cx="256" cy="256" r="96.0" fill="#05070E"/>
+<circle cx="256" cy="256" r="115" fill="none" stroke="#7C5CFF" stroke-width="2.2" stroke-opacity="0.55"/>
+<circle cx="256" cy="256" r="100" fill="none" stroke="url(#pring)" stroke-width="9"/>
+<circle cx="432" cy="82" r="11.5" fill="#262D50"/>
+<circle cx="385" cy="123" r="10.5" fill="#262D50"/>
+<circle cx="340" cy="166" r="9.5" fill="#262D50"/>
+</svg>

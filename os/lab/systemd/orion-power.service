@@ -1,0 +1,12 @@
+# OrionOS: battery watcher (warns at 15% and 7%, sleeps at 4%; os/lab/bin/orion-power).
+[Unit]
+Description=Battery watcher
+PartOf=sway-session.target
+After=sway-session.target
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+ExecStart=/usr/local/bin/orion-power watch
+Restart=on-failure
+RestartSec=5

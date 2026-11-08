@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# orion-sway-config: Orion's Sway settings without ever overwriting yours (review H10).
+#   bash os/lab/orion-sway-config HOME USER PROFILE      (provision.sh; safe to re-run)
+#
+# Orion's settings live in /etc/orion/sway/orion.conf, rewritten on every update. Your ~/.config/sway/config is
+# yours: it's made once, as a short file that includes Orion's, and updates never change it again. Lines you add
+# after the include win over Orion's.
+# Before this, provision.sh wrote the whole config into your home on every update (so changes there were lost each
+# time anyway). Such a file (it starts with Orion's header and has no include line) is moved aside once, to
+# config.orion-before-<date>, and replaced by the short file.
+set -euo pipefail
+H="${1:?home}"; U="${2:?user}"; PROFILE="${3:-vm}"
+SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+SYS="${ORION_SWAY_SYS:-/etc/orion/sway/orion.conf}"
+INC="include $SYS"
+HEADER="$(head -n1 "$SRC/os/lab/sway-config")"
+
+install -d -m 755 "$(dirname "$SYS")"
+# (Orion's first-run opens from orion-firstrun.service in sway-session.target, not from this file.)
+cat "$SRC/os/lab/sway-config" > "$SYS.tmp"
+chmod 644 "$SYS.tmp"; mv "$SYS.tmp" "$SYS"
+
+stub() {
+  cat > "$1" <<STUB
+# Your Sway settings. OrionOS's own come from the line below and are updated with OrionOS; this file is yours and
+# updates never change it. Add your own lines after the include: they win (for example a keyboard layout:
+#   input * xkb_layout de
+# ).
+$INC
+STUB
+}
+CFG="$H/.config/sway/config"
+install -d -o "$U" -g "$U" "$H/.config" "$H/.config/sway"
+if [ ! -e "$CFG" ]; then
+  stub "$CFG"
+elif grep -qxF "$INC" "$CFG"; then
+  :                                                    # yours, already including Orion's: leave it alone
+elif [ "$(head -n1 "$CFG")" = "$HEADER" ]; then
+  old="$CFG.orion-before-$(date +%Y%m%d)"
+  mv "$CFG" "$old"; chown "$U:$U" "$old" 2>/dev/null || true
+  stub "$CFG"
+  printf '# Your settings from before (Orion used to write this whole file): %s\n' "$(basename "$old")" >> "$CFG"
+  echo "   Sway: your old config was moved to $old; the new one includes Orion's settings."
+else
+  echo "   Sway: $CFG isn't Orion's (no include line), so it's left exactly as it is. To get Orion's settings, add: $INC"
+fi
+chown "$U:$U" "$CFG" 2>/dev/null || true

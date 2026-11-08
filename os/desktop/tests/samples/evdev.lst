@@ -1,0 +1,31 @@
+! model
+  pc105           Generic 105-key PC
+
+! layout
+  gb              English (UK)
+  us              English (US)
+  fr              French
+  de              German
+  ch              German (Switzerland)
+  it              Italian
+  jp              Japanese
+  br              Portuguese (Brazil)
+  es              Spanish
+  se              Swedish
+
+! variant
+  extd            gb: English (UK, extended, Windows)
+  intl            gb: English (UK, intl., with dead keys)
+  dvorak          gb: English (UK, Dvorak)
+  dvorakukp       gb: English (UK, Dvorak, with UK punctuation)
+  mac             gb: English (UK, Macintosh)
+  mac_intl        gb: English (UK, Macintosh, intl.)
+  colemak         gb: English (UK, Colemak)
+  colemak_dh      gb: English (UK, Colemak-DH)
+  gla             gb: Scottish Gaelic
+  pl              gb: Polish (British keyboard)
+  euro            us: English (US, euro on 5)
+  intl            us: English (US, intl., with dead keys)
+
+! option
+  grp                  Switching to another layout

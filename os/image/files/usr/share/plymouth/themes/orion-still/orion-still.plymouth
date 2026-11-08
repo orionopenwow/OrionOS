@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=OrionOS (reduced motion)
+Description=The same splash with reduced motion: one still of the black hole, simple fades. Chosen by GRUB with plymouth.splash=orion-still when reduced motion is on.
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/orion-still
+ScriptFile=/usr/share/plymouth/themes/orion/orion.script

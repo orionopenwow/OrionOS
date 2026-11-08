@@ -1,0 +1,35 @@
+/* OrionOS: GTK 4 colours for libadwaita apps, which ignore GTK themes (the Orion Glass theme in
+ * /usr/share/themes covers plain GTK 4 apps). Copied once into ~/.config/gtk-4.0/; only colour names here, so the
+ * theme's see-through glass is not overridden. Palette: Art Update §6. */
+@define-color accent_color #9D85FF;
+@define-color accent_bg_color #7C5CFF;
+@define-color accent_fg_color #FFFFFF;
+@define-color destructive_color #FF8AAD;
+@define-color destructive_bg_color #FF5C8A;
+@define-color destructive_fg_color #FFFFFF;
+@define-color success_color #5CFFB0;
+@define-color success_bg_color #2FB57A;
+@define-color warning_color #FFC66B;
+@define-color warning_bg_color #C98A2E;
+@define-color error_color #FF5C8A;
+@define-color error_bg_color #D63A6A;
+@define-color window_bg_color #0B0F1E;
+@define-color window_fg_color #D8DEFF;
+@define-color view_bg_color #080B17;
+@define-color view_fg_color #D8DEFF;
+@define-color headerbar_bg_color #0E1326;
+@define-color headerbar_fg_color #D8DEFF;
+@define-color headerbar_border_color #262D50;
+@define-color headerbar_backdrop_color #0B0F1E;
+@define-color sidebar_bg_color #070A14;
+@define-color sidebar_fg_color #D8DEFF;
+@define-color sidebar_backdrop_color #070A14;
+@define-color card_bg_color rgba(216, 222, 255, 0.05);
+@define-color card_fg_color #D8DEFF;
+@define-color dialog_bg_color #0E1326;
+@define-color dialog_fg_color #D8DEFF;
+@define-color popover_bg_color #0E1326;
+@define-color popover_fg_color #D8DEFF;
+@define-color thumbnail_bg_color #0E1326;
+@define-color shade_color rgba(2, 3, 10, 0.36);
+@define-color borders #262D50;

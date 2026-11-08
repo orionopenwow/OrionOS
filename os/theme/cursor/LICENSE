@@ -1,0 +1,2 @@
+The Orion cursors (left_ptr, watch, left_ptr_watch) are original drawings made by make-cursor.py. CC0 1.0.
+Every other cursor shape is inherited from the Adwaita cursor theme installed by the system (not bundled here).

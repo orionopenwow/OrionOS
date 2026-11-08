@@ -1,0 +1,413 @@
+/* Orion singularity — ringless, feathered, mode-driven (see Singularity.tsx). */
+
+/* Registered properties so mode changes glide instead of snapping. */
+@property --hue { syntax: '<angle>'; inherits: true; initial-value: 0deg; }
+@property --sat { syntax: '<number>'; inherits: true; initial-value: 1.1; }
+@property --bright { syntax: '<number>'; inherits: true; initial-value: 1; }
+@property --glow { syntax: '<color>'; inherits: true; initial-value: rgba(147, 51, 234, 0.42); }
+@property --bloom { syntax: '<color>'; inherits: true; initial-value: rgba(99, 102, 241, 0.22); }
+@property --plasma { syntax: '<color>'; inherits: true; initial-value: rgba(157, 142, 199, 0.35); }
+@property --gold { syntax: '<number>'; inherits: true; initial-value: 0; }
+@property --infall { syntax: '<number>'; inherits: true; initial-value: 0; }
+@property --waves { syntax: '<number>'; inherits: true; initial-value: 0; }
+@property --inner-scale { syntax: '<number>'; inherits: true; initial-value: 0.62; }
+@property --outer-scale { syntax: '<number>'; inherits: true; initial-value: 1; }
+
+.singularity-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.singularity {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  --spin: 60s;
+  --spin-inner: 38s;
+  transition:
+    --hue 1.6s ease, --sat 1.6s ease, --bright 2.4s ease, --glow 1.4s ease, --bloom 1.6s ease,
+    --plasma 1.6s ease, --gold 1.2s ease, --infall 1.2s ease, --waves 0.8s ease,
+    --inner-scale 1.4s cubic-bezier(0.22, 1, 0.36, 1), --outer-scale 1.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ---------------------------------------------------------------- galactic modes */
+.singularity[data-mode='idle'] {
+  /* dormant supermassive black hole */
+  --spin: 60s; --spin-inner: 38s;
+  --hue: 0deg; --sat: 1.1; --bright: 1;
+  --glow: rgba(147, 51, 234, 0.42);
+  --bloom: rgba(99, 102, 241, 0.2);
+  --plasma: rgba(157, 142, 199, 0.32);
+}
+.singularity[data-mode='focus'] {
+  /* quasar / active accretion disk */
+  --spin: 40s; --spin-inner: 25s;
+  --hue: -72deg; --sat: 1.55; --bright: 1.12;
+  --glow: rgba(125, 240, 255, 0.75);
+  --bloom: rgba(0, 229, 255, 0.24);
+  --plasma: rgba(200, 245, 255, 0.4);
+  --infall: 1;
+  --inner-scale: 0.52;
+}
+.singularity[data-mode='voice'] {
+  /* pulsar / gravitational wave */
+  --spin: 30s; --spin-inner: 18s;
+  --hue: -105deg; --sat: 1.45; --bright: 1.08;
+  --glow: rgba(52, 245, 197, 0.7);
+  --bloom: rgba(16, 185, 129, 0.26);
+  --plasma: rgba(94, 234, 212, 0.42);
+  --waves: 1;
+}
+.singularity[data-mode='podcast'] {
+  /* binary star merger / solar flare */
+  --spin: 34s; --spin-inner: 20s;
+  --hue: 62deg; --sat: 1.65; --bright: 1.1;
+  --glow: rgba(244, 63, 94, 0.72);
+  --bloom: rgba(236, 72, 153, 0.24);
+  --plasma: rgba(251, 113, 133, 0.42);
+  --gold: 1;
+  --outer-scale: 1.07;
+}
+.singularity[data-mode='winddown'] {
+  /* redshift / event-horizon fade */
+  --spin: 220s; --spin-inner: 160s;
+  --hue: 100deg; --sat: 0.85; --bright: 0.4;
+  --glow: rgba(180, 83, 9, 0.28);
+  --bloom: rgba(127, 29, 29, 0.14);
+  --plasma: rgba(180, 83, 9, 0.22);
+}
+
+/* ---------------------------------------------------------------- layers */
+.sg-bloom {
+  position: absolute;
+  inset: -30%;
+  pointer-events: none;
+  color: var(--bloom);
+  background: radial-gradient(circle, currentColor 0%, transparent 58%);
+  filter: blur(36px);
+}
+
+.sg-body {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* feathered falloff: the spiral arms dissolve into the starfield — no hard circle */
+  -webkit-mask-image: radial-gradient(circle closest-side, #000 40%, rgba(0, 0, 0, 0.5) 66%, transparent 96%);
+  mask-image: radial-gradient(circle closest-side, #000 40%, rgba(0, 0, 0, 0.5) 66%, transparent 96%);
+}
+
+.sg-disk {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  filter: hue-rotate(var(--hue)) saturate(var(--sat)) brightness(var(--bright));
+  will-change: transform;
+}
+.sg-disk-outer {
+  animation: sg-spin var(--spin) linear infinite;
+  transform: scale(var(--outer-scale));
+}
+.sg-disk-inner {
+  mix-blend-mode: screen;
+  opacity: 0.55;
+  animation: sg-spin-rev var(--spin-inner) linear infinite;
+  scale: var(--inner-scale);
+}
+.singularity[data-processing] .sg-disk-outer { animation-duration: calc(var(--spin) * 0.35); }
+.singularity[data-processing] .sg-disk-inner { animation-duration: calc(var(--spin-inner) * 0.35); }
+
+.sg-plasma {
+  position: absolute;
+  inset: 12%;
+  border-radius: 50%;
+  mix-blend-mode: screen;
+  pointer-events: none;
+  color: var(--plasma);
+  background: conic-gradient(from 0deg, transparent 0%, currentColor 22%, transparent 48%, currentColor 74%, transparent 100%);
+  filter: blur(14px);
+  opacity: calc(0.55 * var(--bright));
+  animation: sg-spin-rev calc(var(--spin) * 1.4) linear infinite;
+}
+.sg-plasma::after {
+  /* podcast: gold plasma tongues */
+  content: '';
+  position: absolute;
+  inset: -6%;
+  border-radius: 50%;
+  background: conic-gradient(from 120deg, transparent 0%, rgba(251, 191, 36, 0.75) 14%, transparent 30%,
+    rgba(251, 191, 36, 0.55) 62%, transparent 80%);
+  opacity: var(--gold);
+  animation: sg-spin calc(var(--spin) * 0.6) linear infinite;
+}
+
+.sg-lens {
+  /* gravitational lensing: light piling up around the void — a soft glow, never a stroke */
+  position: absolute;
+  width: 34%;
+  height: 34%;
+  border-radius: 50%;
+  pointer-events: none;
+  color: var(--glow);
+  background: radial-gradient(circle, currentColor 0%, currentColor 26%, transparent 68%);
+  filter: blur(6px);
+  mix-blend-mode: screen;
+  transform: scale(var(--pull, 1));
+  transition: transform 2s ease;
+}
+.sg-horizon {
+  position: absolute;
+  width: 18%;
+  height: 18%;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, #000 0%, #000 40%, rgba(0, 0, 0, 0.82) 56%, rgba(0, 0, 0, 0.35) 70%, transparent 82%);
+  transform: scale(var(--pull, 1));
+  transition: transform 2s ease;
+}
+.singularity[data-processing] .sg-horizon,
+.singularity[data-processing] .sg-lens { animation: sg-pulse 0.9s ease-in-out infinite; }
+
+/* quasar infall */
+.sg-infall { position: absolute; inset: 0; pointer-events: none; opacity: var(--infall); }
+.sg-infall span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 3px;
+  height: 3px;
+  margin: -1.5px;
+  border-radius: 50%;
+  background: #e8fdff;
+  box-shadow: 0 0 6px 2px rgba(150, 240, 255, 0.85), -6px 0 6px rgba(150, 240, 255, 0.35);
+  animation: sg-infall linear infinite;
+}
+
+/* pulsar gravitational waves */
+.sg-waves { position: absolute; inset: 0; pointer-events: none; }
+.sg-waves span {
+  position: absolute;
+  inset: 22%;
+  border-radius: 50%;
+  opacity: var(--waves);
+  background: radial-gradient(circle, transparent 50%, rgba(120, 255, 214, 0.5) 63%, transparent 75%);
+  filter: blur(4px);
+  mix-blend-mode: screen;
+  animation: sg-wave 2.4s ease-out infinite;
+}
+.sg-waves span:nth-child(2) { animation-delay: 0.8s; }
+.sg-waves span:nth-child(3) { animation-delay: 1.6s; }
+
+/* captured star (focus progress) */
+.sg-captured-orbit {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  animation: sg-spin 24s linear infinite;
+}
+.sg-captured-arm {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  height: 0;
+  transform-origin: 0 0;
+  transition: width 3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.sg-captured-star {
+  position: absolute;
+  right: -4px;
+  top: -4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 8px 3px var(--glow), 0 0 22px 6px color-mix(in srgb, var(--glow) 60%, transparent),
+    0 -10px 10px -2px color-mix(in srgb, var(--glow) 45%, transparent);
+}
+.sg-captured-star[data-due] { animation: sg-twinkle 1.4s ease-in-out infinite; }
+
+/* podcast highlight: relativistic jet + supernova flash */
+.sg-jet { position: absolute; inset: 0; pointer-events: none; display: flex; align-items: center; justify-content: center; }
+.sg-jet-beam {
+  position: absolute;
+  width: 7px;
+  height: 230%;
+  border-radius: 999px;
+  background: linear-gradient(to bottom, transparent 0%, rgba(255, 236, 179, 0.9) 30%, #fff 50%,
+    rgba(255, 236, 179, 0.9) 70%, transparent 100%);
+  filter: blur(2px) drop-shadow(0 0 14px rgba(251, 191, 36, 0.9));
+  transform: rotate(-18deg) scaleY(0);
+  animation: sg-jet 1.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.sg-jet-flash {
+  position: absolute;
+  width: 30%;
+  height: 30%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0%, rgba(253, 224, 71, 0.8) 30%, rgba(244, 63, 94, 0.4) 55%, transparent 72%);
+  animation: sg-flash 1.1s ease-out forwards;
+}
+
+.sg-readout {
+  margin-top: -6%;
+  font-family: var(--font-display, Nunito), Nunito, 'Arial Rounded MT Bold', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.72);
+  text-shadow: 0 0 12px rgba(0, 0, 0, 0.9), 0 1px 3px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+  transition: color 1.4s ease, opacity 1.4s ease;
+}
+.sg-readout[data-mode='focus'] { color: rgba(186, 246, 255, 0.85); }
+.sg-readout[data-mode='voice'] { color: rgba(167, 243, 208, 0.85); }
+.sg-readout[data-mode='podcast'] { color: rgba(253, 186, 116, 0.9); }
+.sg-readout[data-mode='winddown'] { color: rgba(217, 119, 6, 0.55); }
+.sg-readout[data-mode='sanctuary'] { color: rgba(253, 230, 138, 0.85); }
+
+/* approvals orbit as stars (shader); this is their count, small and quiet under the core */
+.sg-orbit-count {
+  margin-top: 4px;
+  font-family: var(--font-display, Nunito), Nunito, system-ui, sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(216, 222, 255, 0.62);
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.9), 0 1px 3px rgba(0, 0, 0, 0.9);
+  pointer-events: auto;
+  transition: opacity 1.2s ease;
+}
+
+/* ---------------------------------------------------------------- keyframes */
+@keyframes sg-spin { from { rotate: 0deg; } to { rotate: 360deg; } }
+@keyframes sg-spin-rev { from { rotate: 0deg; } to { rotate: -360deg; } }
+@keyframes sg-pulse { 0%, 100% { transform: scale(var(--pull, 1)); } 50% { transform: scale(calc(var(--pull, 1) * 1.08)); } }
+@keyframes sg-infall {
+  0% { transform: rotate(var(--a)) translateX(var(--r)) scale(1); opacity: 0; }
+  12% { opacity: 1; }
+  85% { opacity: 0.9; }
+  100% { transform: rotate(calc(var(--a) + 150deg)) translateX(var(--horizon-px, 10px)) scale(0.25); opacity: 0; }
+}
+@keyframes sg-wave {
+  0% { transform: scale(0.4); opacity: 1; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+@keyframes sg-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+@keyframes sg-jet {
+  0% { transform: rotate(-18deg) scaleY(0); opacity: 1; }
+  45% { transform: rotate(-18deg) scaleY(1); opacity: 1; }
+  100% { transform: rotate(-18deg) scaleY(1.15); opacity: 0; }
+}
+@keyframes sg-flash {
+  0% { transform: scale(0.4); opacity: 1; }
+  100% { transform: scale(3.2); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sg-disk, .sg-plasma, .sg-plasma::after, .sg-captured-orbit, .sg-infall span, .sg-waves span {
+    animation-duration: 0s !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* ---------------------------------------------------------------- V3: sanctuary mode + skins */
+.singularity[data-mode='sanctuary'] {
+  /* recovery: the vortex slows to a deep, soothing amber */
+  --spin: 140s; --spin-inner: 100s;
+  --hue: 140deg; --sat: 1.15; --bright: 0.85;
+  --glow: rgba(245, 158, 11, 0.55);
+  --bloom: rgba(217, 119, 6, 0.2);
+  --plasma: rgba(251, 191, 36, 0.3);
+}
+/* skins re-tint the resting and focus looks; other modes keep their meaning */
+.singularity[data-skin='emerald'][data-mode='idle'] { --hue: -130deg; --sat: 1.4; --glow: rgba(16, 185, 129, 0.5); --bloom: rgba(5, 150, 105, 0.22); }
+.singularity[data-skin='supernova'][data-mode='idle'] { --hue: 165deg; --sat: 1.7; --bright: 1.15; --glow: rgba(251, 191, 36, 0.6); --bloom: rgba(245, 158, 11, 0.24); --gold: 1; }
+.singularity[data-skin='bloodmoon'][data-mode='idle'] { --hue: 95deg; --sat: 1.6; --bright: 0.9; --glow: rgba(220, 38, 38, 0.6); --bloom: rgba(127, 29, 29, 0.3); }
+.singularity[data-skin='runic'][data-mode='idle'] { --hue: -40deg; --sat: 1.3; --glow: rgba(129, 140, 248, 0.7); --bloom: rgba(79, 70, 229, 0.28); --plasma: rgba(165, 180, 252, 0.5); }
+
+/* ---------------------------------------------------------------- V3: Dyson swarm */
+.sg-swarm { position: absolute; inset: 0; pointer-events: none; animation: sg-spin 90s linear infinite; }
+.sg-swarm-piece {
+  position: absolute; left: 50%; top: 50%;
+  width: 7px; height: 3px; margin: -1.5px -3.5px; border-radius: 1px;
+  background: #e6fff7;
+  box-shadow: 0 0 6px 1px color-mix(in srgb, var(--glow) 80%, transparent);
+  transform: rotate(var(--a)) translateX(var(--r)) rotate(90deg) scale(0.2);
+  opacity: 0;
+  transition: opacity 2.5s ease, transform 2.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.sg-swarm-piece[data-built] { opacity: 0.9; transform: rotate(var(--a)) translateX(var(--r)) rotate(90deg) scale(1); }
+
+/* ---------------------------------------------------------------- V3: entropy asteroids */
+.sg-debris { position: absolute; inset: 0; pointer-events: none; }
+.sg-asteroid {
+  position: absolute; left: 50%; top: 50%;
+  width: 9px; height: 7px; margin: -4px; padding: 0; border: 0;
+  border-radius: 45% 55% 40% 60%;
+  background: radial-gradient(circle at 35% 35%, #fca5a5, #b91c1c 60%, #450a0a);
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.7);
+  pointer-events: auto; cursor: pointer;
+  transform: rotate(var(--a)) translateX(var(--r));
+  animation: sg-asteroid var(--d, 80s) linear infinite;
+}
+.sg-asteroid:hover { box-shadow: 0 0 14px rgba(254, 202, 202, 0.95); }
+@keyframes sg-asteroid {
+  from { transform: rotate(var(--a)) translateX(var(--r)) rotate(0deg); }
+  to { transform: rotate(calc(var(--a) + 360deg)) translateX(var(--r)) rotate(-720deg); }
+}
+
+/* ---------------------------------------------------------------- V3: swallowing a dropped file */
+.sg-swallow { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+.sg-swallow-chip {
+  position: absolute;
+  padding: 6px 12px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92); color: #0b0a18;
+  font: 700 12px Nunito, system-ui, sans-serif; white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis;
+  animation: sg-swallow 1.6s cubic-bezier(0.55, 0, 0.75, 0.3) forwards;
+}
+.sg-swallow-flare {
+  position: absolute; width: 30%; height: 30%; border-radius: 50%; opacity: 0;
+  background: radial-gradient(circle, #fff 0%, var(--flare, rgba(125, 240, 255, 0.8)) 35%, transparent 70%);
+  animation: sg-flash 1s ease-out 1.45s forwards;
+}
+.sg-swallow[data-kind='code'] { --flare: rgba(125, 240, 255, 0.85); }
+.sg-swallow[data-kind='asset'] { --flare: rgba(196, 181, 253, 0.85); }
+.sg-swallow[data-kind='doc'] { --flare: rgba(253, 224, 71, 0.8); }
+@keyframes sg-swallow {
+  0% { transform: translate(-150px, -150px) rotate(-20deg) scale(1, 1); opacity: 1; }
+  45% { transform: translate(110px, -40px) rotate(160deg) scale(0.85, 0.85); }
+  75% { transform: translate(-30px, 30px) rotate(320deg) scale(0.6, 0.18); opacity: 0.9; } /* spaghettified */
+  100% { transform: translate(0, 0) rotate(440deg) scale(0.05, 0.02); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sg-swarm, .sg-asteroid { animation: none; }
+  .sg-swallow-chip { animation-duration: 0.3s; }
+}
+
+/* ---------------------------------------------------------------- Art Update: WebGL2 black hole core */
+.sg-canvas {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  user-select: none;
+  /* the canvas is overlay-mode: it fades to transparent at its own edge, so no square ever shows */
+}
+.singularity[data-gl] .sg-captured-star { box-shadow: 0 0 8px 3px rgba(160, 140, 255, 0.8), 0 0 22px 6px rgba(124, 92, 255, 0.45); }
+
+/* infalling stars vanish at the shader's event horizon; with reduced motion they are hidden entirely */
+@media (prefers-reduced-motion: reduce) {
+  .sg-infall { display: none; }
+}

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Restart into Windows
+Comment=Start Windows once; OrionOS stays the normal choice
+Exec=orion-restart-windows
+Icon=system-reboot
+Terminal=false
+Categories=System;
+Keywords=windows;reboot;dual;boot;

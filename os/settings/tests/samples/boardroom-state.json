@@ -1,0 +1,7 @@
+{"paired": true, "pending": [], "autonomy": [
+ {"task_type": "payout.bounty", "label": "Bounty payout", "domain": "money", "level": 0, "level_name": "Ask", "max_level": 1, "streak": 3, "approvals": 7, "edits": 1, "rejections": 0, "next_level_at": 10},
+ {"task_type": "merge.docs", "label": "Merge docs-only PR", "domain": "code", "level": 1, "level_name": "Suggest + still ask", "max_level": 3, "streak": 14, "approvals": 22, "edits": 0, "rejections": 1, "next_level_at": 30},
+ {"task_type": "community.faq", "label": "Post FAQ answer as Orion", "domain": "community", "level": 0, "level_name": "Ask", "max_level": 3, "streak": 2, "approvals": 2, "edits": 0, "rejections": 0, "next_level_at": 10},
+ {"task_type": "wow.restart", "label": "Restart the OpenWoW server", "domain": "game", "level": 2, "level_name": "Act + notify", "max_level": 3, "streak": 41, "approvals": 52, "edits": 0, "rejections": 0, "next_level_at": 100},
+ {"task_type": "heal.fix", "label": "Apply a crash fix (new branch)", "domain": "code", "level": 0, "level_name": "Ask", "max_level": 1, "streak": 0, "approvals": 1, "edits": 0, "rejections": 0, "next_level_at": 10}
+]}

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!-- OrionOS "Everyone can use it": the one narrow root helper Settings > Users uses without the admin password
+     (51-orion-everyone.rules allows the person sitting at the computer). Adding people and turning the guest
+     account on or off go through the orion-admin account instead. -->
+<policyconfig>
+  <vendor>OrionOS</vendor>
+  <action id="ai.orion.everyone.guest">
+    <description>Start a guest session</description>
+    <message>Starting a guest session needs permission.</message>
+    <defaults><allow_any>no</allow_any><allow_inactive>no</allow_inactive><allow_active>auth_admin_keep</allow_active></defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/opt/orion/everyone/orion-guest-start</annotate>
+  </action>
+</policyconfig>

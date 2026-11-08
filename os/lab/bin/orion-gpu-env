@@ -1,0 +1,58 @@
+#!/bin/sh
+# orion-gpu-env: which graphics card draws the desktop, and what Sway needs to know about it.
+# orion-session reads its output (shell assignments) before starting Sway / SwayFX.
+#
+#   orion-gpu-env            print the settings (eval-able lines: NAME=value)
+#   orion-gpu-env --explain  the same, plus a plain sentence about the cards (orion-check-hardware uses it)
+#
+# NVIDIA's own driver (the "nvidia" kernel module) works with Sway, but Sway refuses to start with it unless it is
+# told --unsupported-gpu. With it loaded:
+#   * NVIDIA is the only card     --unsupported-gpu, plus GBM_BACKEND=nvidia-drm, __GLX_VENDOR_LIBRARY_NAME=nvidia
+#                                 and WLR_NO_HARDWARE_CURSORS=1 (the cursor otherwise vanishes or flickers)
+#   * Intel/AMD + NVIDIA laptop   --unsupported-gpu only; the Intel/AMD card stays the one that draws the screen
+#                                 (listed first in WLR_DRM_DEVICES), NVIDIA is the second card for outside screens
+# The free nouveau driver needs nothing special. Tests point ORION_PROC_MODULES / ORION_DRM_DIR at sample files.
+MODULES="${ORION_PROC_MODULES:-/proc/modules}"
+DRM="${ORION_DRM_DIR:-/sys/class/drm}"
+
+nvidia_loaded() { grep -q '^nvidia[[:space:]]' "$MODULES" 2>/dev/null; }
+
+driver_of() {   # driver name of a /sys/class/drm/cardN folder
+  d="$(readlink "$1/device/driver" 2>/dev/null)" || d=""
+  [ -n "$d" ] && basename "$d"
+}
+
+cards=""; nv=""; other=""
+for c in "$DRM"/card[0-9]*; do
+  [ -d "$c" ] || continue
+  case "${c##*/}" in *-*) continue ;; esac            # card0-eDP-1 etc. are screens, not cards
+  drv="$(driver_of "$c")"
+  cards="$cards ${c##*/}:${drv:-none}"
+  case "$drv" in
+    nvidia) nv="${nv:+$nv:}/dev/dri/${c##*/}" ;;
+    i915|xe|amdgpu|radeon|nouveau) other="${other:+$other:}/dev/dri/${c##*/}" ;;
+  esac
+done
+
+if nvidia_loaded; then
+  echo "ORION_SWAY_FLAGS=--unsupported-gpu"
+  if [ -n "$other" ]; then
+    echo "ORION_GPU=hybrid"
+    [ -n "$nv" ] && echo "WLR_DRM_DEVICES=$other:$nv"
+    words="Two graphics cards: the built-in one draws the screen, NVIDIA's driver runs the other."
+  else
+    echo "ORION_GPU=nvidia"
+    echo "WLR_NO_HARDWARE_CURSORS=1"
+    echo "GBM_BACKEND=nvidia-drm"
+    echo "__GLX_VENDOR_LIBRARY_NAME=nvidia"
+    words="NVIDIA card with NVIDIA's own driver."
+  fi
+else
+  echo "ORION_SWAY_FLAGS="
+  echo "ORION_GPU=standard"
+  words="Graphics card with the standard open driver."
+fi
+if [ "${1:-}" = --explain ]; then
+  echo "# cards:${cards:- none}"
+  echo "# $words"
+fi

@@ -1,0 +1,59 @@
+// Orion skill: Publish release (version 1).
+// Exported from Orion. Steps that send, buy, delete, post or submit stop and ask you first.
+const { chromium } = require('playwright');
+const readline = require('readline');
+
+// Values that change each time (override with NAME=value arguments)
+const vars = {
+  version: "v2.4.1", // Tag name
+  date: "2026-10-15", // Release date
+  file: "app-2.4.1.zip", // Attach binaries
+};
+for (const arg of process.argv.slice(2)) {
+  const [k, ...rest] = arg.split('=');
+  if (k in vars) vars[k] = rest.join('=');
+}
+
+function confirm(what) {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise((resolve) => rl.question(`Orion: about to ${what}. Type yes to go ahead: `, (a) => {
+    rl.close();
+    if (a.trim().toLowerCase() !== 'yes') { console.log(`Stopped before: ${what}`); process.exit(1); }
+    resolve();
+  }));
+}
+
+async function run(page) {
+  // 1. Go to github.com/acme/app/releases
+  await page.goto("https://github.com/acme/app/releases");
+  // 2. Click the “Draft a new release” link
+  await page.getByRole("link", { name: "Draft a new release", exact: true }).click();
+  // 3. Wait until the page has loaded
+  await page.waitForLoadState();
+  // 4. Type {{version}} into “Tag name”
+  await page.getByRole("textbox", { name: "Tag name", exact: true }).fill(`${vars.version}`);
+  // 5. Type {{date}} into “Release date”
+  await page.getByRole("textbox", { name: "Release date", exact: true }).fill(`${vars.date}`);
+  // 6. Choose “Stable” in “Channel”
+  await page.getByRole("combobox", { name: "Channel", exact: true }).selectOption("Stable");
+  // 7. Untick “Pre-release”
+  await page.getByRole("checkbox", { name: "Pre-release", exact: true }).uncheck();
+  // 8. Pick the file {{file}} for “Attach binaries” (you do this one)
+  await page.getByLabel("Attach binaries", { exact: true }).setInputFiles(`${vars.file}`);
+  // 9. Click the “Publish release” button
+  await confirm("Click the “Publish release” button (submits a form)");
+  await page.getByRole("button", { name: "Publish release", exact: true }).click();
+  // 10. Wait until the page has loaded
+  await page.waitForLoadState();
+  // 11. Wait until “Release {{version}} published” appears
+  await page.getByText(`Release ${vars.version} published`).first().waitFor();
+  // 12. Wait for the download notes-{{version}}.txt to start
+  // The download notes-{{version}}.txt starts here (wrap the step above in page.waitForEvent('download') to save it).
+}
+
+(async () => {
+  const browser = await chromium.launch({ headless: false });
+  const page = await browser.newPage();
+  await run(page);
+  await browser.close();
+})();

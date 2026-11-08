@@ -1,0 +1,4 @@
+// OrionOS (os/safety): a snapshot before apt changes any package, so an update can be undone
+// (orion-ctl undo, or the boot menu's "OrionOS snapshots"). Skipped quietly where snapshots aren't set up, and
+// at most one every 5 minutes (apt runs dpkg several times per upgrade).
+DPkg::Pre-Invoke { "if [ -x /usr/local/bin/orion-snapshot ]; then /usr/local/bin/orion-snapshot take --kind pre-update --why 'before installing or updating system packages' --debounce 300 --quiet || true; fi"; };

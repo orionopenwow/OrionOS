@@ -1,0 +1,125 @@
+# Template: copied to .github/workflows/release.yml by scripts/release.mjs.
+# Builds the Orion Windows installer and publishes it as a GitHub Release with signed
+# auto-update metadata (latest.json). Installed copies of Orion pick the release up by themselves.
+#
+# Trigger: push a tag like v2.0.1 (`npm run release` does this for you), or run it manually.
+#
+# One-time setup (repo → Settings → Secrets and variables → Actions):
+#   secrets.TAURI_SIGNING_PRIVATE_KEY           contents of .orion-signing/orion-updater.key
+#   secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD  contents of .orion-signing/orion-updater.password
+# Optional — keep the code private but publish releases to a separate PUBLIC repo:
+#   vars.ORION_RELEASE_REPO   e.g. "yourname/orion-releases"
+#   secrets.RELEASE_TOKEN     a fine-grained token with "Contents: read & write" on that repo
+#   (that repo needs at least one commit, e.g. a README, on its default branch "main")
+name: Release Orion
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test-daemon:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12'
+      - name: Install daemon test dependencies
+        working-directory: apps/daemon
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "fastapi>=0.115,<1" "uvicorn[standard]>=0.30" mss Pillow ImageHash pytesseract lancedb pyarrow numpy httpx "pydantic>=2.7,<3" python-dotenv -r requirements-dev.txt
+      - name: Daemon tests
+        working-directory: apps/daemon
+        run: python -m pytest tests -q -p no:warnings
+
+  build-windows:
+    needs: test-daemon
+    runs-on: windows-latest
+    env:
+      RELEASE_REPO: ${{ vars.ORION_RELEASE_REPO || github.repository }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: apps/desktop/src-tauri -> target
+
+      - name: Install npm dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Point the updater at this repository's releases
+        shell: pwsh
+        run: |
+          $conf = 'apps/desktop/src-tauri/tauri.conf.json'
+          (Get-Content $conf -Raw).Replace('__ORION_RELEASE_REPO__', $env:RELEASE_REPO) | Set-Content $conf -NoNewline
+          Select-String -Path $conf -Pattern 'releases/latest'
+
+      - name: Release notes
+        id: notes
+        shell: pwsh
+        run: |
+          $file = '.github/release-notes.md'
+          $body = if (Test-Path $file) { Get-Content $file -Raw } else { 'Orion update.' }
+          $delim = 'ORION_NOTES_' + [guid]::NewGuid().ToString('N')
+          "body<<$delim`n$body`n$delim" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Build installer and publish release (this repo)
+        if: ${{ !vars.ORION_RELEASE_REPO }}
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: apps/desktop
+          tagName: v__VERSION__
+          releaseName: Orion v__VERSION__
+          releaseBody: ${{ steps.notes.outputs.body }}
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: true
+
+      - name: Split release repo
+        if: ${{ vars.ORION_RELEASE_REPO }}
+        id: target
+        shell: pwsh
+        run: |
+          $owner, $repo = $env:RELEASE_REPO.Split('/')
+          "owner=$owner" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "repo=$repo" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Build installer and publish release (public releases repo)
+        if: ${{ vars.ORION_RELEASE_REPO }}
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: apps/desktop
+          owner: ${{ steps.target.outputs.owner }}
+          repo: ${{ steps.target.outputs.repo }}
+          commitish: ${{ vars.ORION_RELEASE_BRANCH || 'main' }}
+          tagName: v__VERSION__
+          releaseName: Orion v__VERSION__
+          releaseBody: ${{ steps.notes.outputs.body }}
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: true

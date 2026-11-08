@@ -1,0 +1,2 @@
+{"crate_name":"openwow","dependencies":[{"name":"serde","project":"1.0.190","compat":"1.0.210","latest":"1.0.210","kind":"Normal","platform":null},{"name":"rand","project":"0.7.3","compat":"---","latest":"0.8.5","kind":"Normal","platform":null},{"name":"mysql","project":"24.0.0","compat":"24.0.1","latest":"25.0.1","kind":"Normal","platform":null}]}
+{"crate_name":"openwow-tools","dependencies":[]}

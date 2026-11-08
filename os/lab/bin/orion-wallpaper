@@ -1,0 +1,12 @@
+#!/bin/sh
+# OrionOS (Art Update): the desktop stays black until the Orion screen is on it, then gets the wallpaper: the 4K
+# black-hole still (/usr/share/backgrounds/orion/desktop.*), else ~/.config/sway/wallpaper.png. Run by
+# orion-wallpaper.service at login and again when Sway reloads its config (which resets the background).
+for i in $(seq 1 60); do
+  swaymsg -t get_tree 2>/dev/null | grep -qi "\"app_id\": \"[^\"]*orion" && break
+  sleep 0.25
+done
+for f in /usr/share/backgrounds/orion/desktop.png /usr/share/backgrounds/orion/desktop.jpg "$HOME/.config/sway/wallpaper.png"; do
+  [ -f "$f" ] && exec swaymsg output "*" bg "$f" fill
+done
+exit 0

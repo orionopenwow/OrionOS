@@ -1,0 +1,10 @@
+# OrionOS (Art Update): black until the Orion screen is up, then the wallpaper (so nothing flashes between the
+# boot splash / login screen and Orion).
+[Unit]
+Description=Wallpaper once the Orion screen is up
+PartOf=sway-session.target
+After=sway-session.target
+
+[Service]
+Type=oneshot
+ExecStart=-/usr/local/bin/orion-wallpaper

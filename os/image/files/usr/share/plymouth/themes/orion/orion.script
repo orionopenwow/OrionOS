@@ -1,0 +1,375 @@
+// OrionOS boot splash (Art Update, stage 2). One continuous shot with the HUD and the login screen:
+//   0.0 s a violet spark · 0.8 s star fall · 2.6 s collapse, the photon ring ignites · 3.3 s accretion
+//   4.3 s "orion" condenses out of star dust · 6.0 s settled = the frame the login screen / HUD starts on.
+// The frames are rendered ahead of time from the black hole shader (os/theme/boot/render-frames.mjs).
+//
+// Playback follows boot progress and never adds waiting time: if the machine is still loading it loops the star
+// fall ("forming"), if it is nearly done it plays faster, and when Plymouth quits it shows the hand-off frame.
+// Vault unlock: the passphrase appears as stars on an orbit line, the newest one cyan; a wrong passphrase sends
+// them spinning off, the right one lets them fall into the hole. Shutdown plays the boot backwards to a spark.
+// Sleep slows the disk to a stop and dims it. Reduced motion (the orion-still theme) and anything missing:
+// a plain fade and plain messages.
+
+FPS = 15;
+T_LOOP_A = 0.9;          // the "forming" loop: inside the star fall (0.8 .. 2.6 s)
+T_LOOP_B = 2.4;
+T_SETTLED = 6.0;
+XFADE = 0.35;            // seconds of cross-fade where a loop wraps
+TICK = 1 / 50;           // Plymouth calls refresh 50 times a second
+
+Window.SetBackgroundTopColor(0, 0, 0);
+Window.SetBackgroundBottomColor(0, 0, 0);
+W = Window.GetWidth();
+H = Window.GetHeight();
+WX = Window.GetX();
+WY = Window.GetY();
+M = Math.Min(W, H);
+SCALE = M / 720;                      // the frames are rendered for a 720-pixel short side
+MODE = Plymouth.GetMode();
+
+// ---------------------------------------------------------------- what we have
+count = Image("frames/count.png");
+NB = 0; NI = 0;
+if (count) { NB = count.GetWidth(); NI = count.GetHeight(); }
+REDUCED = 0;
+if (Image("reduced-motion.png")) REDUCED = 1;
+STILL = 0;                            // 1: one picture + fades (reduced motion, or no frames)
+if (REDUCED || NB < 10) STILL = 1;
+
+fun pad3(n) {
+  n = Math.Int(n);
+  if (n < 10) return "00" + n;
+  if (n < 100) return "0" + n;
+  return "" + n;
+}
+
+fun load_frame(kind, i) {
+  if (kind == "b") return scaled(Image("frames/b-" + pad3(i) + ".png"));
+  return scaled(Image("frames/i-" + pad3(i) + ".png"));
+}
+
+// Two layers: A shows the frame, B fades over it where a loop wraps.
+layer_a.sprite = Sprite();
+layer_a.key = "";
+layer_a.sprite.SetZ(1);
+layer_b.sprite = Sprite();
+layer_b.key = "";
+layer_b.sprite.SetZ(2);
+layer_b.sprite.SetOpacity(0);
+lift = 0;                             // the hole rises a little to make room for the vault prompt
+lift_target = 0;
+
+fun place(layer) {
+  img = layer.sprite.GetImage();
+  if (!img) return;
+  layer.sprite.SetX(WX + W / 2 - img.GetWidth() / 2);
+  layer.sprite.SetY(WY + H / 2 - img.GetHeight() / 2 - lift);
+}
+
+fun show(layer, kind, i) {
+  key = kind + i;
+  if (layer.key == key) { place(layer); return; }
+  img = load_frame(kind, i);
+  if (!img) return;
+  layer.sprite.SetImage(img);
+  layer.key = key;
+  place(layer);
+}
+
+// ---------------------------------------------------------------- the still path (reduced motion, no frames)
+still.sprite = Sprite();
+still.sprite.SetZ(1);
+still.sprite.SetOpacity(0);
+still.alpha = 0;
+fun scaled(simg) {
+  if (simg && (SCALE < 0.99 || SCALE > 1.01))
+    simg = simg.Scale(Math.Int(simg.GetWidth() * SCALE + 0.5), Math.Int(simg.GetHeight() * SCALE + 0.5));
+  return simg;
+}
+if (STILL) {
+  still_img = 0;
+  if (NB >= 1) still_img = load_frame("b", NB - 1);   // the hand-off frame
+  if (!still_img) still_img = scaled(Image("still.png"));
+  if (!still_img) {
+    still_img = Image("blackhole.png");                // the 1.0 splash picture: the last resort
+    if (still_img) still_img = still_img.Scale(Math.Int(M * 0.5), Math.Int(M * 0.5 * still_img.GetHeight() / still_img.GetWidth()));
+    still_word = Image.Text("orion", 0.85, 0.87, 1.0, 1, "Unbounded, Sans 22");
+    still.word = Sprite(still_word);
+    still.word.SetPosition(WX + W / 2 - still_word.GetWidth() / 2, WY + H / 2 + M * 0.3, 3);
+    still.word.SetOpacity(0);
+  }
+  if (still_img) {
+    still.sprite.SetImage(still_img);
+    still.sprite.SetPosition(WX + W / 2 - still_img.GetWidth() / 2, WY + H / 2 - still_img.GetHeight() / 2, 1);
+  }
+  if (MODE == "shutdown" || MODE == "reboot") still.alpha = 1;
+}
+
+// ---------------------------------------------------------------- boot progress
+progress = 0;
+progress_time = 0;
+fun on_progress(duration, p) {
+  global.progress = p;
+  global.progress_time = duration;
+}
+Plymouth.SetBootProgressFunction(on_progress);
+
+root_mounted = 0;
+fun on_root_mounted() { global.root_mounted = 1; }
+Plymouth.SetRootMountedFunction(on_root_mounted);
+
+fun boot_left() {                     // estimated seconds of boot left, or -1 when there's no estimate
+  if (progress < 0.03 || progress_time < 0.5) return -1;
+  return progress_time * (1 - progress) / progress;
+}
+
+// ---------------------------------------------------------------- playback
+playhead = 0;                         // seconds on the boot timeline
+if (MODE == "shutdown" || MODE == "reboot") playhead = T_SETTLED;
+phase = "boot";                       // boot -> idle; shutdown; sleep; wake
+if (MODE == "shutdown" || MODE == "reboot") phase = "shutdown";
+if (MODE == "suspend") phase = "sleep";
+if (MODE == "resume") phase = "wake";
+if (MODE == "updates" || MODE == "system-upgrade" || MODE == "firmware-upgrade") { phase = "idle"; playhead = T_SETTLED; }
+idle_t = 0;                           // seconds into the idle loop
+fade_t = -1;                          // a cross-fade in progress (seconds left), with what's under it
+speed = 1;
+dim = 1;
+clock = 0;
+waiting_prompt = 0;                   // a vault prompt is (or was just) on screen
+
+fun boot_index(t) { return Math.Clamp(Math.Int(t * FPS + 0.5), 0, NB - 1); }
+fun idle_index(t) {
+  i = Math.Int(t * FPS);
+  while (i >= NI) i -= NI;
+  return i;
+}
+
+fun begin_fade(kind, i) {             // B shows where we came from and fades out over A
+  show(layer_b, kind, i);
+  global.fade_t = XFADE;
+  layer_b.sprite.SetOpacity(dim);
+}
+
+fun refresh_frames() {
+  if (phase == "boot") {
+    left = boot_left();
+    remaining = T_SETTLED - playhead;
+    speed = 1;
+    if (left >= 0 && left < remaining && !waiting_prompt) speed = Math.Min(3, remaining / Math.Max(left, 0.25));
+    next = playhead + TICK * speed;
+    // Still loading: keep forming instead of finishing early. "Still loading" = the real root isn't mounted yet
+    // (the initramfs: finding the stick, the vault), unless the progress estimate says we're nearly done.
+    // A vault prompt lets the hole form fully, so the orbit has something to circle.
+    if (next >= T_LOOP_B && playhead < T_LOOP_B && !waiting_prompt && !root_mounted
+        && (left < 0 || left > (T_SETTLED - T_LOOP_B) + 0.75)) {
+      begin_fade("b", boot_index(playhead));
+      next = T_LOOP_A;
+    }
+    playhead = next;
+    if (playhead >= T_SETTLED) {
+      playhead = T_SETTLED;
+      phase = "idle";
+      idle_t = 0;
+    }
+    show(layer_a, "b", boot_index(playhead));
+  } else if (phase == "idle" || phase == "sleep" || phase == "wake") {
+    if (NI < 2) { show(layer_a, "b", NB - 1); return; }
+    if (phase == "sleep") {                  // slow to a stop, dim
+      speed = Math.Max(0, 1 - clock / 2.5);
+      dim = Math.Max(0.28, 1 - clock / 3.0);
+    } else if (phase == "wake") {
+      speed = Math.Min(1, clock / 1.5);
+      dim = Math.Min(1, 0.28 + clock / 1.2);
+    } else { speed = 1; dim = 1; }
+    before = idle_index(idle_t);
+    idle_t += TICK * speed;
+    if (idle_t * FPS >= NI) {
+      idle_t -= NI / FPS;
+      begin_fade("i", before);
+    }
+    show(layer_a, "i", idle_index(idle_t));
+  } else if (phase == "shutdown") {          // backwards: the ring flares and fades to a single spark
+    playhead = Math.Max(0, playhead - TICK);
+    show(layer_a, "b", boot_index(playhead));
+  }
+  layer_a.sprite.SetOpacity(dim);
+  if (fade_t > 0) {
+    fade_t -= TICK;
+    layer_b.sprite.SetOpacity(dim * Math.Max(0, fade_t / XFADE));
+    place(layer_b);
+  } else layer_b.sprite.SetOpacity(0);
+}
+
+fun refresh_still() {
+  if (phase == "shutdown" || phase == "sleep") still.alpha = Math.Max(0, still.alpha - TICK / 0.8);
+  else still.alpha = Math.Min(1, still.alpha + TICK / 0.8);
+  still.sprite.SetOpacity(still.alpha);
+  if (still.word) still.word.SetOpacity(still.alpha);
+}
+
+// ---------------------------------------------------------------- vault prompt: stars on an orbit line
+SLOTS = 24;
+ORBIT_RX = 0.80 * M;                  // the orbit is an ellipse around the hole; we see its near edge
+ORBIT_RY = 0.45 * M;
+LIFT = 0.08 * M;
+star_img = scaled(Image("star.png"));
+cyan_img = scaled(Image("star-cyan.png"));
+orbit_img = scaled(Image("orbit.png"));
+orbit.sprite = Sprite(orbit_img);
+orbit.sprite.SetZ(10);
+orbit.sprite.SetOpacity(0);
+orbit.alpha = 0;
+orbit.state = "off";                  // off | typing | checking | wrong | open
+orbit.t = 0;
+orbit.n = 0;                          // stars shown
+for (si = 0; si < SLOTS; si++) {
+  stars[si].sprite = Sprite(star_img);
+  stars[si].sprite.SetZ(11);
+  stars[si].sprite.SetOpacity(0);
+}
+newest.sprite = Sprite(cyan_img);
+newest.sprite.SetZ(12);
+newest.sprite.SetOpacity(0);
+
+fun hole_y() { return WY + H / 2 - lift; }
+fun slot_x(i) { return (i - (SLOTS - 1) / 2) * 0.026 * M; }
+fun orbit_y(dx) {                     // near edge of the orbit ellipse, below the hole
+  k = dx / ORBIT_RX;
+  return ORBIT_RY * Math.Sqrt(Math.Max(0, 1 - k * k));
+}
+
+fun put_star(sprite, img, dx, dy, alpha) {
+  if (!img) return;
+  sprite.SetX(WX + W / 2 + dx - img.GetWidth() / 2);
+  sprite.SetY(hole_y() + dy - img.GetHeight() / 2);
+  sprite.SetOpacity(alpha);
+}
+
+fun refresh_prompt() {
+  // the hole rises a little while the orbit is up, and settles back after
+  if (orbit.state == "off") lift_target = 0; else lift_target = LIFT;
+  lift += (lift_target - lift) * 0.08;
+  if (orbit.state == "off" && orbit.alpha <= 0) {
+    for (i = 0; i < SLOTS; i++) stars[i].sprite.SetOpacity(0);
+    newest.sprite.SetOpacity(0);
+    if (global.label) global.label.SetOpacity(0);
+    return;
+  }
+  orbit.t += TICK;
+  if (orbit.state == "typing" || orbit.state == "checking") orbit.alpha = Math.Min(1, orbit.alpha + TICK / 0.4);
+  else orbit.alpha = Math.Max(0, orbit.alpha - TICK / 0.9);
+  if (orbit_img) {
+    orbit.sprite.SetX(WX + W / 2 - orbit_img.GetWidth() / 2);
+    orbit.sprite.SetY(hole_y() + orbit_y(0) - orbit_img.GetHeight() + 3 * SCALE);
+    orbit.sprite.SetOpacity(orbit.alpha * 0.9);
+  }
+  if (global.label) {
+    global.label.SetX(WX + W / 2 - global.label.GetImage().GetWidth() / 2);
+    global.label.SetY(hole_y() + orbit_y(0) + 0.035 * M);
+    global.label.SetOpacity(orbit.alpha);
+  }
+  first = 0;
+  if (orbit.n > SLOTS) first = orbit.n - SLOTS;
+  shown = orbit.n - first;
+  for (i = 0; i < SLOTS; i++) {
+    if (i >= shown) { stars[i].sprite.SetOpacity(0); continue; }
+    dx = slot_x(i);
+    dy = orbit_y(dx);
+    a = 0.85 + 0.15 * Math.Sin(orbit.t * 3 + i * 1.7);
+    if (orbit.state == "checking") a = 0.65 + 0.35 * Math.Sin(orbit.t * 5 - i * 0.5);
+    // Leaving the line: move along the orbit ellipse (angle th, scale sc), so nothing jumps at the start.
+    if (orbit.state == "wrong" || orbit.state == "open") {
+      th = Math.ATan2(dy / ORBIT_RY, dx / ORBIT_RX);
+      if (orbit.state == "wrong") {          // spinning off the line, outward, fading
+        k = orbit.t;
+        th += k * k * (2.2 + i * 0.06);
+        sc = 1 + k * k * 1.6;
+        a = Math.Max(0, 1 - k / 1.1);
+      } else {                               // the right one: they fall into the hole
+        k = Math.Min(1, orbit.t / 0.9);
+        th += k * k * 3.5;
+        sc = 1 - k * k;
+        a = 1 - k * k * k;
+      }
+      dx = Math.Cos(th) * ORBIT_RX * sc;
+      dy = Math.Sin(th) * ORBIT_RY * sc;
+    }
+    stars[i].sprite.SetImage(star_img);
+    put_star(stars[i].sprite, star_img, dx, dy, a);
+    if (i == shown - 1 && orbit.state == "typing") {
+      put_star(newest.sprite, cyan_img, dx, dy, 1);
+      stars[i].sprite.SetOpacity(0);
+    }
+  }
+  if (orbit.state != "typing" || shown == 0) newest.sprite.SetOpacity(0);
+  if ((orbit.state == "wrong" && orbit.t > 1.15) || (orbit.state == "open" && orbit.t > 1.0)) {
+    if (orbit.state == "open") { orbit.state = "off"; global.waiting_prompt = 0; }
+    else { orbit.n = 0; orbit.state = "typing"; orbit.t = 0; }
+  }
+}
+
+fun display_password(prompt, bullets) {
+  global.waiting_prompt = 1;
+  if (orbit.state == "checking" && bullets == 0) { orbit.state = "wrong"; orbit.t = 0; }
+  if (orbit.state != "wrong") { orbit.state = "typing"; orbit.n = bullets; }
+  else if (bullets > 0) { orbit.state = "typing"; orbit.t = 0; orbit.n = bullets; }
+  if (!global.label_text || global.label_text != prompt) {
+    global.label_text = prompt;
+    global.label = Sprite(Image.Text(prompt, 0.85, 0.87, 1.0, 1, "Figtree, Sans 12"));
+    global.label.SetZ(10);
+    global.label.SetOpacity(0);
+  }
+}
+Plymouth.SetDisplayPasswordFunction(display_password);
+
+fun display_normal() {
+  if (orbit.state == "typing") {
+    if (orbit.n > 0) { orbit.state = "checking"; orbit.t = 0; }
+    else { orbit.state = "off"; global.waiting_prompt = 0; }
+  }
+}
+Plymouth.SetDisplayNormalFunction(display_normal);
+
+// The vault script says how it went (plymouth update --status=...).
+fun update_status(status) {
+  if (status == "orion-vault-wrong") { orbit.state = "wrong"; orbit.t = 0; }
+  if (status == "orion-vault-open" || status == "orion-vault-locked") {
+    if (status == "orion-vault-open") orbit.state = "open"; else orbit.state = "off";
+    orbit.t = 0;
+    if (status == "orion-vault-locked") global.waiting_prompt = 0;
+  }
+}
+Plymouth.SetUpdateStatusFunction(update_status);
+
+// ---------------------------------------------------------------- plain messages (also: a failed check)
+fun message(text) {
+  global.msg = Sprite(Image.Text(text, 0.85, 0.87, 1.0, 1, "Figtree, Sans 11"));
+  global.msg.SetPosition(WX + W / 2 - global.msg.GetImage().GetWidth() / 2, WY + H * 0.92, 20);
+  global.msg.SetOpacity(0.8);
+}
+Plymouth.SetMessageFunction(message);
+
+// ---------------------------------------------------------------- the loop and the hand-off
+fun refresh() {
+  clock += TICK;
+  if (STILL) refresh_still(); else refresh_frames();
+  refresh_prompt();
+}
+Plymouth.SetRefreshFunction(refresh);
+
+fun quit() {
+  // Whatever happened, leave the hand-off frame on screen (the login screen / HUD starts on exactly this).
+  if (!STILL && phase != "shutdown") {
+    layer_b.sprite.SetOpacity(0);
+    lift = 0;
+    show(layer_a, "b", NB - 1);
+    layer_a.sprite.SetOpacity(1);
+  }
+  orbit.state = "off";
+  orbit.sprite.SetOpacity(0);
+  for (i = 0; i < SLOTS; i++) stars[i].sprite.SetOpacity(0);
+  newest.sprite.SetOpacity(0);
+  if (global.label) global.label.SetOpacity(0);
+}
+Plymouth.SetQuitFunction(quit);

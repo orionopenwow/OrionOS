@@ -1,0 +1,15 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "guide-overlay",
+  "description": "Guide Mode on Windows: the main window opens the click-through ring window and the step card window (src/lib/guideOverlay.ts)",
+  "windows": ["main", "guide-ring", "guide-card"],
+  "permissions": [
+    "core:default",
+    "core:webview:allow-create-webview-window",
+    "core:window:allow-close",
+    "core:window:allow-set-ignore-cursor-events",
+    "core:window:allow-set-always-on-top",
+    "core:event:allow-emit-to",
+    "core:event:allow-listen"
+  ]
+}

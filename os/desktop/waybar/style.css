@@ -1,0 +1,15 @@
+/* Orion's tray: Orion Glass (os/theme). The bar itself is invisible; only the tray pill shows. */
+* { border: none; border-radius: 0; min-height: 0; font-family: "Figtree", "Noto Sans", sans-serif; font-size: 12px; }
+window#waybar { background: transparent; }
+#tray {
+  background-color: rgba(11, 15, 30, 0.78);
+  border: 1px solid rgba(124, 92, 255, 0.55);
+  border-radius: 999px;
+  padding: 4px 14px;
+  margin: 0;
+}
+#tray > .passive { opacity: 0.6; }
+#tray > .needs-attention { background-color: rgba(255, 92, 138, 0.35); border-radius: 999px; }
+#tray menu { background-color: rgba(11, 15, 30, 0.96); color: #D8DEFF; border: 1px solid #262D50; border-radius: 12px; }
+#tray menu menuitem:hover { background-color: #7C5CFF; color: #FFFFFF; }
+#tray.empty { background-color: transparent; border-color: transparent; padding: 0; }

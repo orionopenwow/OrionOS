@@ -1,0 +1,482 @@
+#!/usr/bin/env python3
+"""orion-update: update Orion on an installed OrionOS, only from releases signed with OrionOS's release key.
+
+    sudo orion-update                    get, check and install the newest Orion release (review B3)
+    orion-update check [--json]          {"channel", "current", "latest"} for Orion (no root; update_channels.py)
+    sudo orion-update --expect V         only install V (the version Orion's self-test passed)
+    sudo orion-update --allow-downgrade  also install a version that isn't newer than this one
+    sudo orion-update --dev-git-unsigned DEVELOPERS ONLY: the newest code from git, with NO signature check
+
+On an installed system Orion's own parts (the brain, the HUD package, the OS scripts) come as one bundle in each
+GitHub release: orion-bundle.tar.gz, its minisign signature orion-bundle.tar.gz.minisig (made with the same release
+key the USB stick's orion-slot uses, /etc/orion/release.pub) and orion-bundle.version. The bundle's version is part
+of the signature (the signed "trusted comment"), so an old signed bundle can't be passed off as new.
+
+What happens, in order:
+  1. nothing while Orion is frozen (kill switch)
+  2. download; check the signature; check the version is newer (and is the one Orion tested, with --expect)
+  3. a snapshot of the system (orion-snapshot; on btrfs drives a real system snapshot)
+  4. the new bundle replaces /opt/orion-src (the old one is kept as /opt/orion-src.prev) and the same setup the
+     image uses runs again (os/lab/provision.sh); Orion's brain restarts
+  5. health check (orion-healthy): if Orion's brain doesn't answer, the previous bundle is put back and set up again
+  6. on btrfs drives: boot counting (orion-bootcount): if the next starts don't reach a healthy Orion session twice,
+     the computer starts the snapshot from step 3 by itself
+
+Channel (/etc/orion/channel): stable = the newest release, beta = the release tagged "beta" (BETA_TAG), mine = your
+own signed builds in MY_BUILDS (/var/lib/orion/my-builds, made by os/image/make-bundle.sh). Same as orion-slot.
+On the USB stick, whole-system updates come through orion-slot instead. In the lab VM, the update disc from
+"Update OrionOS Lab.cmd" (label ORIONUPD) is still used as before: it comes from your own Windows PC.
+
+Tests: outside commands and paths are swapped with ORION_UPD_* environment variables (os/lab/tests).
+"""
+from __future__ import annotations
+
+import json
+import os
+import re
+import shlex
+import shutil
+import subprocess
+import sys
+import tarfile
+import tempfile
+import time
+from pathlib import Path
+from typing import Any, Optional
+
+BUNDLE = "orion-bundle.tar.gz"
+REQUIRED = ("BUNDLE_VERSION", "os/lab/provision.sh", "apps/daemon/main.py")
+
+
+class Failed(Exception):
+    """A plain-words reason nothing (more) was changed."""
+
+
+class Env:
+    def __init__(self, environ: Optional[dict[str, str]] = None) -> None:
+        e = os.environ if environ is None else environ
+        g = e.get
+        self.conf = Path(g("ORION_UPD_CONF", "/etc/orion/release.conf"))
+        self.pub = Path(g("ORION_UPD_PUB", "/etc/orion/release.pub"))
+        self.channel_file = Path(g("ORION_CHANNEL_FILE", "/etc/orion/channel"))
+        self.src = Path(g("ORION_UPD_SRC", "/opt/orion-src"))
+        self.cmdline = Path(g("ORION_UPD_CMDLINE", "/proc/cmdline"))
+        self.profile = Path(g("ORION_UPD_PROFILE_FILE", "/etc/orion/profile"))
+        self.state = Path(g("ORION_UPD_STATE", "/var/lib/orion/update"))
+        self.log = Path(g("ORION_UPD_LOG", "/var/log/orion-update.log"))
+        self.tmp = g("ORION_UPD_TMP", "/var/tmp")
+        self.base = g("ORION_UPD_BASE", "")
+        self.curl = g("ORION_UPD_CURL", "curl")
+        self.minisign = g("ORION_UPD_MINISIGN", "minisign")
+        self.snapshot = g("ORION_UPD_SNAPSHOT", "orion-snapshot")
+        self.healthy = g("ORION_UPD_HEALTHY", "orion-healthy")
+        self.bootcount = g("ORION_UPD_BOOTCOUNT", "orion-bootcount")
+        self.frozen = g("ORION_UPD_FROZEN", "orion-frozen")
+        self.provision = g("ORION_UPD_PROVISION", "")          # default: bash <src>/os/lab/provision.sh
+        self.restart = g("ORION_UPD_RESTART", "")              # default: restart orion-daemon for user orion
+        self.blkid = g("ORION_UPD_BLKID", "blkid")
+        self.root = g("ORION_UPD_TEST_ROOT", "") == "1" or os.geteuid() == 0
+
+    def run(self, argv: list[str], timeout: float = 600, **kw: Any) -> subprocess.CompletedProcess:
+        try:
+            return subprocess.run(argv, capture_output=True, text=True, timeout=timeout, **kw)
+        except (FileNotFoundError, PermissionError):
+            return subprocess.CompletedProcess(argv, 127, "", f"{argv[0]}: not installed")
+        except subprocess.TimeoutExpired:
+            return subprocess.CompletedProcess(argv, 124, "", f"{argv[0]}: took too long")
+
+
+def say(text: str) -> None:
+    print(f"\033[1;36m{text}\033[0m" if sys.stdout.isatty() else text, flush=True)
+
+
+# =====================================================================================  settings, versions
+def release_conf(env: Env) -> dict[str, str]:
+    out = {"REPO": "orionopenwow/OrionOS", "BETA_TAG": "beta", "MY_BUILDS": "/var/lib/orion/my-builds"}
+    try:
+        for line in env.conf.read_text().splitlines():
+            m = re.match(r"^\s*([A-Z_]+)=\"?([^\"#]*)\"?", line)
+            if m:
+                out[m.group(1)] = m.group(2).strip()
+    except OSError:
+        pass
+    return out
+
+
+def channel(env: Env) -> str:
+    try:
+        c = re.sub(r"[^a-z]", "", env.channel_file.read_text())
+    except OSError:
+        c = ""
+    return c if c in ("stable", "beta", "mine") else "stable"
+
+
+def base_url(env: Env) -> str:
+    if env.base:
+        return env.base.rstrip("/")
+    c, conf = channel(env), release_conf(env)
+    if c == "beta":
+        return f"https://github.com/{conf['REPO']}/releases/download/{conf['BETA_TAG']}"
+    if c == "mine":
+        return "file://" + conf["MY_BUILDS"]
+    return f"https://github.com/{conf['REPO']}/releases/latest/download"
+
+
+def clean_v(v: str) -> str:
+    return re.sub(r"[^A-Za-z0-9._+-]", "", (v or "").strip().splitlines()[0] if (v or "").strip() else "")[:64]
+
+
+def vkey(v: str) -> tuple:
+    main, _, pre = v.partition("-")
+    nums = tuple(int(x) if x.isdigit() else 0 for x in re.split(r"[.+]", main) if x != "")
+    # a pre-release (1.2.0-beta.1) comes before the release itself (1.2.0)
+    return nums + (0,) * (6 - len(nums)), (0, pre) if pre else (1, "")
+
+
+def newer(a: str, b: str) -> bool:
+    return vkey(a) > vkey(b)
+
+
+def current_version(env: Env) -> str:
+    try:
+        return clean_v((env.src / "BUNDLE_VERSION").read_text())
+    except OSError:
+        return ""
+
+
+def on_stick(env: Env) -> bool:
+    try:
+        return "orion.slot=" in env.cmdline.read_text()
+    except OSError:
+        return False
+
+
+# =====================================================================================  download, verify, unpack
+def fetch(env: Env, url: str, dest: Path) -> None:
+    r = env.run([env.curl, "-fsSL", "--retry", "3", "-o", str(dest), url], timeout=3600)
+    if r.returncode != 0 or not dest.exists():
+        raise Failed(f"Couldn't download {url.rsplit('/', 1)[-1]} ({channel(env)} channel). Nothing was changed.")
+
+
+def latest_hint(env: Env) -> str:
+    r = env.run([env.curl, "-fsSL", "--retry", "2", f"{base_url(env)}/orion-bundle.version"], timeout=60)
+    return clean_v(r.stdout) if r.returncode == 0 else ""
+
+
+def verify(env: Env, bundle: Path) -> str:
+    """Checks the signature; returns the version the signature vouches for."""
+    if not env.pub.exists() or env.pub.stat().st_size == 0:
+        raise Failed(f"There's no release key on this computer ({env.pub}), so updates can't be checked and none "
+                     "is installed. Set up OrionOS again with the newest install-orion.sh, which brings the key.")
+    r = env.run([env.minisign, "-V", "-p", str(env.pub), "-m", str(bundle), "-x", str(bundle) + ".minisig"],
+                timeout=300)
+    if r.returncode != 0:
+        raise Failed("Signature check FAILED for the Orion update, so nothing was changed. (The download may be "
+                     "damaged, or it wasn't made by OrionOS's release key.)")
+    m = re.search(r"Trusted comment:\s*orion-bundle\s+(\S+)", r.stdout + r.stderr)
+    if not m:
+        raise Failed("The update's signature doesn't say which version it is, so it isn't installed.")
+    return clean_v(m.group(1))
+
+
+def safe_members(tar: tarfile.TarFile) -> list[tarfile.TarInfo]:
+    out = []
+    for m in tar.getmembers():
+        name = m.name
+        parts = Path(name).parts
+        if name.startswith("/") or ".." in parts or not (m.isfile() or m.isdir() or m.issym()):
+            raise Failed(f"The update contains something it shouldn't ({name!r}), so it isn't installed.")
+        if m.issym() and (m.linkname.startswith("/") or ".." in Path(m.linkname).parts):
+            raise Failed(f"The update contains a link pointing outside itself ({name!r}), so it isn't installed.")
+        out.append(m)
+    return out
+
+
+def unpack(bundle: Path, dest: Path, version: str) -> None:
+    if dest.exists():
+        shutil.rmtree(dest)
+    dest.mkdir(parents=True, mode=0o755)
+    try:
+        with tarfile.open(bundle, "r:gz") as tar:
+            members = safe_members(tar)
+            try:
+                tar.extractall(dest, members=members, filter="data")
+            except TypeError:                                # Python without extraction filters
+                tar.extractall(dest, members=members)
+    except (tarfile.TarError, OSError) as exc:
+        shutil.rmtree(dest, ignore_errors=True)
+        raise Failed(f"The update couldn't be unpacked ({exc}). Nothing was changed.")
+    root = dest
+    for need in REQUIRED:
+        if not (root / need).exists():
+            shutil.rmtree(dest, ignore_errors=True)
+            raise Failed(f"The update is incomplete (no {need}), so it isn't installed.")
+    inside = clean_v((root / "BUNDLE_VERSION").read_text())
+    if inside != version:
+        shutil.rmtree(dest, ignore_errors=True)
+        raise Failed(f"The update says {inside} inside but its signature says {version}, so it isn't installed.")
+    for p in [root, *root.rglob("*")]:
+        if not p.is_symlink():
+            try:
+                os.chmod(p, (p.stat().st_mode | 0o444 | (0o111 if p.is_dir() else 0)) & ~0o022)
+            except OSError:
+                pass
+
+
+# =====================================================================================  install steps
+def provision_argv(env: Env) -> list[str]:
+    if env.provision:
+        return shlex.split(env.provision)
+    return ["bash", str(env.src / "os/lab/provision.sh")]
+
+
+def profile(env: Env) -> str:
+    try:
+        return env.profile.read_text().strip() or "baremetal"
+    except OSError:
+        return "baremetal"
+
+
+def run_provision(env: Env) -> bool:
+    say("Setting up the new version (5-15 minutes)…")
+    e = {**os.environ, "ORION_PROFILE": profile(env)}
+    try:
+        env.log.parent.mkdir(parents=True, exist_ok=True)
+        with env.log.open("a", encoding="utf-8") as log:
+            log.write(f"\n==== orion-update {time.strftime('%Y-%m-%d %H:%M:%S')}: {' '.join(provision_argv(env))}\n")
+            log.flush()
+            p = subprocess.run(provision_argv(env), stdout=log, stderr=subprocess.STDOUT, env=e, timeout=4 * 3600)
+        return p.returncode == 0
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        print(f"The setup couldn't run: {exc}")
+        return False
+
+
+def restart_daemon(env: Env) -> None:
+    if env.restart:
+        env.run(shlex.split(env.restart), timeout=120)
+        return
+    try:
+        import pwd
+        uid = pwd.getpwnam("orion").pw_uid
+    except (KeyError, ImportError):
+        return
+    env.run(["sudo", "-u", "orion", f"XDG_RUNTIME_DIR=/run/user/{uid}",
+             f"DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/{uid}/bus", "systemctl", "--user", "restart",
+             "orion-daemon"], timeout=120)
+
+
+def healthy(env: Env) -> tuple[bool, str]:
+    r = env.run([env.healthy, "--daemon-only", "--wait", "120"], timeout=400)
+    return r.returncode == 0, (r.stdout or r.stderr).strip()
+
+
+def take_snapshot(env: Env, version: str) -> str:
+    """Returns the btrfs snapshot number ('' when snapshots are vault copies or off)."""
+    r = env.run([env.snapshot, "take", "--kind", "pre-update", "--why", f"before updating Orion to {version}",
+                 "--json"], timeout=1800)
+    try:
+        d = json.loads((r.stdout or "").strip().splitlines()[-1])
+    except (ValueError, IndexError):
+        return ""
+    sid = str((d.get("snapshot") or {}).get("id") or "")
+    return sid if sid.isdigit() else ""
+
+
+def frozen(env: Env) -> bool:
+    if not (shutil.which(env.frozen) or os.path.isabs(env.frozen)):
+        return False
+    return env.run([env.frozen], timeout=10).returncode == 0
+
+
+def record(env: Env, data: dict[str, Any]) -> None:
+    try:
+        env.state.mkdir(parents=True, exist_ok=True)
+        (env.state / "last.json").write_text(json.dumps({**data, "ts": time.time()}, indent=1))
+    except OSError:
+        pass
+
+
+def swap_in(env: Env, new: Path) -> Path:
+    prev = env.src.with_name(env.src.name + ".prev")
+    if prev.exists():
+        shutil.rmtree(prev)
+    if env.src.exists():
+        os.rename(env.src, prev)
+    os.rename(new, env.src)
+    return prev
+
+
+def roll_back(env: Env, prev: Path, snap: str, why: str) -> None:
+    say("The new version didn't come up healthy, so the previous one is being put back…")
+    failed = env.src.with_name(env.src.name + ".failed")
+    if failed.exists():
+        shutil.rmtree(failed)
+    if prev.exists():
+        os.rename(env.src, failed)
+        os.rename(prev, env.src)
+        ok = run_provision(env)
+        restart_daemon(env)
+    else:
+        ok = False
+    env.run([env.bootcount, "disarm"], timeout=60)
+    msg = f"Update not kept ({why}). " + ("The previous version is back." if ok else
+                                         "Putting the previous version back didn't fully work either.")
+    if snap:
+        msg += f" To put the whole system back exactly as it was: sudo orion-snapshot restore {snap}"
+    msg += f" Details: {env.log}"
+    raise Failed(msg)
+
+
+def signed_update(env: Env, expect: str, allow_downgrade: bool) -> str:
+    cur = current_version(env)
+    hint = latest_hint(env)
+    if not expect and not allow_downgrade and hint and cur and not newer(hint, cur):
+        return f"Up to date ({cur})."
+    work = Path(tempfile.mkdtemp(prefix="orion-update.", dir=env.tmp))
+    try:
+        b = work / BUNDLE
+        say(f"Downloading Orion {hint or ''} ({channel(env)} channel)…".replace("  ", " "))
+        fetch(env, f"{base_url(env)}/{BUNDLE}", b)
+        fetch(env, f"{base_url(env)}/{BUNDLE}.minisig", Path(str(b) + ".minisig"))
+        version = verify(env, b)
+        if expect and version != expect:
+            raise Failed(f"The newest version is now {version}, not the tested {expect}. Orion tests the new one first.")
+        if cur and not newer(version, cur) and not allow_downgrade:
+            raise Failed(f"Version {version} isn't newer than the installed {cur}, so it wasn't installed. "
+                         "(To go back on purpose: sudo orion-update --allow-downgrade)")
+        new = env.src.with_name(env.src.name + ".new")
+        unpack(b, new, version)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    snap = take_snapshot(env, version)
+    prev = swap_in(env, new)
+    if not run_provision(env):
+        roll_back(env, prev, snap, "the setup step failed")
+    restart_daemon(env)
+    ok, why = healthy(env)
+    if not ok:
+        roll_back(env, prev, snap, why or "Orion's brain didn't answer")
+    record(env, {"version": version, "from": cur, "snapshot": snap})
+    msg = f"Updated Orion to {version}."
+    if snap:
+        r = env.run([env.bootcount, "arm", "--snapshot", snap, "--version", version], timeout=900)
+        if r.returncode == 0 and r.stdout.strip():
+            msg += " " + r.stdout.strip()
+    return msg
+
+
+# =====================================================================================  other ways in
+def vm_disc(env: Env) -> Optional[str]:
+    r = env.run([env.blkid, "-L", "ORIONUPD"], timeout=20)
+    return r.stdout.strip() if r.returncode == 0 and r.stdout.strip() else None
+
+
+def vm_update(env: Env, dev: str) -> str:
+    """The lab VM: a bundle from "Update OrionOS Lab.cmd" on a disc your own Windows PC made."""
+    mnt = Path("/mnt/orion-update")
+    mnt.mkdir(parents=True, exist_ok=True)
+    env.run(["mount", "-o", "ro", dev, str(mnt)], timeout=60)
+    try:
+        r = env.run(["tar", "-xzf", str(mnt / "orion-bundle.tar.gz"), "-C", str(env.src)], timeout=1800)
+        if r.returncode != 0:
+            raise Failed("The update disc couldn't be read: " + r.stderr.strip()[-200:])
+    finally:
+        env.run(["umount", str(mnt)], timeout=60)
+    env.run(["find", str(env.src / "os"), str(env.src / "apps/boardroom"), "-type", "f", "!", "-name", "*.png", "!",
+             "-name", "*.deb", "-exec", "sed", "-i", "s/\\r$//", "{}", "+"], timeout=600)
+    env.run([env.snapshot, "take", "--kind", "pre-update", "--why", "before updating OrionOS", "--quiet"], timeout=1800)
+    if not run_provision(env):
+        raise Failed(f"The setup step failed. Details: {env.log}")
+    restart_daemon(env)
+    return "Updated from the update disc."
+
+
+def dev_git(env: Env) -> str:
+    print("WARNING: developer path. This takes the newest code from git WITHOUT any signature check: whoever can "
+          "push to that branch gets admin rights on this computer. Use signed releases (plain sudo orion-update) "
+          "on any machine you care about.", file=sys.stderr)
+    if not (env.src / ".git").is_dir():
+        raise Failed(f"{env.src} isn't a git checkout, so there's nothing to pull.")
+    g = ["git", "-c", f"safe.directory={env.src}", "-C", str(env.src)]
+    br = env.run(g + ["rev-parse", "--abbrev-ref", "HEAD"]).stdout.strip() or "main"
+    if channel(env) == "beta":
+        br = "beta"
+    r = env.run(g + ["fetch", "-q", "origin"], timeout=600)
+    if r.returncode == 0:
+        r = env.run(g + ["checkout", "-q", "-B", br, f"origin/{br}"], timeout=600)
+    if r.returncode != 0:
+        raise Failed("git couldn't get the newest code: " + r.stderr.strip()[-200:])
+    env.run([env.snapshot, "take", "--kind", "pre-update", "--why", "before a developer update", "--quiet"], timeout=1800)
+    if not run_provision(env):
+        raise Failed(f"The setup step failed. Details: {env.log}")
+    restart_daemon(env)
+    return "Updated from git (unsigned, developer path)."
+
+
+def check_json(env: Env) -> int:
+    if on_stick(env):
+        os.execvp("orion-slot", ["orion-slot", "latest", "--json"])
+    latest = latest_hint(env) if env.pub.exists() else ""
+    print(json.dumps({"channel": channel(env), "current": current_version(env), "latest": latest, "slot": False,
+                      "signed": True}))
+    return 0 if latest else 1
+
+
+def main(argv: Optional[list[str]] = None, env: Optional[Env] = None) -> int:
+    env = env or Env()
+    args = list(sys.argv[1:] if argv is None else argv)
+    if args[:1] == ["check"]:
+        if "--json" in args:
+            return check_json(env)
+        cur, latest = current_version(env), latest_hint(env)
+        if not latest:
+            print(f"Couldn't reach the release server ({channel(env)} channel).")
+            return 1
+        print(f"New version available: {latest} (you have {cur or 'an unnumbered build'}). Run: sudo orion-update"
+              if not cur or newer(latest, cur) else f"Up to date ({cur}).")
+        return 0
+    if any(a in ("-h", "--help", "help") for a in args):
+        print(__doc__.split("\n\n")[0] + "\n" + __doc__.split("\n\n")[1])
+        return 0
+    expect, allow_down, dev = "", False, False
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a == "--expect" and i + 1 < len(args):
+            expect = clean_v(args[i + 1])
+            i += 1
+        elif a == "--allow-downgrade":
+            allow_down = True
+        elif a == "--dev-git-unsigned":
+            dev = True
+        else:
+            print(f"Unknown option {a}. See: orion-update --help", file=sys.stderr)
+            return 2
+        i += 1
+    if not env.root:
+        print("Run it with sudo: sudo orion-update")
+        return 1
+    if frozen(env):
+        print("Orion is frozen (kill switch), so no updates now. Unfreeze it from your phone first.")
+        return 1
+    if on_stick(env):
+        print("This OrionOS runs from its USB stick: whole-system updates come through: sudo orion-slot update")
+        return 0
+    try:
+        dev_disc = vm_disc(env)
+        if dev:
+            msg = dev_git(env)
+        elif dev_disc:
+            msg = vm_update(env, dev_disc)
+        else:
+            msg = signed_update(env, expect, allow_down)
+    except Failed as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    say(msg)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

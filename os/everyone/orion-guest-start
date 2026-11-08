@@ -1,0 +1,11 @@
+#!/bin/sh
+# OrionOS: Settings > Users > "Start a guest session". Root helper started with pkexec (polkit action
+# ai.orion.everyone.guest, allowed for the person sitting at the computer). It only leaves a note for the login
+# screen: after you log out, the guest session starts once, without a password (os/everyone/orion-login-next).
+set -eu
+[ "$(id -u)" -eq 0 ] || { echo "needs admin rights" >&2; exit 1; }
+[ -f /etc/orion/guest-enabled ] || { echo "The guest account is off. Turn it on first." >&2; exit 1; }
+install -d -m 770 -o root -g _greetd /run/orion-login
+date +%s > /run/orion-login/guest-next
+chmod 640 /run/orion-login/guest-next
+echo "Log out and the guest session starts."

@@ -1,0 +1,60 @@
+#!/bin/sh
+# OrionOS self-running, root side (apps/daemon/self_repair.py, update_channels.py, self_levels.py).
+# Started with pkexec (polkit action ai.orion.safety.selfrun) or sudo. Takes only these commands:
+#   orion-self-helper restart-unit UNIT      restart one allow-listed system service (no password for Orion)
+#   orion-self-helper vacuum-journal         trim the system journal to 200 MB (no password for Orion)
+#   orion-self-helper channel stable|beta|mine          the update channel (/etc/orion/channel; admin password)
+#   orion-self-helper level KIND 1|2|3                  a permission level (/etc/orion/self-levels.json; admin password)
+# The lists here are the only ones that count: the daemon checks them too, but this is the lock.
+set -eu
+ETC="${ORION_SELF_ETC:-/etc/orion}"
+[ "$(id -u)" -eq 0 ] || [ -n "${ORION_SELF_TEST:-}" ] || { echo "needs admin rights" >&2; exit 1; }
+run() { if [ -n "${ORION_SELF_TEST:-}" ]; then echo "would run: $*"; else "$@"; fi; }
+case "${1:-}" in
+  restart-unit)
+    u="${2:-}"
+    case "$u" in
+      NetworkManager.service|bluetooth.service|ollama.service|cups.service|systemd-resolved.service|\
+      systemd-timesyncd.service|avahi-daemon.service|fwupd.service) ;;
+      orion-*.service)
+        case "$u" in *[!A-Za-z0-9@._-]*) echo "not an allowed service: $u" >&2; exit 2 ;; esac ;;
+      *) echo "not an allowed service: $u" >&2; exit 2 ;;
+    esac
+    run systemctl restart "$u"
+    echo "restarted $u" ;;
+  vacuum-journal)
+    run journalctl --vacuum-size=200M
+    echo "journal trimmed" ;;
+  channel)
+    c="${2:-}"
+    case "$c" in stable|beta|mine) ;; *) echo "the channel is stable, beta or mine" >&2; exit 2 ;; esac
+    mkdir -p "$ETC"
+    printf '%s\n' "$c" > "$ETC/channel.tmp" && chmod 644 "$ETC/channel.tmp" && mv "$ETC/channel.tmp" "$ETC/channel"
+    logger -t orion-self "update channel set to $c" 2>/dev/null || true
+    echo "Update channel: $c" ;;
+  level)
+    k="${2:-}"; l="${3:-}"
+    case "$k" in security_update|app_update|routine_fix|ai_model|ui_code) ;;
+      *) echo "that kind can't be changed (or doesn't exist): $k" >&2; exit 2 ;; esac
+    case "$l" in 1|2|3) ;; *) echo "the level is 1, 2 or 3" >&2; exit 2 ;; esac
+    mkdir -p "$ETC"
+    python3 - "$ETC/self-levels.json" "$k" "$l" "${SUDO_USER:-admin}" <<'PY'
+import json, os, sys, time
+path, kind, level, who = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4]
+try:
+    d = json.load(open(path, encoding="utf-8"))
+    d = d if isinstance(d, dict) else {}
+except (OSError, ValueError):
+    d = {}
+lv = d.setdefault("levels", {})
+lv[kind] = {"level": level, "by": f"admin password ({who})"[:80], "at": time.time()}
+tmp = path + ".tmp"
+with open(tmp, "w", encoding="utf-8") as f:
+    json.dump(d, f, indent=1)
+os.chmod(tmp, 0o644)
+os.replace(tmp, path)
+print(f"{kind} is now level {level}.")
+PY
+    ;;
+  *) sed -n '3,7p' "$0" >&2; exit 2 ;;
+esac

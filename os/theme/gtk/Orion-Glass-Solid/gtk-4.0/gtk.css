@@ -1,0 +1,11 @@
+/* Orion Glass Solid (gtk-4.0): Orion Glass with opaque glass-coloured surfaces. Used when the session runs plain Sway
+ * (no SwayFX, so nothing would blur what's behind a see-through window). Art Update §4 fallback. */
+@import url("../../Orion-Glass/gtk-4.0/gtk.css");
+
+window.background, window.background:backdrop, dialog.background, assistant.background,
+messagedialog.background, window.background.csd { background-color: #0B0F1E; }
+.view, iconview, treeview.view, list, textview text, scrolledwindow > viewport, .content-view { background-color: #080B17; }
+.sidebar, placessidebar, placessidebar list, stacksidebar, .navigation-sidebar, .thunar .shortcuts-pane { background-color: #070A14; }
+headerbar, .titlebar:not(headerbar) { background-color: #0E1326; }
+statusbar { background-color: #090C19; }
+.thunar .standard-view, .thunar .standard-view .view, .thunar .standard-view iconview { background-color: #080B17; }

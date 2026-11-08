@@ -1,0 +1,45 @@
+#!/bin/sh
+# OrionOS: more than one person (os/everyone/README.md). Root side of Settings > Users, run through the orion-admin
+# account (Settings opens a terminal: su - orion-admin -c "sudo orion-people-admin ...", so the admin password is
+# always asked for). Installed as /opt/orion/everyone/orion-people-admin.
+#   orion-people-admin add LOGIN "Full name"     a new person with their own home, Orion data and password
+#   orion-people-admin guest on|off|status       the guest account (fresh RAM-disk home, wiped at log-out)
+set -u
+GUEST="${ORION_GUEST_USER:-guest}"
+LIB=/opt/orion/everyone/orion_everyone.py
+SKEL=/etc/orion/person-skel
+[ "$(id -u)" -eq 0 ] || { echo "This needs admin rights (it runs through the orion-admin account)."; exit 1; }
+
+case "${1:-}" in
+  add)
+    login="${2:-}"; full="$(printf '%s' "${3:-}" | tr -d ':,\n' | cut -c1-60)"
+    why="$(python3 "$LIB" people check-name "$login")" || { echo "$why"; exit 1; }
+    [ -n "$full" ] || full="$login"
+    adduser --disabled-password --gecos "$full" --skel "$SKEL" "$login" >/dev/null || { echo "Couldn't add $login."; exit 1; }
+    usermod -aG video,render,input "$login" 2>/dev/null || true
+    chmod 750 "/home/$login"          # nobody else (and no agent) reads their files or their Orion data
+    echo "Added $full ($login). Now choose their password; they type it on the login screen."
+    passwd "$login" || echo "No password yet: run this again with  sudo passwd $login"
+    echo "Done. To switch: log out (Super+Shift+E), then type $login at the login prompt."
+    ;;
+  guest)
+    case "${2:-status}" in
+      on)
+        id "$GUEST" >/dev/null 2>&1 || adduser --disabled-password --no-create-home --gecos "Guest" "$GUEST" >/dev/null
+        passwd -l "$GUEST" >/dev/null 2>&1          # no password: only the login screen lets the guest in (PAM)
+        usermod --expiredate '' "$GUEST" 2>/dev/null
+        install -d -m 755 -o root -g root "/home/$GUEST"   # stays empty: the RAM disk goes on top at log-in
+        date -u +%FT%TZ > /etc/orion/guest-enabled
+        echo "The guest account is on. Start it from Settings > Users, or type \"$GUEST\" at the login prompt."
+        ;;
+      off)
+        rm -f /etc/orion/guest-enabled
+        id "$GUEST" >/dev/null 2>&1 && usermod --expiredate 1 "$GUEST"
+        echo "The guest account is off."
+        ;;
+      status) [ -f /etc/orion/guest-enabled ] && echo on || echo off ;;
+      *) echo "usage: orion-people-admin guest on|off|status"; exit 2 ;;
+    esac
+    ;;
+  *) echo "usage: orion-people-admin add LOGIN \"Full name\" | guest on|off|status"; exit 2 ;;
+esac

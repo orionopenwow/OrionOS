@@ -1,0 +1,11 @@
+# OrionOS USB stick: the RAM logs reach the vault once an hour (one short write burst, not constant writes).
+[Unit]
+Description=Copy the RAM logs to the vault every hour (USB stick)
+
+[Timer]
+OnBootSec=15min
+OnUnitActiveSec=1h
+AccuracySec=5min
+
+[Install]
+WantedBy=timers.target

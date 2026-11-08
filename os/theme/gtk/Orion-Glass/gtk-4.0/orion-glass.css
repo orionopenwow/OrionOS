@@ -1,0 +1,216 @@
+/* Orion Glass (GTK 4): the hand-written layer on top of the recoloured Adwaita-dark (adwaita-orion.css).
+ * Art Update §4 "Window style": dark see-through glass (34% see-through; SwayFX blurs what's behind), 16 px
+ * corners, a thin light edge, violet accents, belt-dot window buttons, themed Thunar.
+ * Palette: Void #05070E, Event #0B0F1E, Edge #262D50, Accretion #7C5CFF, Photon #00E5FF, Starlight #D8DEFF,
+ * Ember #FFC66B; belt dots rose #FF5C8A / ember #FFC66B / aurora #5CFFB0. Fonts: Figtree, Martian Mono. */
+
+@define-color orion_void #05070E;
+@define-color orion_event #0B0F1E;
+@define-color orion_edge #262D50;
+@define-color orion_accretion #7C5CFF;
+@define-color orion_photon #00E5FF;
+@define-color orion_starlight #D8DEFF;
+@define-color orion_ember #FFC66B;
+@define-color orion_rose #FF5C8A;
+@define-color orion_aurora #5CFFB0;
+@define-color orion_glass rgba(11, 15, 30, 0.66);
+@define-color orion_glass_deep rgba(5, 7, 14, 0.34);
+@define-color orion_glass_menu rgba(14, 19, 38, 0.96);
+/* names apps (and the GTK 3 docs) expect */
+@define-color theme_bg_color #0B0F1E;
+@define-color theme_fg_color #D8DEFF;
+@define-color theme_base_color #080B17;
+@define-color theme_text_color #D8DEFF;
+@define-color theme_selected_bg_color #7C5CFF;
+@define-color theme_selected_fg_color #FFFFFF;
+@define-color insensitive_fg_color #6B7090;
+@define-color borders #262D50;
+@define-color accent_color #9D85FF;
+@define-color accent_bg_color #7C5CFF;
+@define-color window_bg_color #0B0F1E;
+@define-color view_bg_color #080B17;
+@define-color headerbar_bg_color #0B0F1E;
+@define-color success_color #5CFFB0;
+@define-color warning_color #FFC66B;
+@define-color error_color #FF5C8A;
+
+/* ---------- type ---------- */
+window, popover, menu, tooltip, .csd tooltip, messagedialog {
+  font-family: Figtree, Nunito, "Noto Sans", sans-serif;
+}
+.monospace, textview.monospace, .monospace text { font-family: "Martian Mono", "Noto Sans Mono", monospace; }
+
+/* ---------- the glass ---------- */
+window.background, window.background:backdrop, dialog.background, assistant.background,
+messagedialog.background, window.background.csd {
+  background-color: @orion_glass;
+  color: @orion_starlight;
+}
+.view, iconview, treeview.view, list, listview, gridview, columnview, textview text, scrolledwindow > viewport, .content-view {
+  background-color: transparent;
+  color: @orion_starlight;
+}
+treeview.view:hover { background-color: rgba(124, 92, 255, 0.08); }
+.view:selected, iconview:selected, treeview.view:selected, row:selected, flowbox flowboxchild:selected {
+  background-color: rgba(124, 92, 255, 0.55);
+  color: #FFFFFF;
+  border-radius: 10px;
+}
+.view:selected:focus, iconview:selected:focus, treeview.view:selected:focus, row:selected:focus {
+  background-color: @orion_accretion;
+}
+iconview:selected, .view:selected .label { box-shadow: 0 0 14px rgba(124, 92, 255, 0.45); }
+frame > border, .frame { border-color: rgba(216, 222, 255, 0.08); border-radius: 12px; }
+
+/* Rounded window with a thin light edge, a soft deep shadow and a violet glow on the focused window. */
+window.csd {
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(2, 3, 10, 0.70), 0 0 0 1px rgba(124, 92, 255, 0.55), 0 0 18px rgba(124, 92, 255, 0.22);
+  margin: 0;
+}
+window.csd:backdrop { box-shadow: 0 8px 28px rgba(2, 3, 10, 0.55), 0 0 0 1px rgba(216, 222, 255, 0.10); }
+window.maximized, window.fullscreen, window.tiled, window.tiled-top, window.tiled-left, window.tiled-right,
+window.tiled-bottom { border-radius: 0; }
+
+/* ---------- title bar ---------- */
+headerbar, .titlebar:not(headerbar) {
+  background: rgba(255, 255, 255, 0.035);
+  background-image: none;
+  border: none;
+  border-bottom: 1px solid rgba(216, 222, 255, 0.07);
+  box-shadow: none;
+  min-height: 44px;
+  padding: 0 10px;
+  color: @orion_starlight;
+}
+headerbar:backdrop, .titlebar:backdrop { background: rgba(255, 255, 255, 0.02); color: #8A90B8; }
+.csd headerbar, window.csd .titlebar { border-radius: 16px 16px 0 0; }
+window.maximized headerbar, window.tiled headerbar, window.tiled-top headerbar, window.tiled-left headerbar,
+window.tiled-right headerbar, window.tiled-bottom headerbar { border-radius: 0; }
+headerbar .title { font-weight: 600; }
+headerbar .subtitle { color: #8A90B8; }
+
+/* Belt dots (Orion's belt): close rose, minimise ember, full size aurora — on the left, like three stars.
+ * The same buttons also sit on the right as ordinary icons, for people used to Windows
+ * (settings.ini: gtk-decoration-layout=close,minimize,maximize:minimize,maximize,close). */
+headerbar windowcontrols.start button, .titlebar windowcontrols.start button {
+  min-width: 14px; min-height: 14px; padding: 0; margin: 0 4px;
+  border-radius: 999px; border: none; background-image: none;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  -gtk-icon-shadow: none; text-shadow: none;
+}
+headerbar windowcontrols.start button image, .titlebar windowcontrols.start button image {
+  opacity: 0; color: rgba(5, 7, 14, 0.85); -gtk-icon-size: 10px;
+}
+headerbar windowcontrols.start button:hover image, .titlebar windowcontrols.start button:hover image { opacity: 1; }
+headerbar windowcontrols.start button.close { background-color: @orion_rose; box-shadow: 0 0 8px rgba(255, 92, 138, 0.55); }
+headerbar windowcontrols.start button.minimize { background-color: @orion_ember; box-shadow: 0 0 8px rgba(255, 198, 107, 0.45); }
+headerbar windowcontrols.start button.maximize { background-color: @orion_aurora; box-shadow: 0 0 8px rgba(92, 255, 176, 0.45); }
+headerbar windowcontrols.start button:backdrop { opacity: 0.45; box-shadow: none; }
+
+headerbar windowcontrols.end button, .titlebar windowcontrols.end button {
+  min-width: 28px; min-height: 28px; padding: 0; margin: 0 1px;
+  border-radius: 9px; border: none; background: transparent; box-shadow: none;
+  color: #8A90B8; -gtk-icon-shadow: none;
+}
+headerbar windowcontrols.end button:hover { background-color: rgba(216, 222, 255, 0.08); color: @orion_starlight; }
+headerbar windowcontrols.end button.close:hover { background-color: rgba(255, 92, 138, 0.85); color: #FFFFFF; }
+
+/* ---------- controls ---------- */
+button {
+  border-radius: 999px;
+  background-image: none;
+  background-color: rgba(216, 222, 255, 0.05);
+  border: 1px solid @orion_edge;
+  box-shadow: none;
+  text-shadow: none;
+  -gtk-icon-shadow: none;
+  color: @orion_starlight;
+}
+button:hover { background-color: rgba(124, 92, 255, 0.18); border-color: rgba(124, 92, 255, 0.55); }
+button:active, button:checked { background-color: rgba(124, 92, 255, 0.40); border-color: @orion_accretion; color: #FFFFFF; }
+button:disabled { background-color: transparent; color: #4A5280; border-color: rgba(38, 45, 80, 0.6); }
+button.flat, button.image-button.flat, toolbar button, .inline-toolbar button { border-color: transparent; background-color: transparent; }
+button.flat:hover, toolbar button:hover { background-color: rgba(216, 222, 255, 0.08); }
+button.suggested-action {
+  background-image: linear-gradient(90deg, #7C5CFF, #00B8D9);
+  border-color: transparent; color: #FFFFFF;
+  box-shadow: 0 0 14px rgba(124, 92, 255, 0.40);
+}
+button.suggested-action:hover { background-image: linear-gradient(90deg, #8E72FF, #00CDEB); }
+button.destructive-action { background-image: none; background-color: rgba(255, 92, 138, 0.85); border-color: transparent; color: #FFFFFF; }
+.linked > button { border-radius: 0; }
+listview > row:selected, gridview > child:selected, columnview > listview > row:selected { background-color: rgba(124, 92, 255, 0.55); color: #FFFFFF; border-radius: 10px; }
+.linked > button:first-child { border-radius: 999px 0 0 999px; }
+.linked > button:last-child { border-radius: 0 999px 999px 0; }
+.linked > button:only-child { border-radius: 999px; }
+
+entry, spinbutton:not(.vertical), combobox entry {
+  border-radius: 12px;
+  background-color: rgba(5, 7, 14, 0.55);
+  background-image: none;
+  border: 1px solid @orion_edge;
+  box-shadow: none;
+  color: @orion_starlight;
+  caret-color: @orion_photon;
+  min-height: 30px;
+}
+entry:focus, spinbutton:focus { border-color: @orion_accretion; box-shadow: 0 0 0 2px rgba(124, 92, 255, 0.30); }
+entry.search, searchbar entry { border-radius: 999px; padding-left: 10px; }
+entry image { color: #8A90B8; }
+entry selection, selection { background-color: rgba(124, 92, 255, 0.55); color: #FFFFFF; }
+
+switch { border-radius: 999px; background-color: rgba(216, 222, 255, 0.08); border-color: @orion_edge; }
+switch:checked { background-color: @orion_accretion; border-color: transparent; box-shadow: 0 0 12px rgba(124, 92, 255, 0.45); }
+switch slider { border-radius: 999px; background-image: none; background-color: @orion_starlight; border-color: transparent; }
+check, radio { border-color: @orion_edge; background-image: none; background-color: rgba(5, 7, 14, 0.55); }
+check:checked, radio:checked, check:indeterminate { background-color: @orion_accretion; border-color: transparent; color: #FFFFFF; }
+scale trough, progressbar trough, levelbar trough { background-color: rgba(216, 222, 255, 0.10); border: none; border-radius: 999px; }
+scale highlight, progressbar progress, levelbar block.filled {
+  background-image: linear-gradient(90deg, #7C5CFF, #00E5FF); border: none; border-radius: 999px;
+}
+scale slider, scale > trough > slider { background-image: none; background-color: @orion_starlight; border: 2px solid @orion_accretion; border-radius: 999px; }
+
+scrollbar { background-color: transparent; border: none; }
+scrollbar slider { background-color: rgba(216, 222, 255, 0.22); border-radius: 999px; min-width: 6px; min-height: 6px; border: 2px solid transparent; }
+scrollbar slider:hover { background-color: rgba(216, 222, 255, 0.38); }
+scrollbar slider:active { background-color: @orion_accretion; }
+
+/* ---------- menus, popovers, tooltips ---------- */
+menubar { background: transparent; box-shadow: none; padding: 0 4px; }
+menubar > item { border-radius: 8px; padding: 4px 10px; }
+menubar > item:hover { background-color: rgba(124, 92, 255, 0.30); box-shadow: none; color: #FFFFFF; }
+popover > contents, popover.background > contents, popover > arrow {
+  background-color: @orion_glass_menu; border: 1px solid @orion_edge; box-shadow: 0 10px 30px rgba(2, 3, 10, 0.6);
+}
+popover > contents { border-radius: 14px; }
+popover.menu modelbutton { border-radius: 8px; }
+popover.menu modelbutton:hover, popover.menu modelbutton:selected { background-color: rgba(124, 92, 255, 0.45); color: #FFFFFF; }
+modelbutton.flat:hover, .menuitem.button.flat:hover { background-color: rgba(124, 92, 255, 0.45); border-radius: 8px; }
+tooltip, tooltip.background { background-color: rgba(5, 7, 14, 0.94); border: 1px solid @orion_edge; border-radius: 10px; color: @orion_starlight; }
+
+/* ---------- tabs (an icon, a title, and a "+" for a new tab where the app offers one) ---------- */
+notebook > header { background: transparent; border-color: rgba(216, 222, 255, 0.07); }
+notebook > header > tabs > tab { border-radius: 10px 10px 0 0; padding: 6px 14px; color: #8A90B8; min-height: 22px; }
+notebook > header > tabs > tab:hover { background-color: rgba(216, 222, 255, 0.05); color: @orion_starlight; box-shadow: none; }
+notebook > header > tabs > tab:checked { background-color: rgba(124, 92, 255, 0.16); color: @orion_starlight; box-shadow: inset 0 -2px @orion_accretion; }
+notebook > stack:not(:only-child) { background-color: transparent; }
+
+/* ---------- sidebars ---------- */
+.sidebar, placessidebar, placessidebar list, stacksidebar, .navigation-sidebar {
+  background-color: @orion_glass_deep;
+  border-color: rgba(216, 222, 255, 0.07);
+}
+placessidebar row, .sidebar row { border-radius: 10px; margin: 1px 6px; }
+placessidebar row:selected { background-color: rgba(124, 92, 255, 0.45); }
+
+paned > separator { background-color: rgba(216, 222, 255, 0.06); background-image: none; min-width: 1px; min-height: 1px; }
+separator { background-color: rgba(216, 222, 255, 0.08); }
+infobar, .app-notification { border-radius: 12px; }
+infobar.info > revealer > box, infobar.question > revealer > box { background-color: rgba(124, 92, 255, 0.30); }
+infobar.warning > revealer > box { background-color: rgba(255, 198, 107, 0.25); color: @orion_starlight; }
+infobar.error > revealer > box { background-color: rgba(255, 92, 138, 0.30); color: #FFFFFF; }
+
+statusbar { background-color: rgba(5, 7, 14, 0.40); color: #8A90B8; border-top: 1px solid rgba(216, 222, 255, 0.06); padding: 0 10px; min-height: 26px; }
+toolbar, .toolbar, .primary-toolbar { background: transparent; background-image: none; border: none; box-shadow: none; padding: 6px 8px; }
+

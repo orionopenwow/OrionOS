@@ -1,0 +1,21 @@
+# OrionOS outbound killswitch (installed OFF; `orion-killswitch enable …` loads it).
+# With it on, traffic can only leave through the VPN tunnel. If the tunnel drops, everything else drops.
+# Fixes over the original concept script: the VPN handshake is pinned to ONE endpoint IP (not "UDP 51820
+# to anywhere"), Tor is allowed by its user id (Tor is a proxy, there is no tor0 interface), and the few
+# LAN exceptions OrionOS needs are explicit.
+table inet orion_killswitch
+delete table inet orion_killswitch
+table inet orion_killswitch {
+  chain output {
+    type filter hook output priority 10; policy drop;
+    oifname "lo" accept
+    oifname { "wg0", "tailscale0" } accept
+    __HANDSHAKE__
+    meta mark & 0x00ff0000 == 0x00080000 accept          # tailscaled's own encrypted packets
+    __TOR__
+    ip daddr 10.77.0.11 tcp sport 9121 accept             # replies to the boardroom VM
+    ip daddr 10.77.0.2 tcp dport 11434 accept             # Ollama on the Windows host
+    udp sport 68 udp dport 67 accept                      # DHCP lease renewal
+    counter reject
+  }
+}

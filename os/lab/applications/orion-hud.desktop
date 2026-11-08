@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Orion
+Comment=Back to the Orion HUD
+Exec=swaymsg workspace number 1
+Icon=orion
+Categories=Utility;

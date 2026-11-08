@@ -1,0 +1,574 @@
+/*
+ * Orion Glass for the HUD (Art Update §4, "Window style"): frosted see-through windows with the black hole
+ * glowing through, belt-dot title bars, the glass taskbar, lit edges, arrival and reduced-motion rules.
+ * Palette used directly: Void #05070E, Event #0B0F1E, Edge #262D50, Accretion #7C5CFF, Photon #00E5FF,
+ * Starlight #D8DEFF, Ember #FFC66B; belt dots rose #FF5C8A, ember #FFC66B, aurora #5CFFB0.
+ */
+
+@property --lit-angle {
+  syntax: '<angle>';
+  inherits: true;
+  initial-value: 90deg;
+}
+@property --lit-a {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0.25;
+}
+@property --glass-tint {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0.34;
+}
+
+/* ---- The glass ------------------------------------------------------------------------------ */
+.orion-glass,
+.orion-window {
+  --glass-tint: 0.34;
+  --lit-x: 50%;
+  --lit-y: 50%;
+  border-radius: 16px;
+  background: rgba(11, 15, 30, var(--glass-tint));
+  -webkit-backdrop-filter: blur(18px) saturate(1.35);
+  backdrop-filter: blur(18px) saturate(1.35);
+  border: 1px solid rgba(216, 222, 255, 0.09);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 34px 80px -24px rgba(0, 0, 0, 0.85),
+    0 14px 32px -12px rgba(0, 0, 0, 0.55);
+  color: #d8deff;
+  isolation: isolate;
+  transition:
+    --glass-tint 0.45s ease,
+    --lit-angle 0.8s ease,
+    --lit-a 0.8s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease;
+}
+/* Text never sits on the bright disk without enough glass under it (§8). */
+.orion-glass[data-over-core],
+.orion-window[data-over-core] {
+  --glass-tint: 0.66;
+}
+
+/* Denser glass for reading panels that can sit over busy content (side panels, popovers). */
+.orion-glass--dense {
+  --glass-tint: 0.6;
+}
+
+/* Lit by the core: the edge facing the black hole picks up a faint violet/cyan tint. */
+.orion-lit {
+  position: relative;
+}
+.orion-lit::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  z-index: 3;
+  background: linear-gradient(
+    var(--lit-angle),
+    rgba(176, 156, 255, calc(var(--lit-a) * 1.6)) 0%,
+    rgba(0, 229, 255, calc(var(--lit-a) * 0.55)) 24%,
+    transparent 58%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+.orion-lit::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(90% 70% at var(--lit-x) var(--lit-y), rgba(124, 92, 255, calc(var(--lit-a) * 0.32)), transparent 70%);
+}
+.orion-lit > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---- Windows -------------------------------------------------------------------------------- */
+.orion-window {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  --glass-tint: 0.42;
+}
+.orion-window[data-focused] {
+  --glass-tint: 0.34;
+  border-color: rgba(157, 133, 255, 0.4);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 0 0 1px rgba(124, 92, 255, 0.28),
+    0 0 34px -4px rgba(124, 92, 255, 0.42),
+    0 34px 80px -24px rgba(0, 0, 0, 0.85),
+    0 14px 32px -12px rgba(0, 0, 0, 0.55);
+}
+.orion-window[data-over-core] {
+  --glass-tint: 0.66;
+}
+.orion-window:not([data-focused]) > .orion-window__body,
+.orion-window:not([data-focused]) > .orion-window__titlebar {
+  opacity: 0.84;
+}
+.orion-window[data-maximised] {
+  inset: 52px 20px 88px 20px !important;
+  width: auto !important;
+  height: auto !important;
+  max-width: none !important;
+  max-height: none !important;
+}
+.orion-window[data-sheet] {
+  inset: max(56px, env(safe-area-inset-top)) 0 0 0 !important;
+  width: auto !important;
+  height: auto !important;
+  border-radius: 22px 22px 0 0;
+  border-bottom: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.orion-window__titlebar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 42px;
+  padding: 0 8px 0 14px;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(216, 222, 255, 0.06);
+}
+.orion-window__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.orion-window__title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #d8deff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: none;
+}
+.orion-window__subtitle {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(216, 222, 255, 0.45);
+}
+
+/* Orion's belt: close (rose), minimise (ember), full size (aurora) */
+.orion-belt {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.orion-belt__dot {
+  --c: #ff5c8a;
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow: 0 0 7px color-mix(in srgb, var(--c) 55%, transparent), inset 0 -1px 1px rgba(0, 0, 0, 0.25);
+  display: grid;
+  place-items: center;
+  color: rgba(5, 7, 14, 0.78);
+  cursor: pointer;
+  transition: filter 0.15s ease, opacity 0.2s ease;
+}
+.orion-belt__dot[data-kind='minimise'] {
+  --c: #ffc66b;
+}
+.orion-belt__dot[data-kind='maximise'] {
+  --c: #5cffb0;
+}
+.orion-belt__dot svg {
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.orion-belt:hover .orion-belt__dot svg,
+.orion-belt__dot:focus-visible svg {
+  opacity: 1;
+}
+.orion-belt__dot:focus-visible {
+  outline: 2px solid #00e5ff;
+  outline-offset: 2px;
+}
+.orion-window:not([data-focused]) .orion-belt__dot {
+  opacity: 0.6;
+  box-shadow: none;
+}
+
+/* Tabs with an icon, and "+" for a new tab */
+.orion-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.orion-tabs::-webkit-scrollbar {
+  display: none;
+}
+.orion-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  background: transparent;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: rgba(216, 222, 255, 0.52);
+  white-space: nowrap;
+  text-shadow: none;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+.orion-tab:hover {
+  color: rgba(216, 222, 255, 0.88);
+  background: rgba(216, 222, 255, 0.04);
+}
+.orion-tab[aria-selected='true'] {
+  color: #ffffff;
+  background: rgba(216, 222, 255, 0.075);
+  border-color: rgba(216, 222, 255, 0.08);
+}
+.orion-tab:focus-visible,
+.orion-tab-add:focus-visible,
+.orion-wincontrols button:focus-visible {
+  outline: 2px solid #00e5ff;
+  outline-offset: 1px;
+}
+.orion-tab__badge {
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #7c5cff;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+.orion-window[data-sheet] .orion-tab {
+  padding: 0 7px;
+  gap: 5px;
+}
+.orion-window[data-sheet] .orion-window__titlebar {
+  gap: 8px;
+  padding-left: 12px;
+}
+.orion-tab-add {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  color: rgba(216, 222, 255, 0.5);
+  cursor: pointer;
+}
+.orion-tab-add:hover {
+  color: #fff;
+  background: rgba(216, 222, 255, 0.07);
+}
+
+/* Minimise / maximise / close on the right, for people used to Windows */
+.orion-wincontrols {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.orion-wincontrols button {
+  width: 30px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  color: rgba(216, 222, 255, 0.5);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.orion-wincontrols button:hover {
+  background: rgba(216, 222, 255, 0.07);
+  color: #fff;
+}
+.orion-wincontrols button[data-kind='close']:hover {
+  background: rgba(255, 92, 138, 0.18);
+  color: #ff8aad;
+}
+
+/* ---- Taskbar -------------------------------------------------------------------------------- */
+.orion-taskbar {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 59; /* above windows (46+), below overlays (60+) */
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 18px;
+}
+.orion-taskbar__sep {
+  width: 1px;
+  height: 26px;
+  margin: 0 2px;
+  background: rgba(216, 222, 255, 0.1);
+}
+.orion-tile {
+  --tile-c: #d8deff;
+  position: relative;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: rgba(216, 222, 255, 0.045);
+  border: 1px solid rgba(216, 222, 255, 0.06);
+  color: var(--tile-c);
+  cursor: pointer;
+  transition:
+    transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1),
+    background 0.2s ease,
+    box-shadow 0.25s ease,
+    border-color 0.2s ease;
+}
+.orion-tile:hover {
+  transform: translateY(-3px);
+  background: rgba(216, 222, 255, 0.085);
+}
+.orion-tile:active {
+  transform: translateY(-1px);
+}
+.orion-tile[data-open] {
+  background: linear-gradient(180deg, rgba(124, 92, 255, 0.44), rgba(124, 92, 255, 0.2));
+  border-color: rgba(176, 156, 255, 0.55);
+  box-shadow: 0 0 18px rgba(124, 92, 255, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+.orion-tile[data-minimised] {
+  background: rgba(124, 92, 255, 0.16);
+  border-color: rgba(176, 156, 255, 0.3);
+  box-shadow: none;
+}
+.orion-tile[data-open]::after,
+.orion-tile[data-minimised]::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: #b09cff;
+  box-shadow: 0 0 6px #7c5cff;
+}
+.orion-tile[data-minimised]::after {
+  width: 10px;
+  margin-left: -5px;
+  border-radius: 2px;
+  opacity: 0.7;
+}
+.orion-tile:focus-visible {
+  outline: 2px solid #00e5ff;
+  outline-offset: 2px;
+}
+.orion-tile::before {
+  content: attr(data-label);
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translate(-50%, 4px);
+  padding: 4px 9px;
+  border-radius: 8px;
+  background: rgba(11, 15, 30, 0.88);
+  border: 1px solid rgba(216, 222, 255, 0.1);
+  color: #d8deff;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-shadow: none;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.orion-tile:hover::before,
+.orion-tile:focus-visible::before {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+.orion-tile__badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #ffc66b;
+  color: #05070e;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 16px;
+  text-align: center;
+  text-shadow: none;
+}
+
+/* ---- Agent robots: sparkle when one finishes ------------------------------------------------- */
+.orion-sparkle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.orion-sparkle i {
+  position: absolute;
+  left: -4px;
+  top: -4px;
+  width: 8px;
+  height: 8px;
+  background: #fff;
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+  filter: drop-shadow(0 0 4px #9bffd0);
+  opacity: 0;
+  animation: orion-sparkle 1.1s ease-out forwards;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes orion-sparkle {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--a)) translateX(4px) scale(0.3);
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--a)) translateX(var(--r, 30px)) scale(1) rotate(90deg);
+  }
+}
+
+/* ---- Arrival after login ---------------------------------------------------------------------- */
+html[data-arrival='pending'] .orion-arrive-camera {
+  opacity: 0;
+  transform: scale(1.12);
+}
+html[data-arrival='playing'] .orion-arrive-camera {
+  animation: orion-camera-in 2s cubic-bezier(0.16, 0.84, 0.3, 1) both;
+}
+@keyframes orion-camera-in {
+  from {
+    opacity: 0;
+    transform: scale(1.12);
+  }
+  35% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+html[data-arrival='pending'] .orion-window,
+html[data-arrival='pending'] .orion-glass,
+html[data-arrival='pending'] .orion-taskbar {
+  opacity: 0;
+}
+html[data-arrival='playing'] .orion-window,
+html[data-arrival='playing'] .orion-glass {
+  animation: orion-glass-in 1s ease-out 0.75s both;
+}
+@keyframes orion-glass-in {
+  from {
+    opacity: 0;
+    -webkit-backdrop-filter: blur(0px) saturate(1);
+    backdrop-filter: blur(0px) saturate(1);
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    -webkit-backdrop-filter: blur(18px) saturate(1.35);
+    backdrop-filter: blur(18px) saturate(1.35);
+    transform: none;
+  }
+}
+html[data-arrival='playing'] .orion-taskbar {
+  animation: orion-fade-in 0.4s ease-out 0.9s both;
+}
+html[data-arrival='playing'] .orion-tile {
+  animation: orion-tile-rise 0.6s cubic-bezier(0.2, 0.9, 0.25, 1.15) both;
+  animation-delay: calc(1s + var(--i, 0) * 70ms);
+}
+@keyframes orion-tile-rise {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes orion-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ---- Reduced motion: simple fades, nothing flies (§8) ----------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  html[data-arrival] .orion-arrive-camera,
+  html[data-arrival] .orion-window,
+  html[data-arrival] .orion-glass,
+  html[data-arrival] .orion-tile {
+    animation-name: orion-fade-in !important;
+    transform: none !important;
+  }
+  .orion-tile:hover {
+    transform: none;
+  }
+  .orion-sparkle i {
+    animation: orion-fade-in 0.4s ease-out reverse both;
+  }
+}
+html[data-calm-motion] .orion-arrive-camera,
+html[data-calm-motion] .orion-window,
+html[data-calm-motion] .orion-glass,
+html[data-calm-motion] .orion-tile {
+  animation-name: orion-fade-in !important;
+}
+html[data-calm-motion][data-arrival='pending'] .orion-arrive-camera {
+  transform: none;
+}
+html[data-calm-motion] .orion-tile:hover {
+  transform: none;
+}

@@ -1,0 +1,62 @@
+#!/bin/sh
+# OrionOS session: Sway with Orion as the shell.
+export XDG_CURRENT_DESKTOP=sway XDG_SESSION_TYPE=wayland XDG_SESSION_DESKTOP=sway
+export MOZ_ENABLE_WAYLAND=1
+# orion.hud_nojit (QEMU tests without KVM): Mesa's llvmpipe JIT crashes under QEMU's emulated CPU (AVX2 gather), taking
+# down GTK 4 apps and the HUD. Use the plain softpipe rasteriser there. Real PCs and VirtualBox are unaffected.
+if grep -qw orion.hud_nojit /proc/cmdline 2>/dev/null; then export GALLIUM_DRIVER=softpipe; fi
+# Virtual machines (VirtualBox) have no usable 3D: use wlroots' software renderer.
+if systemd-detect-virt -q || [ -n "$ORION_SOFTWARE_RENDER" ]; then
+  export WLR_RENDERER=pixman WLR_NO_HARDWARE_CURSORS=1
+fi
+# Graphics card (B4): NVIDIA's own driver needs --unsupported-gpu (and a few settings when it draws the screen);
+# hybrid laptops keep the Intel/AMD card for the screen. orion-gpu-env prints NAME=value lines (no spaces).
+ORION_SWAY_FLAGS=""
+GPU_ENV="$(dirname "$0")/orion-gpu-env"; [ -x "$GPU_ENV" ] || GPU_ENV=/opt/orion/bin/orion-gpu-env
+if [ -x "$GPU_ENV" ]; then
+  for kv in $("$GPU_ENV" 2>/dev/null); do
+    case "${kv%%=*}" in
+      ORION_SWAY_FLAGS|ORION_GPU|WLR_NO_HARDWARE_CURSORS|GBM_BACKEND|__GLX_VENDOR_LIBRARY_NAME|WLR_DRM_DEVICES) export "$kv" ;;
+    esac
+  done
+fi
+# Keyboard layout: the one chosen at first start or in Settings is in ~/.config/orion/sway.d/keyboard.conf; until
+# then the computer's own (/etc/default/keyboard, set by the installer), never a hard-coded US layout.
+if [ -r /etc/default/keyboard ]; then
+  l="$(sed -n 's/^XKBLAYOUT=//p' /etc/default/keyboard | tr -d '"' | head -n1)"
+  v="$(sed -n 's/^XKBVARIANT=//p' /etc/default/keyboard | tr -d '"' | head -n1)"
+  [ -n "$l" ] && export XKB_DEFAULT_LAYOUT="$l"
+  [ -n "$v" ] && export XKB_DEFAULT_VARIANT="$v"
+fi
+[ -r /etc/orion/session.env ] && . /etc/orion/session.env   # Qt colours, Orion cursor (Art Update)
+[ -r /etc/profile.d/flatpak.sh ] && . /etc/profile.d/flatpak.sh   # Get apps: Flatpak apps in the launcher (XDG_DATA_DIRS)
+mkdir -p "$HOME/projects"
+# Art Update: SwayFX (frosted glass: blur, rounded corners, shadows; os/image/swayfx.sh) when there is a GPU
+# renderer for it. Its extra settings are linked in for this session only, so plain Sway never reads them.
+# Turn it off with ORION_SWAYFX=0 in ~/.config/orion/session.env (or force it with ORION_SWAYFX=1).
+[ -f "$HOME/.config/orion/session.env" ] && . "$HOME/.config/orion/session.env"
+# [look] Optional Hyprland session (after-1.0 plan §3, Gravity mode): only when you picked it (orion-gravity session
+# hyprland) and it is installed (os/image/os-hyprland.sh). If it stops at once, the normal Sway session starts.
+if [ "${ORION_COMPOSITOR:-sway}" = hyprland ] && command -v Hyprland >/dev/null 2>&1 && [ -f /etc/orion/hypr/hyprland.conf ]; then
+  export XDG_CURRENT_DESKTOP=Hyprland XDG_SESSION_DESKTOP=Hyprland
+  orion-gravity prepare 2>/dev/null || true
+  started=$(date +%s)
+  Hyprland -c /etc/orion/hypr/hyprland.conf && exit 0
+  [ $(( $(date +%s) - started )) -lt 20 ] || exit 1
+  export XDG_CURRENT_DESKTOP=sway XDG_SESSION_DESKTOP=sway
+fi
+# [look] end
+FX="$XDG_RUNTIME_DIR/orion-sway-fx"
+rm -rf "$FX"
+if [ -x /opt/swayfx/bin/sway ] && [ -f /etc/sway/orion-fx.conf ] && [ -n "$XDG_RUNTIME_DIR" ] && [ "${ORION_SWAYFX:-auto}" != 0 ] &&
+   { [ "${ORION_SWAYFX:-auto}" = 1 ] || { [ "$WLR_RENDERER" != pixman ] && ls /dev/dri/renderD* >/dev/null 2>&1; }; }; then
+  mkdir -p "$FX" && ln -sf /etc/sway/orion-fx.conf "$FX/orion-fx.conf"
+  started=$(date +%s)
+  # shellcheck disable=SC2086
+  /opt/swayfx/bin/sway $ORION_SWAY_FLAGS && exit 0
+  # SwayFX stopped at once (no usable GLES renderer): carry on with plain Sway and opaque glass windows.
+  [ $(( $(date +%s) - started )) -lt 20 ] || exit 1
+  rm -rf "$FX"
+fi
+# shellcheck disable=SC2086
+exec sway $ORION_SWAY_FLAGS

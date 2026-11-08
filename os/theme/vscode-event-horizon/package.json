@@ -1,0 +1,47 @@
+{
+  "name": "event-horizon",
+  "displayName": "Event Horizon (OrionOS)",
+  "description": "OrionOS glass-dark theme: Void/Event glass, violet accents, the Event Horizon terminal colours, Martian Mono.",
+  "version": "1.0.0",
+  "publisher": "orionos",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Themes"
+  ],
+  "keywords": [
+    "orion",
+    "orionos",
+    "dark",
+    "violet",
+    "glass"
+  ],
+  "icon": "icon.png",
+  "galleryBanner": {
+    "color": "#05070E",
+    "theme": "dark"
+  },
+  "contributes": {
+    "themes": [
+      {
+        "label": "Event Horizon",
+        "uiTheme": "vs-dark",
+        "path": "./themes/event-horizon-color-theme.json"
+      }
+    ],
+    "configurationDefaults": {
+      "editor.fontFamily": "'Martian Mono', 'Noto Sans Mono', monospace",
+      "editor.fontSize": 13,
+      "editor.fontLigatures": false,
+      "editor.minimap.enabled": true,
+      "editor.minimap.renderCharacters": false,
+      "editor.cursorBlinking": "smooth",
+      "editor.cursorStyle": "block",
+      "terminal.integrated.fontFamily": "'Martian Mono', monospace",
+      "terminal.integrated.cursorStyle": "block",
+      "window.titleBarStyle": "custom"
+    }
+  }
+}

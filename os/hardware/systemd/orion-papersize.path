@@ -1,0 +1,10 @@
+# OrionOS: when the time zone changes, the default paper size follows it (unless you picked one by hand).
+[Unit]
+Description=Paper size follows the time zone
+
+[Path]
+PathChanged=/etc/localtime
+Unit=orion-papersize@auto.service
+
+[Install]
+WantedBy=paths.target

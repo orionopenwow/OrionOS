@@ -1,0 +1,143 @@
+{
+ "id": 1,
+ "type": "root",
+ "name": "root",
+ "nodes": [
+  {
+   "id": 2,
+   "type": "output",
+   "name": "__i3",
+   "nodes": [
+    {
+     "id": 3,
+     "type": "workspace",
+     "name": "__i3_scratch",
+     "nodes": [],
+     "floating_nodes": [
+      {
+       "id": 40,
+       "type": "floating_con",
+       "name": "Calculator",
+       "focused": false,
+       "pid": 100,
+       "urgent": false,
+       "nodes": [],
+       "floating_nodes": [],
+       "shell": "xdg_shell",
+       "app_id": "org.gnome.Calculator"
+      }
+     ]
+    }
+   ],
+   "floating_nodes": []
+  },
+  {
+   "id": 4,
+   "type": "output",
+   "name": "eDP-1",
+   "nodes": [
+    {
+     "id": 5,
+     "type": "workspace",
+     "name": "1",
+     "nodes": [
+      {
+       "id": 10,
+       "type": "con",
+       "name": "Orion",
+       "focused": false,
+       "pid": 50,
+       "urgent": false,
+       "nodes": [],
+       "floating_nodes": [],
+       "shell": "xdg_shell",
+       "app_id": "orion"
+      }
+     ],
+     "floating_nodes": []
+    },
+    {
+     "id": 6,
+     "type": "workspace",
+     "name": "2",
+     "nodes": [
+      {
+       "id": 7,
+       "type": "con",
+       "name": null,
+       "pid": null,
+       "app_id": null,
+       "nodes": [
+        {
+         "id": 20,
+         "type": "con",
+         "name": "Orion docs \u2014 Mozilla Firefox",
+         "focused": false,
+         "pid": 100,
+         "urgent": false,
+         "nodes": [],
+         "floating_nodes": [],
+         "shell": "xdg_shell",
+         "app_id": "firefox"
+        },
+        {
+         "id": 21,
+         "type": "con",
+         "name": "orion@orionos: ~/projects",
+         "focused": true,
+         "pid": 100,
+         "urgent": false,
+         "nodes": [],
+         "floating_nodes": [],
+         "shell": "xdg_shell",
+         "app_id": "foot"
+        }
+       ],
+       "floating_nodes": []
+      }
+     ],
+     "floating_nodes": [
+      {
+       "id": 22,
+       "type": "floating_con",
+       "name": "Settings",
+       "focused": false,
+       "pid": 100,
+       "urgent": false,
+       "nodes": [],
+       "floating_nodes": [],
+       "shell": "xdg_shell",
+       "app_id": "ai.orion.Settings"
+      }
+     ]
+    },
+    {
+     "id": 8,
+     "type": "workspace",
+     "name": "3",
+     "nodes": [
+      {
+       "id": 30,
+       "type": "con",
+       "name": "main.py - Visual Studio Code",
+       "focused": false,
+       "pid": 100,
+       "urgent": false,
+       "nodes": [],
+       "floating_nodes": [],
+       "shell": "xwayland",
+       "app_id": null,
+       "window_properties": {
+        "class": "Code",
+        "instance": "code"
+       }
+      }
+     ],
+     "floating_nodes": []
+    }
+   ],
+   "floating_nodes": []
+  }
+ ],
+ "floating_nodes": []
+}

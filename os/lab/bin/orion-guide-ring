@@ -1,0 +1,136 @@
+#!/usr/bin/env python3
+"""orion-guide-ring: Guide Mode's pointer ring above every window on OrionOS (OrionOS 1.0 plan, D.).
+
+Started by Orion's daemon when a guide begins; quits by itself when the guide ends. It's a gtk-layer-shell surface
+on the overlay layer, covering the focused screen, with an empty input region: every click goes straight through to
+the app underneath, and it never takes the keyboard. It only draws the ring and a one-line caption. If the layer
+shell isn't available it does nothing (the HUD's step card still works).
+
+    orion-guide-ring          run until the guide ends
+    orion-guide-ring --check  exit 0 if the layer shell is usable here
+The logic is os/desktop/orion_guide_ring.py.
+"""
+from __future__ import annotations
+
+import json
+import math
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve()
+for _d in (os.environ.get("ORION_DESKTOP_DIR", ""), "/opt/orion/desktop", str(HERE.parent.parent.parent / "desktop")):
+    if _d and (Path(_d) / "orion_guide_ring.py").is_file():
+        sys.path.insert(0, _d)
+        break
+import orion_guide_ring as R  # noqa: E402
+
+POLL_MS = 300
+
+
+def sway_scale() -> float:
+    try:
+        r = subprocess.run(["swaymsg", "-r", "-t", "get_outputs"], capture_output=True, text=True, timeout=3)
+        return R.focused_scale(json.loads(r.stdout)) if r.returncode == 0 else 1.0
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return 1.0
+
+
+def load_gtk():
+    import gi
+    gi.require_version("Gtk", "3.0")
+    gi.require_version("GtkLayerShell", "0.1")
+    from gi.repository import GLib, Gtk, GtkLayerShell  # type: ignore
+    return GLib, Gtk, GtkLayerShell
+
+
+def main(argv: list[str]) -> int:
+    try:
+        GLib, Gtk, LS = load_gtk()
+        import cairo
+    except (ImportError, ValueError):
+        return 1
+    if not LS.is_supported():
+        return 1
+    if "--check" in argv:
+        return 0
+    path = R.state_path()
+    st = {"now": R.read_state(path), "scale": sway_scale(), "phase": 0.0}
+    if st["now"] is None:
+        return 0
+    GLib.set_prgname("guide-ring")   # no "orion" in the app id, so the HUD's window rules never touch it
+    win = Gtk.Window(title="Orion guide ring")
+    win.set_decorated(False)
+    vis = win.get_screen().get_rgba_visual()
+    if vis is not None:
+        win.set_visual(vis)
+    win.set_app_paintable(True)
+    LS.init_for_window(win)
+    LS.set_namespace(win, "orion-guide-ring")
+    LS.set_layer(win, LS.Layer.OVERLAY)
+    LS.set_keyboard_mode(win, LS.KeyboardMode.NONE)
+    LS.set_exclusive_zone(win, -1)
+    for edge in (LS.Edge.TOP, LS.Edge.BOTTOM, LS.Edge.LEFT, LS.Edge.RIGHT):
+        LS.set_anchor(win, edge, True)
+
+    def draw(_w, cr):
+        cr.set_operator(cairo.OPERATOR_SOURCE)
+        cr.set_source_rgba(0, 0, 0, 0)
+        cr.paint()
+        cr.set_operator(cairo.OPERATOR_OVER)
+        g = R.ring(st["now"], st["scale"])
+        if g is None:
+            return False
+        cx, cy, r = g
+        r *= 1 + 0.08 * math.sin(st["phase"])
+        cr.set_source_rgba(124 / 255, 92 / 255, 1, 0.55)
+        cr.set_line_width(10)
+        cr.arc(cx, cy, r + 6, 0, 2 * math.pi)
+        cr.stroke()
+        cr.set_source_rgba(0, 229 / 255, 1, 0.95)
+        cr.set_line_width(4)
+        cr.arc(cx, cy, r, 0, 2 * math.pi)
+        cr.stroke()
+        text = R.caption(st["now"])
+        if text:
+            cr.select_font_face("Figtree", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+            cr.set_font_size(14)
+            ext = cr.text_extents(text)
+            x, y = max(8, cx - ext.width / 2), cy + r + 30
+            cr.set_source_rgba(11 / 255, 15 / 255, 30 / 255, 0.85)
+            cr.rectangle(x - 10, y - 18, ext.width + 20, 26)
+            cr.fill()
+            cr.set_source_rgba(1, 1, 1, 1)
+            cr.move_to(x, y)
+            cr.show_text(text)
+        return False
+
+    def realize(_w):
+        win.input_shape_combine_region(cairo.Region())   # click-through: no part of the window takes input
+
+    def tick():
+        st["now"] = R.read_state(path)
+        if st["now"] is None:
+            Gtk.main_quit()
+            return False
+        st["phase"] = (st["phase"] + 0.6) % (2 * math.pi)
+        win.queue_draw()
+        return True
+
+    def rescale():
+        st["scale"] = sway_scale()
+        return True
+
+    win.connect("draw", draw)
+    win.connect("realize", realize)
+    win.connect("destroy", lambda *_a: Gtk.main_quit())
+    win.show_all()
+    GLib.timeout_add(POLL_MS, tick)
+    GLib.timeout_add(3000, rescale)
+    Gtk.main()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

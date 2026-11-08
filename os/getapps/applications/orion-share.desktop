@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Share files
+GenericName=Send files nearby
+Comment=Send files to Windows, Android, iPhone and Mac on the same Wi-Fi (LocalSend)
+Exec=orion-share open
+Icon=folder-publicshare
+Terminal=false
+Categories=Network;FileTransfer;
+Keywords=share;send;localsend;airdrop;nearby;transfer;
+StartupWMClass=local.ShareFiles

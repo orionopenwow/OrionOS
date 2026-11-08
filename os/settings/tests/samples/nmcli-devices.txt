@@ -1,0 +1,4 @@
+wlp2s0:wifi:connected:Starlight Home
+enp3s0:ethernet:unavailable:
+lo:loopback:connected (externally):lo
+p2p-dev-wlp2s0:wifi-p2p:disconnected:

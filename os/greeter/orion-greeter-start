@@ -1,0 +1,37 @@
+#!/bin/sh
+# What greetd runs (as _greetd) when OrionOS asks for your password: the starry login screen inside the cage
+# kiosk compositor. If it can't run (cage or WebKit missing) or it stops without starting your session, you get
+# the plain text login instead, so the computer is never locked out.
+G=/opt/orion/greeter
+SESSION="$(sed -n 's/^SESSION_CMD=//p' /etc/orion/login.conf 2>/dev/null | tr -d "\"'" | tail -n1)"
+SESSION="${SESSION:-/usr/local/bin/orion-session}"
+
+text_login() {
+  [ -n "${1:-}" ] && printf '\n  %s\n\n' "$1"
+  exec /usr/sbin/agreety --cmd "$SESSION"
+}
+
+command -v cage >/dev/null 2>&1 || text_login
+/usr/bin/python3 -c 'import gi; gi.require_version("Gtk", "4.0"); gi.require_version("WebKit", "6.0"); from gi.repository import Gtk, WebKit' \
+  >/dev/null 2>&1 || text_login
+[ -r "$G/web/index.html" ] || text_login
+
+# Same rule as the session: VMs (VirtualBox) have no usable 3D.
+if systemd-detect-virt -q 2>/dev/null || [ -n "${ORION_SOFTWARE_RENDER:-}" ]; then
+  export WLR_RENDERER=pixman WLR_NO_HARDWARE_CURSORS=1 WEBKIT_DISABLE_DMABUF_RENDERER=1 ORION_GREETER_SOFTWARE=1
+fi
+
+WORK="$(mktemp -d /tmp/orion-greeter.XXXXXX)" || text_login
+trap 'rm -rf "$WORK"' EXIT
+if [ -z "${XDG_RUNTIME_DIR:-}" ]; then
+  export XDG_RUNTIME_DIR="$WORK/run"; mkdir -m 700 "$XDG_RUNTIME_DIR"
+fi
+export XDG_CACHE_HOME="$WORK/cache" XDG_DATA_HOME="$WORK/data" XDG_CONFIG_HOME="$WORK/config"
+export ORION_GREETER_STATUS="$WORK/status" PYTHONDONTWRITEBYTECODE=1
+
+cage -s -- "$G/orion-greeter" >/dev/null 2>&1
+if [ "$(cat "$WORK/status" 2>/dev/null)" = started ]; then
+  exit 0      # greetd starts your session now
+fi
+rm -rf "$WORK"
+text_login "The starry login screen didn't start. Here's the text login (it works the same)."

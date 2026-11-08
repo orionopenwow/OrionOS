@@ -1,0 +1,45 @@
+{
+  "name": "orion-vscode",
+  "displayName": "Orion Companion",
+  "description": "IDE AST & Active Coding companion for Orion Desktop Agent",
+  "version": "1.0.4",
+  "publisher": "orion",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "orion.sendActiveFile",
+        "title": "Orion: Send Active Code to Desktop Agent"
+      },
+      {
+        "command": "orion.reconnect",
+        "title": "Orion: Reconnect Companion Socket"
+      },
+      {
+        "command": "orion.whyLine",
+        "title": "Orion: why did this line change?"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "orion.sendActiveFile",
+          "group": "orion"
+        },
+        {
+          "command": "orion.whyLine",
+          "group": "orion"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,43 @@
+printer Label disabled since Fri Oct 16 10:54:33 2026 -
+	Out of labels
+	Form mounted:
+	Content types: any
+	Printer types: unknown
+	Description: Label
+	Alerts: paused
+	Location: 
+	Connection: direct
+	Interface: /etc/cups/ppd/Label.ppd
+	On fault: no alert
+	After fault: continue
+	Users allowed:
+		(all)
+	Forms allowed:
+		(none)
+	Banner required
+	Charset sets:
+		(none)
+	Default pitch:
+	Default page size:
+	Default port settings:
+printer Office_Laser is idle.  enabled since Fri Oct 16 10:54:33 2026
+	Form mounted:
+	Content types: any
+	Printer types: unknown
+	Description: Office laser
+	Alerts: none
+	Location: Upstairs
+	Connection: direct
+	Interface: /etc/cups/ppd/Office_Laser.ppd
+	On fault: no alert
+	After fault: continue
+	Users allowed:
+		(all)
+	Forms allowed:
+		(none)
+	Banner required
+	Charset sets:
+		(none)
+	Default pitch:
+	Default page size:
+	Default port settings:

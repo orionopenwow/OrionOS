@@ -1,0 +1,10 @@
+# OrionOS USB stick: copy the RAM logs to the vault (run by orion-log2ram-sync.timer).
+[Unit]
+Description=Copy the RAM logs to the vault (USB stick)
+ConditionPathExists=/run/orion-log2ram
+
+[Service]
+Type=oneshot
+ExecStart=/opt/orion/rescue/orion-log2ram sync
+Nice=10
+IOSchedulingClass=idle

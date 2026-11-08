@@ -1,0 +1,23 @@
+#!/bin/sh
+# OrionOS: the one thing Sway's config runs at login. Hands this session's Wayland/Sway sockets to the user's
+# systemd, (re)starts Orion's daemon so it sees them, then starts sway-session.target: the Orion screen,
+# notifications, idle lock, clipboard history, night light, battery watcher, first-run... each a supervised user
+# service with restart limits (os/lab/systemd). If systemd isn't usable, falls back to starting the essentials.
+VARS="WAYLAND_DISPLAY SWAYSOCK HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_RUNTIME_DIR DISPLAY ORION_LOGIN_HANDOFF"
+if systemctl --user import-environment $VARS 2>/dev/null; then
+  dbus-update-activation-environment --systemd $VARS 2>/dev/null || true
+  # a previous session's services (logged out and back in quickly) are stopped first, so all start fresh
+  systemctl --user stop sway-session.target 2>/dev/null
+  systemctl --user reset-failed 2>/dev/null
+  # ... and stopped again when this Sway session ends (Sway announces its shutdown on its socket)
+  ( t=$(date +%s); swaymsg -t subscribe '["shutdown"]' >/dev/null 2>&1
+    [ $(( $(date +%s) - t )) -ge 5 ] && systemctl --user stop sway-session.target ) &
+  systemctl --user restart orion-daemon.service
+  exec systemctl --user start sway-session.target
+fi
+# No user systemd (unusual): the old way, without supervision.
+mako & orion-hud & orion-idle & orion-clipboard watch &
+orion-nightlight start; orion-access session; orion-power watch &
+orion-wallpaper &
+( orion-displays render; kanshi & exec orion-displays watch ) &   # screen layouts + the screen watcher
+wait

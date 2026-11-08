@@ -1,0 +1,55 @@
+/* Orion Glass High Contrast (gtk-3.0): Settings > Accessibility > High contrast (Super+Alt+C). Orion Glass Solid with
+ * pure black surfaces, white text, a yellow focus ring and thicker edges, so every control stands out.
+ * Turned on by orion-access (os/everyone). */
+@import url("../../Orion-Glass-Solid/gtk-3.0/gtk.css");
+
+@define-color theme_bg_color #000000;
+@define-color theme_fg_color #FFFFFF;
+@define-color theme_base_color #000000;
+@define-color theme_text_color #FFFFFF;
+@define-color theme_selected_bg_color #FFD400;
+@define-color theme_selected_fg_color #000000;
+@define-color insensitive_fg_color #B0B0B0;
+@define-color borders #FFFFFF;
+@define-color accent_color #FFD400;
+@define-color accent_bg_color #FFD400;
+@define-color accent_fg_color #000000;
+@define-color window_bg_color #000000;
+@define-color window_fg_color #FFFFFF;
+@define-color view_bg_color #000000;
+@define-color view_fg_color #FFFFFF;
+@define-color headerbar_bg_color #000000;
+@define-color headerbar_fg_color #FFFFFF;
+@define-color card_bg_color #000000;
+@define-color card_fg_color #FFFFFF;
+@define-color popover_bg_color #000000;
+@define-color popover_fg_color #FFFFFF;
+@define-color dialog_bg_color #000000;
+@define-color dialog_fg_color #FFFFFF;
+@define-color sidebar_bg_color #000000;
+@define-color sidebar_fg_color #FFFFFF;
+
+window.background, window.background:backdrop, dialog.background, messagedialog.background, .view, iconview,
+treeview.view, list, textview text, scrolledwindow > viewport, .content-view, .sidebar, placessidebar,
+.navigation-sidebar, headerbar, .titlebar:not(headerbar), statusbar, popover > contents, menu, .menu, tooltip,
+.thunar .standard-view, .thunar .standard-view .view {
+  background-color: #000000; background-image: none; color: #FFFFFF; text-shadow: none; box-shadow: none;
+}
+label, entry, text, spinbutton, .title, .subtitle, menuitem, row, cell { color: #FFFFFF; text-shadow: none; }
+label:disabled, button:disabled, entry:disabled, .dim-label { color: #B0B0B0; opacity: 1; }
+button, entry, spinbutton, combobox button, dropdown > button, switch, checkbutton check, radiobutton radio,
+check, radio, scale trough, progressbar trough, levelbar trough, .card, row.activatable, list > row {
+  border: 2px solid #FFFFFF; background-image: none; box-shadow: none;
+}
+button, entry, spinbutton, .card { background-color: #000000; color: #FFFFFF; }
+button:hover, row.activatable:hover, list > row:hover { background-color: #333333; }
+button.suggested-action, button:checked, switch:checked, check:checked, radio:checked, scale highlight,
+progressbar progress, levelbar block.filled, selection, *:selected, row:selected, list > row:selected,
+treeview.view:selected, text selection, entry selection {
+  background-color: #FFD400; color: #000000; border-color: #FFD400;
+}
+button.destructive-action { background-color: #000000; color: #FF6060; border-color: #FF6060; }
+switch slider { background-color: #FFFFFF; border: 2px solid #000000; }
+button:focus, entry:focus, row:focus, list > row:focus { outline: 3px solid #FFD400; outline-offset: 1px; }
+link, *:link { color: #FFD400; text-decoration: underline; }
+scrollbar slider { background-color: #FFFFFF; min-width: 8px; min-height: 8px; }

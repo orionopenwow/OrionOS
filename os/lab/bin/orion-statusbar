@@ -1,0 +1,17 @@
+#!/bin/sh
+# The Sway bar's text (os/lab/sway-config, bar "orion-bar"): the clock, and a visible notice while Orion reads the
+# screen. Screen reading is off unless you turn it on (first-run or Settings > Privacy); while it is on, the bar
+# stays shown on every workspace (normally it only appears while Super is held). The daemon keeps the marker file
+# $XDG_RUNTIME_DIR/orion-capture-on while it is reading (apps/daemon/capture_privacy.py).
+MARK="${XDG_RUNTIME_DIR:-/tmp}/orion-capture-on"
+shown=""
+while :; do
+  if [ -e "$MARK" ]; then
+    echo "Orion is reading the screen (Settings > Privacy turns it off)    OrionOS  $(date +'%a %H:%M')"
+    [ "$shown" = dock ] || { swaymsg -q bar orion-bar mode dock 2>/dev/null; shown=dock; }
+  else
+    echo "OrionOS  $(date +'%a %H:%M')"
+    [ "$shown" = hide ] || { swaymsg -q bar orion-bar mode hide 2>/dev/null; shown=hide; }
+  fi
+  sleep 3
+done

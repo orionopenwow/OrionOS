@@ -1,0 +1,6 @@
+{
+  "name": "orion-web-game",
+  "private": true,
+  "description": "No dependencies. Open index.html to play; run `node --test` for the tests.",
+  "scripts": { "test": "node --test" }
+}

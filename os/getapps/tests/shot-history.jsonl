@@ -1,0 +1,4 @@
+{"id": "chg-a1", "ts": 1791500000, "kind": "app_install", "app": "com.discordapp.Discord", "name": "Discord", "why": "installed from Get apps", "result": "installed"}
+{"id": "chg-a2", "ts": 1791710000, "kind": "app_update", "app": "com.spotify.Client", "name": "Spotify", "why": "weekly app updates (auto)", "result": "updated", "from_commit": "sp0", "to_commit": "sp1"}
+{"id": "chg-a3", "ts": 1791712000, "kind": "app_rollback", "app": "md.obsidian.Obsidian", "name": "Obsidian", "why": "the update didn't start", "result": "rolled_back", "paused": true}
+{"id": "chg-a4", "ts": 1791900000, "kind": "app_install", "app": "org.videolan.VLC", "name": "VLC", "why": "installed from Get apps", "result": "installed"}

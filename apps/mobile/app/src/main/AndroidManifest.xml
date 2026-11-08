@@ -1,0 +1,315 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- [phone2] "Your phone isn't on the same Wi-Fi as your PC": Wi-Fi or mobile data (no location, no Wi-Fi names) -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Hold-to-talk voice chat (recorded only while you hold the mic button) -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Instant alerts: one waiting request to your lab, shown as a small ongoing notification -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- [autotest] Test > "Do it for me": the one-tap "let Orion run in the background" prompt (you still say yes) -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <!-- ===== Phone system (Android Stage 1): assistant, tiles, one inbox, call screening, send to PC ===== -->
+    <!-- Call screening only: to know whether a caller is one of your contacts (contacts always ring). -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <!-- Apps Orion needs to see: LocalSend for "Send to PC", and the messaging apps' names for the inbox. -->
+    <queries>
+        <package android:name="org.localsend.localsend_app" />
+        <package android:name="com.discord" />
+        <package android:name="com.facebook.orca" />
+        <package android:name="org.telegram.messenger" />
+        <package android:name="org.telegram.messenger.web" />
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
+        <package android:name="org.thoughtcrime.securesms" />
+        <package android:name="com.google.android.apps.messaging" />
+        <package android:name="com.instagram.android" />
+        <intent>
+            <action android:name="android.provider.Telephony.SMS_DELIVER" />
+        </intent>
+    </queries>
+    <!-- ===== end phone system ===== -->
+    <!-- Orion Launcher (HomeActivity, BlackHoleWallpaper): the black hole needs OpenGL ES 3 but falls back to a
+         still picture without it; the app list needs to see which installed apps have a launcher icon. -->
+    <uses-feature android:glEsVersion="0x00030000" android:required="false" />
+    <uses-feature android:name="android.software.live_wallpaper" android:required="false" />
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
+    <!-- Cleartext HTTP to the lab: over Tailscale (encrypted by Tailscale) or over your home Wi-Fi (readable by
+         others on that Wi-Fi, but every request is signed by a hardware-backed key and time-stamped, so it
+         can't be forged or replayed). -->
+    <application
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="Orion"
+        android:theme="@style/OrionTheme"
+        android:usesCleartextTraffic="true">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- orion://pair?u=…&c=… from the QR code `orion-ctl pair-phone` shows -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="orion" android:host="pair" />
+            </intent-filter>
+            <!-- Share a TikTok / YouTube / Instagram Reels link to Orion: Video Scout watches it on your lab -->
+            <intent-filter android:label="Scout with Orion">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
+        <!-- Orion Launcher: pick "Orion Home" as the Home app (Settings, Apps, Default apps, Home app). -->
+        <activity
+            android:name=".HomeActivity"
+            android:exported="true"
+            android:label="@string/launcher_name"
+            android:launchMode="singleTask"
+            android:taskAffinity="com.orion.mobile.home"
+            android:stateNotNeeded="true"
+            android:clearTaskOnLaunch="true"
+            android:resizeableActivity="true"
+            android:screenOrientation="unspecified"
+            android:theme="@style/OrionHomeTheme"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!-- Orion Launcher on an external monitor (Android desktop mode). Android needs a separate, non-singleTask
+             activity for the second screen's home; it is the same screen, laid out as the glass desktop. -->
+        <activity
+            android:name=".DesktopHomeActivity"
+            android:exported="true"
+            android:label="@string/launcher_name"
+            android:launchMode="standard"
+            android:taskAffinity="com.orion.mobile.home"
+            android:stateNotNeeded="true"
+            android:resizeableActivity="true"
+            android:theme="@style/OrionHomeTheme"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.SECONDARY_HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!-- Orion Launcher: the black hole as a live wallpaper (home and lock screen). -->
+        <service
+            android:name=".BlackHoleWallpaper"
+            android:exported="true"
+            android:label="@string/wallpaper_name"
+            android:permission="android.permission.BIND_WALLPAPER">
+            <intent-filter>
+                <action android:name="android.service.wallpaper.WallpaperService" />
+            </intent-filter>
+            <meta-data android:name="android.service.wallpaper" android:resource="@xml/orion_wallpaper" />
+        </service>
+
+        <service
+            android:name=".PollJob"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+
+        <service
+            android:name=".LiveService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Instant alerts from the user's own Orion computer over their home network" />
+        </service>
+
+        <receiver android:name=".FeedbackReceiver" android:exported="false" />
+
+        <receiver android:name=".BootReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- ===== Phone system (Android Stage 1). Code: AssistService.kt, Tiles.kt, InboxListener.kt,
+             InboxActivity.kt, CallScreen.kt, PhoneToPc.kt, PhoneSetupActivity.kt. See PHONE_SETUP.md. ===== -->
+
+        <!-- Digital assistant: long-press power opens Orion listening. Chosen by you in Settings > Apps >
+             Default apps > Digital assistant app. -->
+        <service
+            android:name=".AssistService"
+            android:exported="true"
+            android:label="Orion"
+            android:permission="android.permission.BIND_VOICE_INTERACTION">
+            <meta-data android:name="android.voice_interaction" android:resource="@xml/orion_assist_service" />
+            <intent-filter>
+                <action android:name="android.service.voice.VoiceInteractionService" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".AssistSessionService"
+            android:exported="true"
+            android:permission="android.permission.BIND_VOICE_INTERACTION" />
+        <!-- Required by Android for an assistant; Orion's speech-to-text runs on the PC, so this one declines. -->
+        <service
+            android:name=".AssistRecognitionService"
+            android:exported="true"
+            android:label="Orion">
+            <intent-filter>
+                <action android:name="android.speech.RecognitionService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </service>
+        <!-- The listening sheet: also opens for the assist button and "voice command" (headset) intents. -->
+        <activity
+            android:name=".AssistActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTop"
+            android:taskAffinity="com.orion.mobile.assist"
+            android:theme="@style/OrionSheet">
+            <intent-filter>
+                <action android:name="android.intent.action.ASSIST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VOICE_COMMAND" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!-- Quick Settings tiles: Freeze, PC mic, Approvals, Scout link. -->
+        <service
+            android:name=".FreezeTile"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_freeze"
+            android:label="Freeze"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".MicTile"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_mic"
+            android:label="PC mic"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".ApprovalsTile"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_approvals"
+            android:label="Approvals"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".ScoutTile"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_scout"
+            android:label="Scout link"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <!-- See-through helper for the tiles: fingerprint to unfreeze, clipboard read for Scout. -->
+        <activity
+            android:name=".TileActionActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity="com.orion.mobile.tile"
+            android:theme="@style/OrionSheet" />
+
+        <!-- One inbox: reads message notifications from the apps you pick (kept on the phone only). -->
+        <service
+            android:name=".InboxListener"
+            android:exported="true"
+            android:label="Orion inbox"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+        <activity android:name=".InboxActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+
+        <!-- Optional call screening for numbers not in your contacts (off by default; needs the role). -->
+        <service
+            android:name=".OrionCallScreen"
+            android:exported="true"
+            android:permission="android.permission.BIND_SCREENING_SERVICE">
+            <intent-filter>
+                <action android:name="android.telecom.CallScreeningService" />
+            </intent-filter>
+        </service>
+
+        <!-- Send to PC: photos, videos and files go to LocalSend (Orion's PC side receives them). -->
+        <activity
+            android:name=".SendToPcActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:label="Send to PC">
+            <intent-filter android:label="Send to PC">
+                <action android:name="android.intent.action.SEND" />
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="video/*" />
+                <data android:mimeType="audio/*" />
+                <data android:mimeType="application/*" />
+            </intent-filter>
+        </activity>
+
+        <!-- Missions (Missions.kt): send work to the PC's Mission Control, also from the share sheet. -->
+        <activity
+            android:name=".MissionsActivity"
+            android:exported="true"
+            android:label="@string/launcher_missions"
+            android:launchMode="singleTop"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter android:label="@string/missions_share_label">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
+        <!-- Phone setup checklist (also the assistant's settings page, so Android's Settings opens it). -->
+        <activity android:name=".PhoneSetupActivity" android:exported="true" android:label="Orion phone setup" />
+        <!-- ===== end phone system ===== -->
+
+        <!-- [phone2] Pair with my PC (finds it on the Wi-Fi with NsdManager), the one-tap Test, the one menu.
+             Code: PairPc.kt, PhoneTests.kt, OrionMenu.kt. The orion://pair link still lands in MainActivity. -->
+        <activity android:name=".PairPcActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".PhoneTestActivity" android:exported="false" />
+        <activity android:name=".MenuActivity" android:exported="false" />
+    </application>
+</manifest>

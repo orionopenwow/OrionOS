@@ -1,0 +1,26 @@
+#!/bin/sh
+# orion-owned: may Orion's setup (provision.sh) rewrite a system file, or has someone changed it? (review H10)
+#   orion-owned may-write FILE [TEMPLATE...]   exit 0 = Orion may rewrite FILE: it doesn't exist yet, Orion has
+#                                              never recorded it (the first run), it's exactly what Orion wrote last
+#                                              time, or it's exactly one of Orion's own templates (orion-ctl login
+#                                              switches between them)
+#   orion-owned record FILE                    remember what Orion wrote (at the end of provision.sh)
+# Records: /var/lib/orion/owned/<file path with / as _>.sha256 (ORION_OWNED_DIR for tests).
+set -eu
+DIR="${ORION_OWNED_DIR:-/var/lib/orion/owned}"
+rec() { printf '%s/%s.sha256' "$DIR" "$(printf '%s' "$1" | tr '/' '_')"; }
+sum() { sha256sum "$1" | cut -d' ' -f1; }
+case "${1:-}" in
+  may-write)
+    f="${2:?usage: orion-owned may-write FILE [TEMPLATE...]}"; shift 2
+    [ -e "$f" ] || exit 0
+    [ -f "$(rec "$f")" ] || exit 0
+    [ "$(sum "$f")" = "$(cat "$(rec "$f")")" ] && exit 0
+    for t in "$@"; do [ -f "$t" ] && cmp -s "$f" "$t" && exit 0; done
+    exit 1 ;;
+  record)
+    f="${2:?usage: orion-owned record FILE}"
+    [ -f "$f" ] || exit 0
+    mkdir -p "$DIR"; sum "$f" > "$(rec "$f")" ;;
+  *) sed -n '2,9p' "$0"; exit 2 ;;
+esac

@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# OrionOS first start from the USB stick (runs on the screen before Orion, as root).
+#   No vault yet  -> offer to make the encrypted vault (then restart into it).
+#   Vault open, first time -> choose the orion-admin password and connect to Wi-Fi.
+# Every path ends with an orion-admin account (review H6): it's the only way to make system changes (updates,
+# installing OrionOS on this PC). Without the vault (or in "Try Orion") nothing is kept, so it's asked again at the
+# next start; with the vault it's asked once.
+set -u
+C='\033[1;36m'; W='\033[1;37m'; D='\033[2m'; N='\033[0m'
+ensure_admin() {  # $1 = kept | temporary
+  id orion-admin >/dev/null 2>&1 && return 0
+  printf "   A password for ${W}orion-admin${N}: the account for system changes (updates, installing to this PC).\n"
+  [ "${1:-kept}" = temporary ] && printf "   ${D}(Nothing is saved in this session, so you'll choose it again at the next start.)${N}\n"
+  adduser --disabled-password --gecos "OrionOS admin" orion-admin >/dev/null
+  usermod -aG sudo,adm orion-admin
+  until passwd orion-admin; do printf "   Try again.\n"; done
+}
+clear
+printf "\n\n   ${C}O R I O N O S${N}\n\n"
+if grep -qw orion.try /proc/cmdline 2>/dev/null; then
+  printf "   ${W}Try Orion.${N} Nothing you do here is kept.\n\n"
+  ensure_admin temporary
+  exit 0
+fi
+if [ ! -e /dev/mapper/orionvault ]; then
+  if [ -z "$(blkid -t LABEL=OrionVault -o device 2>/dev/null)" ]; then
+    printf "   ${W}Welcome.${N} OrionOS is running from this stick, in memory only: nothing you do is kept yet.\n\n"
+    printf "   Make your ${W}encrypted vault${N} now, so your files, settings and Orion's memory are saved on the stick?\n"
+    printf "   ${D}(It uses the free space on the stick. You'll choose a passphrase and get a recovery key.)${N}\n\n"
+    read -rp "   Make the vault? [Y/n] " a
+    case "$a" in n|N|no) printf "\n   OK. You can make it later: Ctrl+Alt+S > Make my vault.\n\n"; ensure_admin temporary; exit 0 ;; esac
+    if orion-vault create; then sleep 2; systemctl reboot; exit 0; fi
+    printf "\n   The vault wasn't made. Continuing without saving.\n\n"
+    ensure_admin temporary
+  else
+    printf "   Your vault is on this stick but stayed locked, so this session won't be saved.\n"
+    printf "   ${D}To unlock it, restart and type the passphrase (or your recovery key) on the black-hole screen.${N}\n\n"
+    read -rp "   Restart now? [Y/n] " a; case "$a" in n|N|no) printf "\n"; ensure_admin temporary; exit 0 ;; *) systemctl reboot ;; esac
+  fi
+  exit 0
+fi
+
+[ -f /var/lib/orion/welcome-done ] && exit 0
+printf "   ${W}Your vault is open.${N} Two quick things, once:\n\n"
+printf "   1. "; ensure_admin kept; id orion-admin >/dev/null 2>&1 && printf "orion-admin is ready.\n"
+printf "\n   2. ${W}Internet${N}. "
+if nm-online -q -t 5 2>/dev/null; then printf "You're online.\n"
+else
+  printf "Pick your Wi-Fi network (or press Esc to skip).\n"; sleep 1
+  nmtui-connect || true
+fi
+mkdir -p /var/lib/orion && date -u +%FT%TZ > /var/lib/orion/welcome-done
+printf "\n   ${C}Starting Orion…${N}\n"; sleep 1

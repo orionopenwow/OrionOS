@@ -1,0 +1,160 @@
+#!/usr/bin/env bash
+# wow: run OpenWoW on OrionOS with a few plain commands.
+#   wow start | stop | restart | status | logs | update | build | setup | help
+# start/stop/status/logs/restart run right away. update and build go to your phone (or the boardroom) for approval.
+set -euo pipefail
+
+CONF="${XDG_CONFIG_HOME:-$HOME/.config}/orion/wow.conf"
+STATE="${XDG_STATE_HOME:-$HOME/.local/state}/orion"
+WANTED="$STATE/wow-wanted"
+UNIT="openwow"
+API="http://127.0.0.1:9120"
+# Orion's API needs this run's key (review B1). It's read from the user's private token file and handed to curl on
+# file descriptor 3, so it never shows up in the process list.
+orion_token() {
+  for f in "${ORION_TOKEN_FILE:-}" "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/orion/daemon.token" \
+           "${ORION_DATA_DIR:-$HOME/.orion}/daemon.token"; do
+    if [ -n "$f" ] && [ -r "$f" ]; then cat "$f"; return 0; fi
+  done
+  return 0
+}
+ocurl() {
+  command curl -H @/dev/fd/3 "$@" 3<<EOF
+Authorization: Bearer $(orion_token)
+EOF
+}
+DIR="$HOME/projects/openwow"
+START_CMD=""
+BUILD_CMD=""
+# shellcheck disable=SC1090
+[ -f "$CONF" ] && . "$CONF"
+
+say() { printf '%s\n' "$*"; }
+need_code() {
+  [ -d "$DIR" ] && return 0
+  say "OpenWoW isn't on this machine yet."
+  say "Tell Orion where it is: Ctrl+Alt+S > Set OpenWoW repo (or: orion-ctl set-repo <url>), then approve it on your phone."
+  exit 1
+}
+
+pick_script() {  # first script name from the list that package.json defines
+  local pj="$DIR/package.json"; [ -f "$pj" ] || return 1
+  for s in "$@"; do
+    if jq -e --arg s "$s" '.scripts[$s] // empty' "$pj" >/dev/null 2>&1; then echo "$s"; return 0; fi
+  done
+  return 1
+}
+
+setup() {
+  need_code
+  local start build
+  start="$(pick_script start dev serve server || true)"
+  build="$(pick_script build || true)"
+  say "OpenWoW commands found in $DIR/package.json:"
+  if [ -f "$DIR/package.json" ]; then jq -r '.scripts // {} | to_entries[] | "    \(.key): \(.value)"' "$DIR/package.json"; fi
+  say ""
+  say "  wow start  will run:  $( [ -n "$start" ] && echo "npm run $start" || echo "<nothing found>" )"
+  say "  wow build  will run:  $( [ -n "$build" ] && echo "npm run $build" || echo "<nothing found>" )"
+  if [ -z "$start" ]; then
+    printf "Type the command that starts the server (e.g. npm run dev): "; read -r START_CMD
+  else START_CMD="npm run $start"; fi
+  [ -n "$build" ] && BUILD_CMD="npm run $build"
+  printf "Use these? [Y/n] "; read -r ok
+  case "$ok" in n|N|no) printf "Start command: "; read -r START_CMD; printf "Build command (blank = none): "; read -r BUILD_CMD ;; esac
+  mkdir -p "$(dirname "$CONF")"
+  printf 'DIR=%q\nSTART_CMD=%q\nBUILD_CMD=%q\n' "$DIR" "$START_CMD" "$BUILD_CMD" > "$CONF"
+  chmod 600 "$CONF"
+  say "Saved. Try: wow start"
+}
+
+ensure_setup() { [ -n "$START_CMD" ] || { [ -t 0 ] && setup || { say "Run 'wow setup' once first."; exit 1; }; . "$CONF"; }; }
+
+state() { systemctl --user is-active "$UNIT" 2>/dev/null || true; }
+
+start() {
+  need_code; ensure_setup
+  if [ "$(state)" = "active" ]; then say "OpenWoW is already running."; return 0; fi
+  systemctl --user reset-failed "$UNIT" >/dev/null 2>&1 || true
+  systemd-run --user --quiet --unit="$UNIT" --working-directory="$DIR" --setenv=PATH="$PATH" \
+    --property=KillMode=mixed bash -lc "$START_CMD"
+  mkdir -p "$STATE"; touch "$WANTED"
+  sleep 3
+  if [ "$(state)" = "active" ]; then say "OpenWoW started. (wow status / wow logs)"
+  else say "OpenWoW stopped right after starting. Last lines:"; logs 15; exit 1; fi
+}
+
+stop() {
+  rm -f "$WANTED"
+  if [ "$(state)" = "active" ]; then systemctl --user stop "$UNIT"; say "OpenWoW stopped."
+  else systemctl --user reset-failed "$UNIT" >/dev/null 2>&1 || true; say "OpenWoW wasn't running."; fi
+}
+
+status() {
+  local s since err
+  s="$(state)"
+  case "$s" in
+    active)
+      since="$(systemctl --user show "$UNIT" -p ActiveEnterTimestamp --value 2>/dev/null)"
+      say "OpenWoW: running since ${since:-?}" ;;
+    failed) say "OpenWoW: crashed" ;;
+    *) if [ -f "$WANTED" ]; then say "OpenWoW: stopped (it was supposed to be running)"; else say "OpenWoW: stopped"; fi ;;
+  esac
+  err="$(journalctl --user -u "$UNIT" -n 200 --no-pager -o cat 2>/dev/null | grep -iE 'error|exception|fatal' | tail -n1 || true)"
+  [ -n "$err" ] && say "Last error: ${err:0:200}"
+  return 0
+}
+
+logs() {
+  journalctl --user -u "$UNIT" -n "${1:-50}" --no-pager -o short-iso 2>/dev/null \
+    | grep --color=always -iE 'error|exception|fatal|warn|$' || say "No logs yet. Start it with: wow start"
+}
+
+ask() {  # $1 = update|build : send to the phone/boardroom for approval
+  need_code
+  local out
+  if out="$(ocurl -fsS -X POST -H 'content-type: application/json' -d "{\"action\":\"$1\"}" "$API/wow/request" 2>&1)"; then
+    say "Sent to your phone for approval: $(jq -r '.summary // "OpenWoW '"$1"'"' <<<"$out")"
+    say "Orion will notify you when it's done."
+  else
+    say "Couldn't reach Orion's daemon ($out). Try: orion-ctl status"; exit 1
+  fi
+}
+
+# ---- run after approval (called by the Orion daemon's executor; also usable by hand)
+do_update() {
+  need_code
+  git -C "$DIR" pull --ff-only
+  if [ -f "$DIR/package.json" ]; then
+    if [ -f "$DIR/package-lock.json" ]; then (cd "$DIR" && npm ci); else (cd "$DIR" && npm install); fi
+  fi
+  if [ "$(state)" = "active" ]; then systemctl --user stop "$UNIT"; touch "$WANTED"; start; fi
+}
+do_build() { need_code; ensure_setup; [ -n "$BUILD_CMD" ] || { say "No build command set (wow setup)."; exit 1; }; (cd "$DIR" && bash -lc "$BUILD_CMD"); }
+
+help() {
+  cat <<'EOF'
+wow start     start the OpenWoW server
+wow stop      stop it
+wow restart   stop, then start
+wow status    running or not, and the last error
+wow logs      the last 50 lines (errors in red)
+wow update    get the newest code (asks your phone first)
+wow build     build a release (asks your phone first)
+wow setup     choose which package.json commands start and build it
+EOF
+}
+
+case "${1:-help}" in
+  start) start ;;
+  stop) stop ;;
+  restart) [ "$(state)" = "active" ] && systemctl --user stop "$UNIT"; start ;;
+  status) status ;;
+  logs) logs "${2:-50}" ;;
+  update) ask update ;;
+  build) ask build ;;
+  setup) setup ;;
+  _do-update) do_update ;;
+  _do-build) do_build ;;
+  help|-h|--help) help ;;
+  *) say "Unknown: $1"; help; exit 2 ;;
+esac

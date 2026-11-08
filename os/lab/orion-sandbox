@@ -1,0 +1,65 @@
+#!/bin/sh
+# Run one agent task in a throwaway rootless container, as the separate orion-agent user:
+#   orion-sandbox [--net] <image> <command…>          e.g. orion-sandbox docker.io/library/node:20 npm test
+#
+# Run it from a folder inside the shared agent folder (/var/lib/orion/agent-work; Orion's crash healer puts its
+# worktrees there). That folder is mounted at /work as a throwaway overlay: the task can write there, your files
+# don't change, and everything is deleted when the command exits. Network: off unless --net (or
+# ORION_SANDBOX_NET=1), and even then the container can't reach this computer's own ports.
+#
+# Why a separate user instead of rootless Podman as orion with --userns=auto (review H12): here everything the agent
+# runs, Podman's own helpers included, is a different Linux user. It can't read Orion's home, the daemon's key or
+# your session; the firewall (os/common/harden.sh) stops it reaching Orion's ports 9120/9121; and a container escape
+# lands as orion-agent, not as you. With --userns=auto the helpers would run as orion and an escape would be you.
+#
+# The session user may run exactly this script as orion-agent without a password (/etc/sudoers.d/orion-sandbox,
+# written by os/lab/sandbox-setup.sh) and nothing else. sudo clears the environment, so nothing the caller sets
+# reaches this side except the --net flag; the image name and folder are checked; Podman's options are fixed.
+set -eu
+AGENT=orion-agent
+SELF=/usr/local/bin/orion-sandbox
+WORKROOT="${ORION_SANDBOX_WORKROOT:-/var/lib/orion/agent-work}"   # sudo clears this variable: tests only
+
+NET=0
+if [ "${1:-}" = "--net" ]; then NET=1; shift; fi
+
+if [ "$(id -un)" != "$AGENT" ]; then
+  [ "${ORION_SANDBOX_NET:-0}" = "1" ] && NET=1
+  # -n: fail at once instead of asking for a password (Orion runs this without a terminal).
+  if [ "$NET" = 1 ]; then exec sudo -n -u "$AGENT" -- "$SELF" --net "$@"; fi
+  exec sudo -n -u "$AGENT" -- "$SELF" "$@"
+fi
+
+# ---- from here on: running as orion-agent
+[ $# -ge 2 ] || { echo "usage: orion-sandbox [--net] <image> <command…>" >&2; exit 2; }
+IMAGE="$1"; shift
+case "$IMAGE" in
+  -*|*[!A-Za-z0-9._/:@-]*|"") echo "orion-sandbox: that isn't an image name: $IMAGE" >&2; exit 2 ;;
+esac
+WORK="$(pwd -P 2>/dev/null)" || { echo "orion-sandbox: orion-agent can't open this folder; use one inside $WORKROOT" >&2; exit 2; }
+case "$WORK" in
+  *[:,]*) echo "orion-sandbox: the folder name can't contain ':' or ','" >&2; exit 2 ;;
+esac
+case "$WORK/" in
+  "$WORKROOT"/?*) ;;
+  *) echo "orion-sandbox: run it from a folder inside $WORKROOT (now: $WORK)" >&2; exit 2 ;;
+esac
+
+# Rootless Podman wants the agent's own runtime folder and user bus (it lingers, see provision.sh); sudo cleared them.
+uid="$(id -u)"
+if [ -d "/run/user/$uid" ]; then export XDG_RUNTIME_DIR="/run/user/$uid"; fi
+if [ -S "/run/user/$uid/bus" ]; then export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus"; fi
+
+# A terminal only when there is one: Orion runs this with stdin closed, and `podman run -t` would fail there.
+TTY=""
+if [ -t 0 ] && [ -t 1 ]; then TTY="-it"; fi
+NETOPT="--network=none"
+if [ "$NET" = 1 ]; then NETOPT="--network=slirp4netns:allow_host_loopback=false"; fi
+
+# --user 0:0 is root inside the container only (= orion-agent outside, with no capabilities); it reads /work through
+# the agent folder's group. :O = overlay, so writes stay in the container and vanish with it.
+# shellcheck disable=SC2086
+exec podman run --rm $TTY --read-only --tmpfs /tmp:size=512m --user 0:0 \
+  --cpus=2 --memory=2g --pids-limit=512 \
+  --cap-drop=ALL --security-opt=no-new-privileges "$NETOPT" \
+  -v "$WORK:/work:O" -w /work "$IMAGE" "$@"

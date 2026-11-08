@@ -1,0 +1,11 @@
+[Unit]
+Description=Share files: make sure LocalSend's port starts closed (after a power cut it could still be open)
+After=ufw.service
+Before=orion-share-firewall.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 -I /opt/orion/getapps/orion_share_firewall.py close
+
+[Install]
+WantedBy=multi-user.target

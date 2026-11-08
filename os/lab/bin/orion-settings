@@ -1,0 +1,105 @@
+#!/bin/sh
+# Orion Settings: opens the Settings window (os/settings, orion-settings-app). The themed menu below is the
+# fallback when the window can't start, and stays available as:  orion-settings --text
+if [ "${1:-}" != --text ] && command -v orion-settings-app >/dev/null 2>&1 && [ -n "${WAYLAND_DISPLAY:-}" ] &&
+   /usr/bin/python3 -c 'import gi; gi.require_version("Adw", "1")' >/dev/null 2>&1; then
+  exec orion-settings-app "$@"
+fi
+T="foot --title=orion-tool -e sh -c"
+hold() { printf '%s; printf "\\n\\033[2mPress Enter to close\\033[0m"; read _' "$1"; }
+CHOICE=$(printf '%s\n' \
+  "Orion status" \
+  "Pair the boardroom" \
+  "Pair my phone" \
+  "Set OpenWoW repo" \
+  "Set up my workspace" \
+  "Hot mic on/off (Ctrl+Alt+M)" \
+  "Set up my voice" \
+  "Phone alerts" \
+  "Set a lock password" \
+  "Login screen (password or straight in)" \
+  "Boot sound on/off" \
+  "Your name (for Orion's greeting)" \
+  "Check for OrionOS updates" \
+  "Make my vault (USB stick)" \
+  "Install OrionOS to this PC" \
+  "Bring my stuff from Windows" \
+  "Approvals: make a test decision" \
+  "Restart Orion's brain" \
+  "Wi-Fi" \
+  "Bluetooth" \
+  "Battery & power" \
+  "Display & resolution" \
+  "Time zone & clock" \
+  "Night light on/off (Super+N)" \
+  "Clipboard history: clear" \
+  "Sound" \
+  "VPN killswitch status" \
+  "Orion Files" \
+  "Log out" \
+  "Restart computer" \
+  "Power off" | wofi --dmenu --prompt "Orion Settings" --cache-file /dev/null --height 560)
+case "$CHOICE" in
+  *"Orion status"*)          $T "$(hold 'orion-ctl status')" ;;
+  *"Pair the boardroom"*)    $T "$(hold 'orion-ctl pair-boardroom')" ;;
+  *"stuff from Windows"*)    $T "$(hold 'orion-move-in')" ;;
+  *"Pair my phone"*)         $T "$(hold 'orion-ctl pair-phone')" ;;
+  *"Set OpenWoW repo"*)      URL=$(printf '' | wofi --dmenu --prompt "Paste your OpenWoW repo address (https://github.com/...)" --cache-file /dev/null --height 120)
+                             case "$URL" in
+                               *[!A-Za-z0-9:/._@~-]*) notify-send "Orion" "That doesn't look like a repo address." ;;
+                               ?*) $T "$(hold "orion-ctl set-repo '$URL'")" ;;
+                             esac ;;
+  *"Hot mic"*)               orion-ctl mic toggle | xargs -0 notify-send "Orion" ;;
+  *"Set up my voice"*)       $T "$(hold 'orion-ctl mic status | grep -q "speech detector\|Whisper" && { echo "Voice is not installed yet. Asking your phone to approve it:"; orion-ctl setup voice; } || { orion-ctl voice calibrate && orion-ctl voice enroll; }')" ;;
+  *"Phone alerts"*)          $T "$(hold 'orion-ctl alerts; echo; echo "Change one: orion-ctl alerts openwow digest   (or: lock / unlock)"')" ;;
+  *"lock password"*)         $T "$(hold 'echo "Choose the password that unlocks this screen (Super+L or Ctrl+Alt+L locks it)."; su -P - orion-admin -c "sudo passwd orion" && mkdir -p ~/.config/orion && touch ~/.config/orion/lock-ready && echo Done.')" ;;
+  *"Login screen"*)          L=$(printf '%s\n' \
+                               "Ask for my password (starry login screen)" \
+                               "Start straight into Orion (no password)" \
+                               "Calmer animation: simple fade" \
+                               "Full animation: swirl into the black hole" \
+                               | wofi --dmenu --prompt "$(orion-ctl login status | head -n1)" --cache-file /dev/null --height 220)
+                             case "$L" in
+                               *"Ask for my password"*) $T "$(hold 'orion-ctl login password')" ;;
+                               *"straight into"*)       $T "$(hold 'orion-ctl login auto')" ;;
+                               *"simple fade"*)         $T "$(hold 'orion-ctl login reduced-motion on')" ;;
+                               *"Full animation"*)      $T "$(hold 'orion-ctl login reduced-motion off')" ;;
+                             esac ;;
+  *"Boot sound"*)            if orion-boot-sound status | grep -q on; then orion-boot-sound off; else orion-boot-sound on; fi \
+                               | xargs -0 notify-send "Orion" ;;
+  *"Your name"*)             N=$(printf '' | wofi --dmenu --prompt "What should Orion call you? (empty: no name)" --cache-file /dev/null --height 120)
+                             orion name "$N" | xargs -0 notify-send "Orion" ;;
+  *"Set up my workspace"*)   $T "$(hold 'orion-ctl setup')" ;;
+  *"test decision"*)         orion-ctl simulate bounty >/dev/null && notify-send "Orion" "A test decision is waiting on the boardroom." ;;
+  *"Restart Orion"*)         orion-ctl restart && notify-send "Orion" "Brain restarted." ;;
+  *"Wi-Fi"*)                 if command -v nmtui >/dev/null; then $T "nmtui"; else notify-send "Orion" "Wi-Fi is your PC's job while OrionOS runs in a VM."; fi ;;
+  *"Bluetooth"*)             if command -v blueman-manager >/dev/null; then blueman-manager; else notify-send "Orion" "Bluetooth isn't available here."; fi ;;
+  *"Battery"*)               $T "$(hold 'powerprofilesctl 2>/dev/null || echo "No battery or power profiles here."; echo; echo "Change: powerprofilesctl set power-saver | balanced | performance"; cat /sys/class/power_supply/BAT*/capacity 2>/dev/null | sed "s/^/Battery: /;s/$/%/"')" ;;
+  *"OrionOS updates"*)       if grep -q orion.slot /proc/cmdline; then $T "$(hold 'orion-slot status; echo; orion-slot check && { printf "Install it now? [y/N] "; read a; [ "$a" = y ] && su -P - orion-admin -c "sudo orion-slot update"; }')"
+                             else $T "$(hold 'echo "Updating OrionOS (needs the orion-admin password)…"; su -P - orion-admin -c "sudo orion-update"')"; fi ;;
+  *"Make my vault"*)         $T "$(hold 'su -P - orion-admin -c "sudo orion-vault create" 2>/dev/null || { echo "Run as admin from the welcome screen: restart and choose OrionOS."; }')" ;;
+  *"Install OrionOS"*)       $T "$(hold 'su -P - orion-admin -c "sudo orion-install-disk"')" ;;
+  *"Time zone"*)             Z=$(printf '%s\n' \
+                               "Pick my time zone from the list" \
+                               "Find it online (asks Ubuntu's location service once; it sees your internet address)" \
+                               "Show the clock settings" \
+                               | wofi --dmenu --prompt "Time zone: $(orion-timezone status | head -n1 | sed 's/^Time zone: //')" --cache-file /dev/null --height 200)
+                             case "$Z" in
+                               *"from the list"*) orion-timezone choose ;;
+                               *"online"*)        F=$(orion-timezone lookup)
+                                                  if [ -n "$F" ]; then
+                                                    A=$(printf 'Use %s\nNo, pick from the list\n' "$F" | wofi --dmenu --prompt "Found: $F" --cache-file /dev/null --height 140)
+                                                    case "$A" in Use*) orion-timezone set "$F" ;; No*) orion-timezone choose ;; esac
+                                                  else notify-send "Orion" "No answer (offline?). Pick it from the list instead."; orion-timezone choose; fi ;;
+                               *"clock settings"*) $T "$(hold 'orion-timezone status')" ;;
+                             esac ;;
+  *"Night light"*)           orion-nightlight toggle ;;
+  *"Clipboard history"*)     orion-clipboard clear ;;
+  *"Display"*)               wdisplays ;;
+  *"Sound"*)                 pavucontrol ;;
+  *"killswitch"*)            $T "$(hold 'orion-killswitch status')" ;;
+  *"Orion Files"*)           orion-files ;;
+  *"Log out"*)               swaymsg exit ;;
+  *"Restart computer"*)      systemctl reboot ;;
+  *"Power off"*)             systemctl poweroff ;;
+esac

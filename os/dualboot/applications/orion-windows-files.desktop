@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Open Windows files
+Comment=Look at your Windows drive (read-only, BitLocker recovery key if it's locked)
+Exec=foot --title=orion-tool orion-windows-files
+Icon=drive-harddisk
+Terminal=false
+Categories=System;FileTools;
+Keywords=windows;c:;bitlocker;files;

@@ -1,0 +1,32 @@
+# Orion lock screen (swaylock). orion-lock passes -i /usr/share/orion/lock.png (a still of the black hole, rendered
+# from the shader) when it exists; otherwise the screen is plain Void.
+color=05070E
+scaling=fill
+font=Figtree
+font-size=22
+indicator-radius=92
+indicator-thickness=7
+indicator-idle-visible
+show-failed-attempts
+inside-color=0B0F1ECC
+inside-clear-color=0B0F1ECC
+inside-ver-color=0B0F1ECC
+inside-wrong-color=0B0F1ECC
+ring-color=7C5CFF
+ring-clear-color=262D50
+ring-ver-color=00E5FF
+ring-wrong-color=FF5C8A
+key-hl-color=00E5FF
+bs-hl-color=FF8AAD
+caps-lock-key-hl-color=FFC66B
+caps-lock-bs-hl-color=FFC66B
+line-color=00000000
+line-clear-color=00000000
+line-ver-color=00000000
+line-wrong-color=00000000
+separator-color=00000000
+text-color=D8DEFF
+text-clear-color=D8DEFF
+text-ver-color=D8DEFF
+text-wrong-color=FF8AAD
+text-caps-lock-color=FFC66B

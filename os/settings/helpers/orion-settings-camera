@@ -1,0 +1,30 @@
+#!/bin/sh
+# Orion Settings > Privacy > Camera. Root helper, started with pkexec (polkit action ai.orion.settings.camera).
+# Off (the default, after-1.0 plan §6 "webcam off by default"): the USB camera driver (uvcvideo, nearly every
+# built-in and USB webcam) isn't loaded, so no app can open the camera. On: the driver loads again.
+#   orion-settings-camera on | off | status | default     (default: first install only, keeps an earlier choice)
+set -eu
+STATE=/etc/orion/camera
+BLOCK=/etc/modprobe.d/orion-camera-off.conf
+[ "${1:-status}" = status ] && { cat "$STATE" 2>/dev/null || echo off; exit 0; }
+[ "$(id -u)" -eq 0 ] || { echo "needs admin rights" >&2; exit 1; }
+live() { [ -d /run/systemd/system ] && ! systemd-detect-virt -q --chroot 2>/dev/null; }
+off() {
+  install -d -m 755 /etc/orion /etc/modprobe.d
+  printf '# Orion Settings > Privacy: camera off. Turn it on in Settings.\ninstall uvcvideo /bin/false\n' > "$BLOCK"
+  echo off > "$STATE"
+  if live; then modprobe -r uvcvideo 2>/dev/null || { echo "The camera is in use: it switches off when that app closes it." >&2; }; fi
+  return 0
+}
+on() {
+  install -d -m 755 /etc/orion
+  rm -f "$BLOCK"
+  echo on > "$STATE"
+  if live; then modprobe uvcvideo 2>/dev/null || true; udevadm trigger --subsystem-match=usb 2>/dev/null || true; fi
+}
+case "$1" in
+  on) on; echo "The camera is on." ;;
+  off) off; echo "The camera is off." ;;
+  default) [ -f "$STATE" ] || off ;;
+  *) echo "usage: orion-settings-camera on|off|status" >&2; exit 2 ;;
+esac

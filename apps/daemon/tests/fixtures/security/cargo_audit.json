@@ -1,0 +1,15 @@
+{"database": {"advisory-count": 600}, "lockfile": {"dependency-count": 210},
+ "vulnerabilities": {"found": true, "count": 2, "list": [
+  {"advisory": {"id": "RUSTSEC-2020-0071", "package": "time", "title": "Potential segfault in the time crate",
+                "description": "Unix-like operating systems may segfault...", "aliases": ["CVE-2020-26235", "GHSA-wcg3-cvx6-7396"],
+                "cvss": null, "url": "https://github.com/time-rs/time/issues/293"},
+   "versions": {"patched": [">=0.2.23"], "unaffected": ["=0.2.0", "=0.2.1"]},
+   "package": {"name": "time", "version": "0.1.43", "source": "registry+https://github.com/rust-lang/crates.io-index"}},
+  {"advisory": {"id": "RUSTSEC-2024-0003", "package": "h2",
+                "title": "Resource exhaustion vulnerability in h2 may lead to Denial of Service (DoS)",
+                "description": "...", "aliases": ["GHSA-8r5v-vm4m-4g25"],
+                "cvss": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H", "url": ""},
+   "versions": {"patched": ["^0.3.24", ">=0.4.2"], "unaffected": []},
+   "package": {"name": "h2", "version": "0.3.20"}}
+ ]},
+ "warnings": {}}

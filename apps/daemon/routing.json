@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "updated": "2026-11-06",
+  "note": "Mission Control's model router (after-1.0 plan 8.1): which coding agent is best at which kind of task. Claude is the lead architect; a second agent (Codex) is the fast implementer and auditor. 'agent' is tried first, then each 'fallback' that is installed. 'model' is optional (null = the tool's own default). 'cost_cap_usd' is the default budget for one mission of that type. Edit a copy at ~/.config/orion/routing.json (or point ORION_ROUTING_FILE at one) to change it; bump 'version' when you do.",
+  "default": {"agent": "claude", "fallback": ["codex", "gemini"], "model": null, "cost_cap_usd": 2.0, "time_limit_min": 30},
+  "review": {"agents": ["codex", "claude", "gemini"], "model": null, "cost_cap_usd": 0.5, "time_limit_min": 10},
+  "tasks": {
+    "architecture": {
+      "role": "Lead architect", "agent": "claude", "fallback": ["codex", "gemini"], "model": null, "cost_cap_usd": 3.0,
+      "keywords": ["plan", "design", "architecture", "architect", "lore", "quest", "structure", "refactor"]
+    },
+    "website": {
+      "role": "Lead architect", "agent": "claude", "fallback": ["gemini", "codex"], "model": null, "cost_cap_usd": 2.0,
+      "keywords": ["website", "web site", "landing page", "homepage", "web page"]
+    },
+    "game": {
+      "role": "Lead architect", "agent": "claude", "fallback": ["codex", "gemini"], "model": null, "cost_cap_usd": 3.0,
+      "keywords": ["game", "prototype", "zone", "level", "player"]
+    },
+    "implement": {
+      "role": "Implementer", "agent": "codex", "fallback": ["claude", "gemini"], "model": null, "cost_cap_usd": 2.0,
+      "keywords": ["implement", "add", "feature", "build", "serializer", "parser", "mesh", "collision"]
+    },
+    "bugfix": {
+      "role": "Implementer and auditor", "agent": "codex", "fallback": ["claude", "gemini"], "model": null, "cost_cap_usd": 1.5,
+      "keywords": ["fix", "bug", "crash", "error", "broken", "fails", "failing", "panic"]
+    },
+    "audit": {
+      "role": "Systems auditor", "agent": "codex", "fallback": ["claude", "gemini"], "model": null, "cost_cap_usd": 1.5,
+      "keywords": ["audit", "review", "reliability", "security", "check"]
+    },
+    "docs": {
+      "role": "Writer", "agent": "gemini", "fallback": ["claude", "codex"], "model": null, "cost_cap_usd": 0.5,
+      "keywords": ["docs", "readme", "document", "guide", "explain"]
+    }
+  }
+}

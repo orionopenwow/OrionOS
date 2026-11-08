@@ -1,0 +1,10 @@
+[Unit]
+Description=Share files: LocalSend's port 53317 open to the local network (only while it runs)
+Documentation=file:///opt/orion/getapps/README.md
+After=ufw.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/python3 -I /opt/orion/getapps/orion_share_firewall.py open
+ExecStop=/usr/bin/python3 -I /opt/orion/getapps/orion_share_firewall.py close

@@ -1,0 +1,807 @@
+#!/usr/bin/env python3
+"""orion-snapshot: undo for the whole system (docs/ORIONOS_COMPLETE_PLAN.md Part 1 "Undo for the whole system").
+
+Two kinds of computer, one command:
+
+  Installed on a drive with btrfs (orion-install-disk, "snapshots" chosen):
+      snapper keeps snapshots of the system (subvolume @; your files in @home are not part of it). One is taken
+      before every apt / Flatpak / OrionOS update and one every night; old ones are thinned out by themselves
+      (snapper's number and timeline limits). Each snapshot also appears in the boot menu ("OrionOS snapshots"),
+      where it starts read-only (changes vanish at the next restart). Rolling back makes a snapshot the system
+      again at the next start; the system you had is kept beside it, so a rollback can be rolled back.
+
+  Running from the USB stick (the vault holds everything you change):
+      copies of what matters on the vault (your home folder, /etc and Orion's data), nightly and before updates.
+      Unchanged files are hard links to the previous copy, so each copy only costs what changed. Copies are capped
+      at a share of the vault (25 % unless /etc/orion/snapshots.conf says otherwise); the oldest go first.
+      The system itself is already covered by the stick's two system slots (orion-slot).
+
+    orion-snapshot status [--json]                  which kind, how many, how much space
+    orion-snapshot list [--json]
+    orion-snapshot take [--kind manual|pre-update|nightly] [--why TEXT] [--debounce SECONDS] [--json] [--quiet]
+    orion-snapshot restore ID [--path /some/file] [--yes]
+                                                    one file or folder back, or (no --path) everything
+    orion-snapshot undo [--yes]                     go back to before the last update (newest pre-update snapshot)
+    orion-snapshot prune                            apply the limits now
+    orion-snapshot grub-entries                     boot menu entries (used by /etc/grub.d/42_orion_snapshots)
+    orion-snapshot setup-btrfs                      write snapper's settings (run by orion-install-disk)
+
+Run as root (take, list and status are allowed for the session user through polkit; restore asks for the admin
+password). Everything prints plain words; --json for Orion.
+
+Tests: every outside program and path can be swapped with ORION_SNAP_* environment variables (see Env below).
+"""
+from __future__ import annotations
+
+import argparse
+import datetime as _dt
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
+import uuid
+from pathlib import Path
+from typing import Any, Optional, Sequence
+
+
+# =====================================================================================  environment
+class Env:
+    """Every outside thing this command touches, so tests can point it at fakes."""
+
+    def __init__(self, environ: Optional[dict[str, str]] = None) -> None:
+        e = os.environ if environ is None else environ
+        self.cmdline = Path(e.get("ORION_SNAP_CMDLINE", "/proc/cmdline"))
+        self.root_fstype = e.get("ORION_SNAP_ROOT_FSTYPE", "")
+        self.snapper = e.get("ORION_SNAP_SNAPPER", "snapper")
+        self.btrfs = e.get("ORION_SNAP_BTRFS", "btrfs")
+        self.rsync = e.get("ORION_SNAP_RSYNC", "rsync")
+        self.findmnt = e.get("ORION_SNAP_FINDMNT", "findmnt")
+        self.mount = e.get("ORION_SNAP_MOUNT", "mount")
+        self.umount = e.get("ORION_SNAP_UMOUNT", "umount")
+        self.update_grub = e.get("ORION_SNAP_UPDATE_GRUB", "update-grub")
+        self.snapper_conf = Path(e.get("ORION_SNAP_SNAPPER_CONF", "/etc/snapper/configs/root"))
+        self.snapshots_dir = Path(e.get("ORION_SNAP_SNAPSHOTS_DIR", "/.snapshots"))
+        self.boot_dir = Path(e.get("ORION_SNAP_BOOT", "/boot"))
+        self.vault = e.get("ORION_SNAP_VAULT", "")              # where the vault is mounted (found if empty)
+        self.sysroot = e.get("ORION_SNAP_SYSROOT", "")          # vault: prefix for the folders copied (tests)
+        self.index = Path(e.get("ORION_SNAP_INDEX", "/var/lib/orion/snapshots.json"))
+        self.changes = Path(e.get("ORION_SNAP_CHANGES", "/var/lib/orion/changes/system.jsonl"))
+        self.conf = Path(e.get("ORION_SNAP_CONF", "/etc/orion/snapshots.conf"))
+        self.top = Path(e.get("ORION_SNAP_TOP", "/run/orion-btrfs-top"))
+        self.grubenv = e.get("ORION_SNAP_GRUBENV", "/boot/grub/grubenv")          # boot counting (os/dualboot)
+        self.grub_editenv = e.get("ORION_SNAP_GRUB_EDITENV", "grub-editenv")
+        self.now = float(e["ORION_SNAP_NOW"]) if e.get("ORION_SNAP_NOW") else None
+
+    def time(self) -> float:
+        return self.now if self.now is not None else time.time()
+
+    def run(self, argv: Sequence[str], timeout: float = 3600, check: bool = False) -> subprocess.CompletedProcess:
+        try:
+            r = subprocess.run(list(argv), capture_output=True, text=True, timeout=timeout)
+        except FileNotFoundError:
+            r = subprocess.CompletedProcess(list(argv), 127, "", f"{argv[0]}: not installed")
+        if check and r.returncode != 0:
+            raise Failed(f"{Path(argv[0]).name} failed: " + ((r.stderr or r.stdout or "").strip()[-300:] or
+                                                             f"exit {r.returncode}"))
+        return r
+
+
+class Failed(Exception):
+    """A plain-words reason something couldn't be done."""
+
+
+# Vault copies: what's copied and what isn't (caches, the bin, huge model files and container images).
+VAULT_SOURCES = ["/home", "/etc", "/var/lib/orion", "/root"]
+VAULT_EXCLUDES = ["/home/*/.cache/", "/home/*/.local/share/Trash/", "/home/*/.var/app/*/cache/",
+                  "/home/*/.ollama/models/", "/home/*/.local/share/containers/", "/home/*/.npm/_cacache/",
+                  "/home/*/.mozilla/firefox/*/cache2/", "/root/.cache/", "/etc/mtab", "/etc/.pwd.lock",
+                  "*.swp", "/var/lib/orion/snapshots.json", "/var/lib/orion/changes/"]
+VAULT_DIR = "orion-snapshots"
+KINDS = ("manual", "pre-update", "nightly", "pre-restore")
+KIND_WORDS = {"manual": "You took it", "pre-update": "Before an update", "nightly": "Nightly",
+              "pre-restore": "Before a restore"}
+
+
+def conf(env: Env) -> dict[str, str]:
+    out = {"VAULT_CAP_PERCENT": "25", "VAULT_KEEP": "14", "VAULT_MIN_FREE_MB": "1024", "MENU_ENTRIES": "8"}
+    try:
+        for line in env.conf.read_text().splitlines():
+            m = re.match(r"^\s*([A-Z_]+)\s*=\s*\"?([^\"#]*)\"?", line)
+            if m:
+                out[m.group(1)] = m.group(2).strip()
+    except OSError:
+        pass
+    return out
+
+
+def human(n: float) -> str:
+    for unit in ("bytes", "KB", "MB", "GB", "TB"):
+        if abs(n) < 1024 or unit == "TB":
+            return f"{n:.0f} {unit}" if unit in ("bytes", "KB") else f"{n:.1f} {unit}"
+        n /= 1024
+    return f"{n:.1f} TB"
+
+
+def stamp(t: float) -> str:
+    return _dt.datetime.fromtimestamp(t).strftime("%Y-%m-%d %H:%M")
+
+
+# =====================================================================================  which kind of computer
+def live_stick(env: Env) -> bool:
+    try:
+        return "orion.slot=" in env.cmdline.read_text()
+    except OSError:
+        return False
+
+
+def root_fstype(env: Env) -> str:
+    if env.root_fstype:
+        return env.root_fstype
+    r = env.run([env.findmnt, "-no", "FSTYPE", "/"], timeout=10)
+    return (r.stdout or "").strip().splitlines()[0] if r.returncode == 0 and r.stdout.strip() else ""
+
+
+def vault_mount(env: Env) -> str:
+    if env.vault:
+        return env.vault if Path(env.vault).is_dir() else ""
+    r = env.run([env.findmnt, "-rno", "TARGET", "-S", "/dev/mapper/orionvault"], timeout=10)
+    for t in (r.stdout or "").split():
+        if Path(t).is_dir():
+            return t
+    return ""
+
+
+def snapshot_boot(env: Env) -> str:
+    """The snapshot this start came from (the boot menu's "start an earlier system", or boot counting's automatic
+    fallback), else ""."""
+    try:
+        m = re.search(r"(?:^|\s)orion\.snapshot=(\d+)", env.cmdline.read_text())
+    except OSError:
+        return ""
+    return m.group(1) if m else ""
+
+
+def backend(env: Env) -> str:
+    """btrfs | vault | none"""
+    if env.snapper_conf.exists() and (root_fstype(env) == "btrfs" or snapshot_boot(env)):
+        return "btrfs"       # (started from a snapshot, / is a RAM overlay on top of it, but it's still btrfs)
+    if live_stick(env) and vault_mount(env):
+        return "vault"
+    return "none"
+
+
+NONE_REASON = ("Snapshots aren't set up on this computer. They come with OrionOS installed on btrfs "
+               "(orion-install-disk asks), or with the vault on the USB stick (orion-vault create).")
+
+
+# =====================================================================================  change history + index
+def note_change(env: Env, what: str, why: str, kind: str, result: str = "",
+                undo: Optional[dict[str, Any]] = None, details: Optional[dict[str, Any]] = None) -> None:
+    who = os.environ.get("SUDO_USER") or (f"user {os.environ['PKEXEC_UID']}" if os.environ.get("PKEXEC_UID") else "")
+    entry = {"id": f"sys-{uuid.uuid4().hex[:12]}", "ts": env.time(), "source": "orion-snapshot", "kind": kind,
+             "what": what, "why": why, "result": result, "approved_by": who, "undo": undo, "details": details or {}}
+    try:
+        env.changes.parent.mkdir(parents=True, exist_ok=True)
+        with env.changes.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(entry) + "\n")
+        os.chmod(env.changes, 0o644)
+    except OSError:
+        pass
+
+
+def write_index(env: Env) -> dict[str, Any]:
+    """A world-readable summary so Orion (running as you) can show snapshots without admin rights."""
+    try:
+        st = status(env)
+    except Failed as exc:
+        st = {"backend": backend(env), "snapshots": [], "error": str(exc)}
+    st["updated"] = env.time()
+    try:
+        env.index.parent.mkdir(parents=True, exist_ok=True)
+        tmp = env.index.with_suffix(".tmp")
+        tmp.write_text(json.dumps(st, indent=1))
+        os.chmod(tmp, 0o644)
+        os.replace(tmp, env.index)
+    except OSError:
+        pass
+    return st
+
+
+# =====================================================================================  btrfs + snapper
+def btrfs_list(env: Env) -> list[dict[str, Any]]:
+    r = env.run([env.snapper, "--no-dbus", "-c", "root", "--jsonout", "list", "--disable-used-space"], timeout=60)
+    if r.returncode != 0:
+        r = env.run([env.snapper, "--no-dbus", "-c", "root", "--jsonout", "list"], timeout=60)
+    if r.returncode != 0:
+        raise Failed("Couldn't read the snapshot list: " + (r.stderr or "").strip()[-200:])
+    try:
+        data = json.loads(r.stdout or "{}")
+    except ValueError:
+        raise Failed("snapper gave an answer Orion couldn't read.")
+    rows = data.get("root") if isinstance(data, dict) else None
+    out = []
+    for s in rows or []:
+        num = int(s.get("number", 0))
+        if num == 0:
+            continue                                   # 0 is "the system as it is now"
+        ud = s.get("userdata") or {}
+        kind = ud.get("orion") if isinstance(ud, dict) else None
+        if kind not in KINDS:
+            kind = "pre-update" if s.get("type") == "pre" or "apt" in str(s.get("description", "")) else \
+                   "nightly" if s.get("cleanup") == "timeline" else "manual"
+        out.append({"id": str(num), "kind": kind, "kind_words": KIND_WORDS[kind],
+                    "why": str(s.get("description") or ""), "date": str(s.get("date") or ""),
+                    "cleanup": s.get("cleanup") or "", "used_space": s.get("used-space")})
+    return out
+
+
+def btrfs_take(env: Env, kind: str, why: str) -> dict[str, Any]:
+    cleanup = "timeline" if kind == "nightly" else "number"
+    r = env.run([env.snapper, "--no-dbus", "-c", "root", "create", "--type", "single", "--cleanup-algorithm", cleanup,
+                 "--description", why[:120], "--userdata", f"orion={kind}", "--print-number"], timeout=600)
+    if r.returncode != 0:
+        raise Failed("The snapshot couldn't be taken: " + (r.stderr or "").strip()[-200:])
+    num = (r.stdout or "").strip().splitlines()[-1] if (r.stdout or "").strip() else "?"
+    return {"id": num, "kind": kind, "why": why}
+
+
+def btrfs_prune(env: Env) -> None:
+    for algo in ("number", "timeline"):
+        env.run([env.snapper, "--no-dbus", "-c", "root", "cleanup", algo], timeout=1800)
+
+
+def root_subvol(env: Env) -> str:
+    r = env.run([env.findmnt, "-no", "OPTIONS", "/"], timeout=10)
+    m = re.search(r"subvol=([^,\s]+)", r.stdout or "")
+    return m.group(1).lstrip("/") if m else ""
+
+
+def btrfs_rollback(env: Env, sid: str) -> str:
+    """Make snapshot `sid` the system from the next start. The current system is kept as @before-rollback-<time>.
+    Also works while started from a snapshot (boot counting's fallback): then the drive is found through /.snapshots."""
+    from_snap = snapshot_boot(env)
+    if not from_snap and root_subvol(env) != "@":
+        raise Failed("This system isn't laid out the way OrionOS installs it (root on subvolume @), so a full "
+                     "rollback isn't safe here. Single files can still be restored with --path.")
+    snap = env.snapshots_dir / sid / "snapshot"
+    if not snap.is_dir():
+        raise Failed(f"There's no snapshot {sid}.")
+    where = str(env.snapshots_dir) if from_snap else "/"
+    dev = env.run([env.findmnt, "-no", "SOURCE", where], timeout=10).stdout.strip().split("[")[0]
+    if not dev:
+        raise Failed("Couldn't tell which drive the system is on.")
+    env.top.mkdir(parents=True, exist_ok=True)
+    env.run([env.mount, "-o", "subvolid=5", dev, str(env.top)], timeout=60, check=True)
+    try:
+        if not (env.top / "@snapshots" / sid / "snapshot").is_dir():
+            raise Failed("The snapshots aren't in their own subvolume (@snapshots), so a rollback can't be made "
+                         "safely here.")
+        kept = f"@before-rollback-{_dt.datetime.fromtimestamp(env.time()).strftime('%Y%m%d-%H%M%S')}"
+        os.rename(env.top / "@", env.top / kept)
+        r = env.run([env.btrfs, "subvolume", "snapshot", str(env.top / "@snapshots" / sid / "snapshot"),
+                     str(env.top / "@")], timeout=600)
+        if r.returncode != 0:
+            os.rename(env.top / kept, env.top / "@")          # put it back exactly as it was
+            raise Failed("The rollback couldn't be prepared: " + (r.stderr or "").strip()[-200:])
+    finally:
+        env.run([env.umount, str(env.top)], timeout=60)
+    return kept
+
+
+def grub_entries(env: Env) -> str:
+    """GRUB menu entries that start a snapshot read-only (an overlay in memory takes the writes).
+    Only snapshots whose kernel is still in /boot get an entry."""
+    if backend(env) != "btrfs":
+        return ""
+    boot_uuid = env.run([env.findmnt, "-no", "UUID", str(env.boot_dir)], timeout=10).stdout.strip()
+    root_uuid = env.run([env.findmnt, "-no", "UUID", str(env.snapshots_dir) if snapshot_boot(env) else "/"],
+                        timeout=10).stdout.strip()
+    if not boot_uuid or not root_uuid:
+        return "# orion-snapshot: no separate /boot partition found, so no snapshot entries\n"
+    try:
+        snaps = btrfs_list(env)
+    except Failed:
+        return ""
+    limit = int(conf(env).get("MENU_ENTRIES", "8") or 8)
+    lines = []
+    head = fallback_entry(env, boot_uuid, root_uuid, {s["id"] for s in snaps})
+    for s in sorted(snaps, key=lambda s: int(s["id"]), reverse=True)[:limit]:
+        kv = snapshot_kernel(env, s["id"])
+        if kv is None:
+            lines.append(f"  # snapshot {s['id']}: its kernel is no longer in /boot, so it can't be started")
+            continue
+        title = f"{s['date'][:16]}  {s['kind_words']}" + (f": {s['why'][:40]}" if s["why"] else "")
+        title = title.replace('"', "'").replace("$", "")
+        lines += [f'  menuentry "{title} (read-only)" --class orionos {{',
+                  f"    search --no-floppy --fs-uuid --set=root {boot_uuid}",
+                  f"    linux /vmlinuz-{kv} root=UUID={root_uuid} rootflags=subvol=@snapshots/{s['id']}/snapshot "
+                  f"ro orion.snapshot={s['id']} quiet splash",
+                  f"    initrd /initrd.img-{kv}",
+                  "  }"]
+    if not lines:
+        return head
+    return head + 'submenu "OrionOS snapshots (start an earlier system, read-only)" --class orionos {\n' + \
+        "\n".join(lines) + "\n}\n"
+
+
+def snapshot_kernel(env: Env, sid: str) -> Optional[str]:
+    """The newest kernel of snapshot `sid` that is still in /boot (else None: it can't be started)."""
+    mods = env.snapshots_dir / sid / "snapshot" / "usr/lib/modules"
+    if not mods.is_dir():
+        mods = env.snapshots_dir / sid / "snapshot" / "lib/modules"
+    kernels = sorted((p.name for p in mods.iterdir() if p.is_dir()), key=_version_key, reverse=True) \
+        if mods.is_dir() else []
+    return next((k for k in kernels if (env.boot_dir / f"vmlinuz-{k}").exists()
+                 and (env.boot_dir / f"initrd.img-{k}").exists()), None)
+
+
+def grubenv_get(env: Env, key: str) -> str:
+    if not Path(env.grubenv).exists():
+        return ""
+    r = env.run([env.grub_editenv, env.grubenv, "list"], timeout=10)
+    for line in (r.stdout or "").splitlines():
+        if line.startswith(key + "="):
+            return line.split("=", 1)[1].strip()
+    return ""
+
+
+def fallback_entry(env: Env, boot_uuid: str, root_uuid: str, known: set[str]) -> str:
+    """Boot counting (os/dualboot/orion-bootcount): after an update, the snapshot taken just before it gets a fixed
+    entry (id orion-fallback). GRUB starts it by itself when the updated system didn't reach a healthy Orion session
+    twice (/etc/grub.d/01_orion_bootcount)."""
+    sid = grubenv_get(env, "orion_fallback")
+    if not sid.isdigit() or sid not in known:
+        return ""
+    kv = snapshot_kernel(env, sid)
+    if kv is None:
+        return f"# orion-snapshot: the fallback snapshot {sid} has no kernel in /boot any more\n"
+    return "\n".join([
+        'menuentry "OrionOS, as it was before the last update" --class orionos --id orion-fallback {',
+        f"  search --no-floppy --fs-uuid --set=root {boot_uuid}",
+        f"  linux /vmlinuz-{kv} root=UUID={root_uuid} rootflags=subvol=@snapshots/{sid}/snapshot "
+        f"ro orion.snapshot={sid} orion.fallback=1 quiet splash",
+        f"  initrd /initrd.img-{kv}",
+        "}", ""])
+
+
+def _version_key(v: str) -> list[Any]:
+    return [int(p) if p.isdigit() else p for p in re.split(r"[.-]", v)]
+
+
+def refresh_grub(env: Env) -> None:
+    if shutil.which(env.update_grub) or os.path.isabs(env.update_grub) and os.access(env.update_grub, os.X_OK):
+        env.run([env.update_grub], timeout=300)
+
+
+SNAPPER_CONFIG = """# OrionOS: snapshots of the system (orion-snapshot). Your files in /home are not part of these.
+SUBVOLUME="/"
+FSTYPE="btrfs"
+QGROUP=""
+SPACE_LIMIT="0.5"
+FREE_LIMIT="0.2"
+ALLOW_USERS=""
+ALLOW_GROUPS=""
+SYNC_ACL="no"
+BACKGROUND_COMPARISON="yes"
+# before updates and "take one now": keep the newest 12 (10 when space runs short)
+NUMBER_CLEANUP="yes"
+NUMBER_MIN_AGE="1800"
+NUMBER_LIMIT="12"
+NUMBER_LIMIT_IMPORTANT="6"
+# nightly ones (orion-snapshot-nightly.timer takes them; snapper's own hourly timer stays off)
+TIMELINE_CREATE="no"
+TIMELINE_CLEANUP="yes"
+TIMELINE_MIN_AGE="1800"
+TIMELINE_LIMIT_HOURLY="0"
+TIMELINE_LIMIT_DAILY="7"
+TIMELINE_LIMIT_WEEKLY="4"
+TIMELINE_LIMIT_MONTHLY="2"
+TIMELINE_LIMIT_YEARLY="0"
+EMPTY_PRE_POST_CLEANUP="yes"
+EMPTY_PRE_POST_MIN_AGE="1800"
+"""
+
+
+def setup_btrfs(env: Env) -> str:
+    """snapper's settings for the root config, written directly (`snapper create-config` wants to make its own
+    nested .snapshots subvolume; OrionOS mounts the top-level @snapshots there instead, so rollbacks keep them)."""
+    env.snapper_conf.parent.mkdir(parents=True, exist_ok=True)
+    env.snapper_conf.write_text(SNAPPER_CONFIG)
+    os.chmod(env.snapper_conf, 0o640)
+    defaults = env.snapper_conf.parent.parent.parent / "default" / "snapper"
+    try:
+        text = defaults.read_text() if defaults.exists() else ""
+        if re.search(r'^SNAPPER_CONFIGS=".*\broot\b', text, re.M) is None:
+            text = re.sub(r"^SNAPPER_CONFIGS=.*\n?", "", text, flags=re.M) + 'SNAPPER_CONFIGS="root"\n'
+            defaults.parent.mkdir(parents=True, exist_ok=True)
+            defaults.write_text(text)
+    except OSError:
+        pass
+    return "Snapshots are set up for the system."
+
+
+# =====================================================================================  vault (USB stick)
+def vault_store(env: Env) -> Path:
+    m = vault_mount(env)
+    if not m:
+        raise Failed("The vault isn't unlocked, so there's nowhere to keep snapshots.")
+    return Path(m) / VAULT_DIR
+
+
+def _src(env: Env, path: str) -> Path:
+    return Path(env.sysroot + path) if env.sysroot else Path(path)
+
+
+def vault_list(env: Env) -> list[dict[str, Any]]:
+    try:
+        store = vault_store(env)
+    except Failed:
+        return []
+    out = []
+    for d in sorted(store.glob("*/info.json")):
+        try:
+            info = json.loads(d.read_text())
+        except (OSError, ValueError):
+            continue
+        if not (d.parent / "data").is_dir() or not info.get("complete"):
+            continue                                   # a copy that was interrupted never counts
+        kind = info.get("kind") if info.get("kind") in KINDS else "manual"
+        out.append({"id": d.parent.name, "kind": kind, "kind_words": KIND_WORDS[kind], "why": info.get("why", ""),
+                    "date": stamp(float(info.get("ts", 0))), "ts": float(info.get("ts", 0)),
+                    "new_bytes": info.get("new_bytes")})
+    out.sort(key=lambda s: s["ts"])
+    return out
+
+
+def du_bytes(path: Path) -> int:
+    """Real space used, counting each hard-linked file once (what the vault actually spends)."""
+    seen: set[tuple[int, int]] = set()
+    total = 0
+    for root, dirs, files in os.walk(path):
+        for name in dirs + files:
+            p = os.path.join(root, name)
+            try:
+                st = os.lstat(p)
+            except OSError:
+                continue
+            key = (st.st_dev, st.st_ino)
+            if key in seen:
+                continue
+            seen.add(key)
+            total += st.st_blocks * 512 if hasattr(st, "st_blocks") else st.st_size
+    return total
+
+
+def vault_space(env: Env) -> dict[str, Any]:
+    store = vault_store(env)
+    usage = shutil.disk_usage(store.parent)
+    c = conf(env)
+    cap = int(usage.total * max(1, min(int(c["VAULT_CAP_PERCENT"] or 25), 80)) / 100)
+    used = du_bytes(store) if store.exists() else 0
+    return {"vault_total": usage.total, "vault_free": usage.free, "snapshots_used": used, "cap": cap,
+            "words": f"Snapshots use {human(used)} of the {human(cap)} they may use on the vault "
+                     f"({human(usage.free)} free on the vault)."}
+
+
+def vault_take(env: Env, kind: str, why: str) -> dict[str, Any]:
+    store = vault_store(env)
+    store.mkdir(parents=True, exist_ok=True)
+    os.chmod(store, 0o700)
+    c = conf(env)
+    free = shutil.disk_usage(store).free
+    if free < int(c["VAULT_MIN_FREE_MB"] or 1024) * 1024 * 1024:
+        vault_prune(env, keep_at_least=1, target_free=int(c["VAULT_MIN_FREE_MB"] or 1024) * 1024 * 1024)
+        free = shutil.disk_usage(store).free
+        if free < int(c["VAULT_MIN_FREE_MB"] or 1024) * 1024 * 1024:
+            raise Failed(f"Only {human(free)} free on the vault, so no snapshot was taken (it needs at least "
+                         f"{c['VAULT_MIN_FREE_MB']} MB free). Free up space in your home folder.")
+    prev = vault_list(env)
+    sid = _dt.datetime.fromtimestamp(env.time()).strftime("%Y%m%d-%H%M%S") + f"-{kind}"
+    dest = store / sid
+    if dest.exists():
+        sid += f"-{uuid.uuid4().hex[:4]}"
+        dest = store / sid
+    (dest / "data").mkdir(parents=True)
+    info = {"id": sid, "kind": kind, "why": why, "ts": env.time(), "complete": False, "sources": VAULT_SOURCES}
+    (dest / "info.json").write_text(json.dumps(info))
+    argv = [env.rsync, "-aHAX", "--numeric-ids", "--relative", "--one-file-system", "--stats"] + [f"--exclude={x}" for x in VAULT_EXCLUDES]
+    if prev:
+        argv.append(f"--link-dest={store / prev[-1]['id'] / 'data'}")
+    srcs = [str(_src(env, s)) for s in VAULT_SOURCES if _src(env, s).exists()]
+    if env.sysroot:      # keep paths like /home/... inside data/ even when the folders live under a test root
+        srcs = [env.sysroot + "/." + s[len(env.sysroot):] for s in srcs]
+    r = env.run(argv + srcs + [str(dest / "data") + "/"], timeout=6 * 3600)
+    if r.returncode not in (0, 23, 24):                 # 23/24: some files vanished or were unreadable mid-copy
+        shutil.rmtree(dest, ignore_errors=True)
+        raise Failed("The copy didn't finish, so it was thrown away: " + (r.stderr or "").strip()[-200:])
+    m = re.search(r"Total transferred file size: ([\d,.]+)", r.stdout or "")
+    info.update(complete=True, new_bytes=int(float(m.group(1).replace(",", ""))) if m else None,
+                partial=r.returncode != 0)
+    (dest / "info.json").write_text(json.dumps(info))
+    pruned = vault_prune(env, keep_at_least=1)
+    return {"id": sid, "kind": kind, "why": why, "pruned": pruned,
+            "note": "Some files changed while copying and were skipped." if r.returncode else ""}
+
+
+def vault_prune(env: Env, keep_at_least: int = 1, target_free: int = 0) -> list[str]:
+    """Oldest first, until the copies fit their share of the vault (and the count limit). Never the newest."""
+    store = vault_store(env)
+    c = conf(env)
+    keep = max(1, int(c["VAULT_KEEP"] or 14))
+    removed = []
+    snaps = vault_list(env)
+    # interrupted copies first
+    for d in store.glob("*/info.json"):
+        if d.parent.name not in {s["id"] for s in snaps}:
+            try:
+                if not json.loads(d.read_text()).get("complete") and env.time() - d.stat().st_mtime > 6 * 3600:
+                    shutil.rmtree(d.parent, ignore_errors=True)
+            except (OSError, ValueError):
+                pass
+    while len(snaps) > keep_at_least:
+        sp = vault_space(env)
+        over = sp["snapshots_used"] > sp["cap"] or len(snaps) > keep or (target_free and sp["vault_free"] < target_free)
+        if not over:
+            break
+        oldest = snaps.pop(0)
+        shutil.rmtree(store / oldest["id"], ignore_errors=True)
+        removed.append(oldest["id"])
+    return removed
+
+
+def _safe_rel(path: str) -> str:
+    p = os.path.normpath("/" + path.strip()).lstrip("/")
+    if not p or p.startswith(".."):
+        raise Failed("That isn't a path Orion can restore.")
+    if not any(("/" + p + "/").startswith(s.rstrip("/") + "/") or ("/" + p) == s for s in VAULT_SOURCES):
+        raise Failed("Snapshots on the stick only cover your home folder, /etc and Orion's data.")
+    return p
+
+
+def vault_restore(env: Env, sid: str, path: str = "") -> str:
+    store = vault_store(env)
+    if not any(s["id"] == sid for s in vault_list(env)):
+        raise Failed(f"There's no snapshot {sid}.")
+    data = store / sid / "data"
+    if path:
+        rel = _safe_rel(path)
+        src = data / rel
+        if not src.exists() and not src.is_symlink():
+            raise Failed(f"{'/' + rel} isn't in that snapshot.")
+        dst = _src(env, "/" + rel)
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        if src.is_dir() and not src.is_symlink():
+            env.run([env.rsync, "-aHAX", "--numeric-ids", str(src) + "/", str(dst) + "/"], check=True)
+        else:
+            if dst.exists():
+                os.replace(dst, str(dst) + f".before-restore-{int(env.time())}")
+            env.run([env.rsync, "-aHAX", "--numeric-ids", str(src), str(dst)], check=True)
+        return f"Put back /{rel} from the snapshot of {stamp(_ts_of(store, sid))}."
+    vault_take(env, "pre-restore", f"before putting back the snapshot {sid}")
+    for s in VAULT_SOURCES:
+        src = data / s.lstrip("/")
+        if not src.is_dir():
+            continue
+        env.run([env.rsync, "-aHAX", "--numeric-ids", "--delete"] + [f"--exclude={x[len(s):]}" for x in
+                                                                      VAULT_EXCLUDES if x.startswith(s + "/")]
+                + [str(src) + "/", str(_src(env, s)) + "/"], check=True)
+    return (f"Put back your home folder, settings and Orion's data from {stamp(_ts_of(store, sid))}. Restart the "
+            "computer now so everything picks it up. (What you had just before is kept as a snapshot too.)")
+
+
+def _ts_of(store: Path, sid: str) -> float:
+    try:
+        return float(json.loads((store / sid / "info.json").read_text()).get("ts", 0))
+    except (OSError, ValueError):
+        return 0.0
+
+
+# =====================================================================================  commands
+def snapshots(env: Env) -> list[dict[str, Any]]:
+    b = backend(env)
+    if b == "btrfs":
+        return btrfs_list(env)
+    if b == "vault":
+        return vault_list(env)
+    return []
+
+
+def status(env: Env) -> dict[str, Any]:
+    b = backend(env)
+    snaps = snapshots(env)
+    out: dict[str, Any] = {"backend": b, "snapshots": snaps, "count": len(snaps)}
+    if b == "btrfs":
+        u = shutil.disk_usage("/")
+        out["space"] = {"free": u.free, "total": u.total,
+                        "words": f"Snapshots share the system drive and only keep what changed since. "
+                                 f"{human(u.free)} free on it."}
+        out["words"] = (f"{len(snaps)} snapshot{'s' if len(snaps) != 1 else ''} of the system. One is taken before "
+                        "every update and every night; old ones are thinned out by themselves.")
+    elif b == "vault":
+        try:
+            out["space"] = vault_space(env)
+        except Failed as exc:
+            out["space"] = {"words": str(exc)}
+        out["words"] = (f"{len(snaps)} cop{'ies' if len(snaps) != 1 else 'y'} of your home folder, settings and "
+                        "Orion's data on the vault. The system itself is covered by the stick's two system slots.")
+    else:
+        out["words"] = NONE_REASON
+    pre = [s for s in snaps if s["kind"] == "pre-update"]
+    out["undo_to"] = pre[-1]["id"] if pre and b == "vault" else \
+        max(pre, key=lambda s: int(s["id"]))["id"] if pre and b == "btrfs" else None
+    return out
+
+
+def take(env: Env, kind: str, why: str, debounce: float = 0) -> dict[str, Any]:
+    b = backend(env)
+    if b == "none":
+        return {"ok": True, "skipped": True, "message": NONE_REASON}
+    if debounce > 0:
+        try:
+            idx = json.loads(env.index.read_text())
+            last = float(idx.get("last_take", {}).get(kind, 0))
+        except (OSError, ValueError, AttributeError):
+            last = 0
+        if env.time() - last < debounce:
+            return {"ok": True, "skipped": True, "message": "A snapshot was just taken; this one is skipped."}
+    why = " ".join((why or KIND_WORDS[kind]).split())[:200]
+    snap = btrfs_take(env, kind, why) if b == "btrfs" else vault_take(env, kind, why)
+    if b == "btrfs":
+        btrfs_prune(env)
+    st = write_index(env)
+    try:
+        idx = json.loads(env.index.read_text())
+        idx.setdefault("last_take", {})[kind] = env.time()
+        env.index.write_text(json.dumps(idx, indent=1))
+    except (OSError, ValueError):
+        pass
+    if kind != "nightly":
+        back = {"kind": "snapshot_restore", "snapshot": snap["id"], "sensitive": True,
+                "label": "Go back to before this update"} if kind == "pre-update" else None
+        note_change(env, f"Took a snapshot ({KIND_WORDS[kind].lower()})", why, "snapshot",
+                    result=f"snapshot {snap['id']}", undo=back, details={"backend": b, "snapshot": snap["id"]})
+    if b == "btrfs" and kind != "pre-update":
+        refresh_grub(env)          # pre-update ones reach the boot menu when the update itself runs update-grub
+    return {"ok": True, "snapshot": snap, "count": st.get("count"),
+            "message": f"Snapshot {snap['id']} taken." + (f" {snap['note']}" if snap.get("note") else "")}
+
+
+def restore(env: Env, sid: str, path: str = "") -> dict[str, Any]:
+    b = backend(env)
+    if b == "none":
+        raise Failed(NONE_REASON)
+    if b == "vault":
+        msg = vault_restore(env, sid, path)
+    elif path:
+        src = env.snapshots_dir / sid / "snapshot" / os.path.normpath("/" + path).lstrip("/")
+        if not src.exists():
+            raise Failed(f"{path} isn't in snapshot {sid}.")
+        dst = Path(os.path.normpath("/" + path))
+        if src.is_dir():
+            env.run([env.rsync, "-aHAX", "--numeric-ids", str(src) + "/", str(dst) + "/"], check=True)
+        else:
+            if dst.exists():
+                os.replace(dst, str(dst) + f".before-restore-{int(env.time())}")
+            env.run([env.rsync, "-aHAX", "--numeric-ids", str(src), str(dst)], check=True)
+        msg = f"Put back {dst} from snapshot {sid}."
+    else:
+        try:
+            btrfs_take(env, "pre-restore", f"before going back to snapshot {sid}")
+        except Failed:
+            pass
+        kept = btrfs_rollback(env, sid)
+        msg = (f"Snapshot {sid} becomes the system at the next start. Restart now. The system you had is kept "
+               f"as {kept}, so this can be undone too. Your files in your home folder are not touched.")
+    write_index(env)
+    note_change(env, f"Restored {path or 'everything'} from snapshot {sid}", "you asked to go back", "restore",
+                result=msg, details={"backend": b, "snapshot": sid, "path": path})
+    return {"ok": True, "message": msg}
+
+
+def undo(env: Env) -> dict[str, Any]:
+    st = status(env)
+    if st["backend"] == "none":
+        raise Failed(NONE_REASON)
+    sid = st.get("undo_to")
+    if not sid:
+        raise Failed("There's no snapshot from before an update to go back to.")
+    return restore(env, sid)
+
+
+def main(argv: Optional[list[str]] = None, env: Optional[Env] = None) -> int:
+    env = env or Env()
+    ap = argparse.ArgumentParser(prog="orion-snapshot", description="Undo for the whole system.")
+    sub = ap.add_subparsers(dest="cmd")
+    for n in ("status", "list"):
+        s = sub.add_parser(n)
+        s.add_argument("--json", action="store_true")
+    s = sub.add_parser("take")
+    s.add_argument("--kind", choices=[k for k in KINDS if k != "pre-restore"], default="manual")
+    s.add_argument("--why", default="")
+    s.add_argument("--debounce", type=float, default=0)
+    s.add_argument("--json", action="store_true")
+    s.add_argument("--quiet", action="store_true")
+    s = sub.add_parser("restore")
+    s.add_argument("id")
+    s.add_argument("--path", default="")
+    s.add_argument("--yes", action="store_true")
+    s.add_argument("--json", action="store_true")
+    s = sub.add_parser("undo")
+    s.add_argument("--yes", action="store_true")
+    s.add_argument("--json", action="store_true")
+    for n in ("prune", "grub-entries", "setup-btrfs"):
+        sub.add_parser(n)
+    a = ap.parse_args(argv)
+    cmd = a.cmd or "status"
+    as_json = bool(getattr(a, "json", False))
+
+    def out(res: dict[str, Any], text: str) -> None:
+        print(json.dumps(res) if as_json else text)
+
+    try:
+        if cmd in ("status", "list"):
+            st = None
+            if os.geteuid() != 0:          # snapper and the vault folder need root: use the summary root keeps
+                try:
+                    st = json.loads(env.index.read_text())
+                except (OSError, ValueError):
+                    st = None
+            if st is None:
+                st = status(env)
+                if os.geteuid() == 0:
+                    write_index(env)
+            lines = [st["words"]]
+            if st.get("space", {}).get("words"):
+                lines.append(st["space"]["words"])
+            for s in reversed(st["snapshots"]):
+                lines.append(f"  {s['id']:>24}  {s['date'][:16]:16}  {s['kind_words']}" +
+                             (f": {s['why']}" if s["why"] else ""))
+            out(st if cmd == "status" else {"snapshots": st["snapshots"], "backend": st["backend"]}, "\n".join(lines))
+            return 0
+        if cmd == "take":
+            res = take(env, a.kind, a.why, a.debounce)
+            if not a.quiet or as_json:
+                out(res, res["message"])
+            return 0
+        if cmd in ("restore", "undo"):
+            if not a.yes and sys.stdin.isatty():
+                what = (f"{a.path} from snapshot {a.id}" if cmd == "restore" and a.path else
+                        f"everything from snapshot {a.id}" if cmd == "restore" else
+                        "the system as it was before the last update")
+                ans = input(f"Put back {what}? Newer changes to it are replaced. Type yes: ")
+                if ans.strip().lower() != "yes":
+                    print("Nothing changed.")
+                    return 1
+            res = restore(env, a.id, a.path) if cmd == "restore" else undo(env)
+            out(res, res["message"])
+            return 0
+        if cmd == "prune":
+            b = backend(env)
+            if b == "btrfs":
+                btrfs_prune(env)
+            elif b == "vault":
+                gone = vault_prune(env)
+                print(f"Removed {len(gone)} old snapshot(s)." if gone else "Nothing to remove.")
+            write_index(env)
+            return 0
+        if cmd == "grub-entries":
+            sys.stdout.write(grub_entries(env))
+            return 0
+        if cmd == "setup-btrfs":
+            print(setup_btrfs(env))
+            return 0
+    except Failed as exc:
+        if as_json:
+            print(json.dumps({"ok": False, "message": str(exc)}))
+        else:
+            print(str(exc), file=sys.stderr)
+        return 1
+    ap.print_help()
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())

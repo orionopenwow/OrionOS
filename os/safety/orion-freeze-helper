@@ -1,0 +1,51 @@
+#!/bin/sh
+# OrionOS kill switch, root side (apps/daemon/freeze.py; started with pkexec, polkit action ai.orion.safety.freeze).
+#   orion-freeze-helper on    pause automatic system updates (unattended-upgrades) and mark the system frozen
+#   orion-freeze-helper off   undo exactly that. Polkit asks for your password (auth_self) for a plain "off";
+#                             "off --approval FILE" passes without one only if FILE is a valid phone approval
+#                             (orion-approval-check: signed by your paired phone's fingerprint key, < 5 min old)
+#   orion-freeze-helper status
+#   orion-freeze-helper pin-phone DEVICE KEY   remember a paired phone's approval key (root-owned, for the check
+#                             above; polkit asks for your password; orion-ctl pair-phone runs it)
+#   orion-freeze-helper unpin-phone DEVICE|all
+# Writes only the two files below, and the pinned keys in /etc/orion/phone-keys.
+set -eu
+DROPIN="${ORION_FREEZE_DROPIN:-/etc/apt/apt.conf.d/99orion-freeze}"
+MARK="${ORION_FREEZE_MARK:-/etc/orion/frozen}"
+KEYS="${ORION_PHONE_KEYS:-/etc/orion/phone-keys}"
+CHECK="${ORION_APPROVAL_CHECK:-/opt/orion/safety/orion-approval-check}"
+[ "$(id -u)" -eq 0 ] || [ -n "${ORION_FREEZE_TEST:-}" ] || { echo "needs admin rights" >&2; exit 1; }
+case "${1:-}" in
+  on)
+    mkdir -p "$(dirname "$MARK")" "$(dirname "$DROPIN")"
+    printf '%s\n' '// OrionOS kill switch: automatic updates are paused until you unfreeze Orion from your phone.' \
+      'APT::Periodic::Unattended-Upgrade "0";' 'APT::Periodic::Download-Upgradeable-Packages "0";' > "$DROPIN"
+    chmod 644 "$DROPIN"
+    date '+frozen since %F %H:%M' > "$MARK"
+    chmod 644 "$MARK"
+    # an upgrade that's already running finishes safely (unattended-upgrades stops between packages)
+    [ -n "${ORION_FREEZE_TEST:-}" ] || systemctl stop unattended-upgrades.service apt-daily-upgrade.service 2>/dev/null || true
+    echo "Automatic updates paused." ;;
+  off)
+    if [ "${2:-}" = --approval ]; then
+      # polkit let this through without a password because of the token: check it really is one
+      [ -n "${3:-}" ] && "$CHECK" unfreeze "$3" || { echo "That isn't a valid approval from your phone." >&2; exit 4; }
+    fi
+    rm -f "$DROPIN" "$MARK"
+    echo "Automatic updates back on." ;;
+  pin-phone)
+    dev="${2:-}"; key="${3:-}"
+    printf '%s' "$dev" | grep -Eq '^[A-Za-z0-9_-]{8,64}$' || { echo "bad device id" >&2; exit 2; }
+    printf '%s' "$key" | grep -Eq '^[A-Za-z0-9+/=]{40,400}$' || { echo "bad key" >&2; exit 2; }
+    install -d -m 755 "$KEYS"
+    printf '%s\n' "$key" > "$KEYS/$dev.pub.tmp" && chmod 644 "$KEYS/$dev.pub.tmp" && mv "$KEYS/$dev.pub.tmp" "$KEYS/$dev.pub"
+    echo "Your phone's approvals are now trusted for unfreezing and installs." ;;
+  unpin-phone)
+    dev="${2:-}"
+    if [ "$dev" = all ]; then rm -f "$KEYS"/*.pub
+    else printf '%s' "$dev" | grep -Eq '^[A-Za-z0-9_-]{8,64}$' && rm -f "$KEYS/$dev.pub"; fi
+    echo "Done." ;;
+  status)
+    if [ -e "$MARK" ]; then cat "$MARK"; else echo "not frozen"; fi ;;
+  *) echo "usage: orion-freeze-helper on | off [--approval FILE] | status | pin-phone DEVICE KEY | unpin-phone DEVICE|all" >&2; exit 2 ;;
+esac

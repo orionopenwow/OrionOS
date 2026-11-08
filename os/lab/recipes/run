@@ -1,0 +1,16 @@
+#!/bin/sh
+# OrionOS recipe runner (root, via orion-recipe@<name>.service). Only runs scripts that ship in this folder.
+set -eu
+NAME="${1:-}"
+case "$NAME" in *[!a-z0-9-]*|"") echo "bad recipe name"; exit 2 ;; esac
+DIR=/opt/orion/recipes
+SCRIPT="$DIR/$NAME.sh"
+[ -f "$SCRIPT" ] || { echo "no such recipe: $NAME"; exit 2; }
+# Refuse anything not owned by root or writable by others (so an approval can only ever run vetted scripts).
+[ "$(stat -c %u "$SCRIPT")" = 0 ] || { echo "recipe not owned by root"; exit 3; }
+case "$(stat -c %A "$SCRIPT")" in ?????w????|????????w?) echo "recipe is writable by non-root"; exit 3 ;; esac
+mkdir -p /var/log/orion-recipes /var/lib/orion/recipes
+chmod 755 /var/lib/orion /var/lib/orion/recipes
+STATUS=/var/lib/orion/recipes/$NAME.status
+echo running > "$STATUS"
+if sh "$SCRIPT" > "/var/log/orion-recipes/$NAME.log" 2>&1; then echo ok > "$STATUS"; else echo failed > "$STATUS"; exit 1; fi

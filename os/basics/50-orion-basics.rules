@@ -1,0 +1,9 @@
+// OrionOS basics: the session user "orion" may pick the time zone and turn network time on, without a password,
+// while sitting at the computer (Settings > Time zone, the first-run step). Setting the clock itself still asks.
+polkit.addRule(function(action, subject) {
+    if ((action.id == "org.freedesktop.timedate1.set-timezone" ||
+         action.id == "org.freedesktop.timedate1.set-ntp") &&
+        subject.user == "orion" && subject.local && subject.active) {
+        return polkit.Result.YES;
+    }
+});

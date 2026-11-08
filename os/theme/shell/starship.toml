@@ -1,0 +1,47 @@
+# OrionOS prompt, "Event Horizon" (Art Update §7): a violet ◉, the folder in cyan, the git branch in violet,
+# changes in ember, how long the last command took; you type after a violet › on the next line.
+# Used when starship is installed and you have no ~/.config/starship.toml of your own.
+"$schema" = 'https://starship.rs/config-schema.json'
+add_newline = true
+format = """[◉](#7C5CFF) $directory$git_branch$git_state$git_status$cmd_duration$status$line_break$character"""
+
+[directory]
+style = "#00E5FF"
+format = "[$path]($style)[$read_only]($read_only_style) "
+truncation_length = 4
+truncate_to_repo = false
+read_only = " ro"
+read_only_style = "#FFC66B"
+
+[git_branch]
+symbol = ""
+style = "#9D85FF"
+format = "[$symbol$branch(:$remote_branch)]($style) "
+
+[git_state]
+style = "#FFC66B"
+
+[git_status]
+style = "#FFC66B"
+format = "([$all_status$ahead_behind]($style) )"
+modified = "✚${count}"
+staged = "●${count}"
+untracked = "?${count}"
+deleted = "✖${count}"
+conflicted = "≠${count}"
+
+[cmd_duration]
+min_time = 500
+style = "#7A82B0"
+format = "[⏱ $duration]($style) "
+
+[status]
+disabled = false
+style = "#FF5C8A"
+symbol = "✗ "
+format = "[$symbol$status]($style) "
+
+[character]
+success_symbol = "[›](bold #9D85FF)"
+error_symbol = "[›](bold #FF5C8A)"
+vimcmd_symbol = "[‹](bold #00E5FF)"

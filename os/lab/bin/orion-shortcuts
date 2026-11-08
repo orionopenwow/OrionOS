@@ -1,0 +1,236 @@
+#!/usr/bin/env python3
+"""orion-shortcuts: the keyboard shortcut overlay (cheap feature 5).
+
+    orion-shortcuts list [--json]   the shortcuts, read from the Sway config in use
+    orion-shortcuts toggle          Super+/ : show the glass panel (Esc, a click or Super+/ again closes it)
+    orion-shortcuts hold            Super pressed: the panel appears if Super is still held after a moment and no
+                                    other shortcut was used; it never takes the keyboard, so Super+D etc. still work
+    orion-shortcuts release         Super let go: the panel goes away
+
+How "hold" works without reading the keyboard: Sway runs `hold` when Super goes down and `release` when it comes up
+alone; Sway also announces every shortcut it runs, so a Super+something in between cancels the panel (or closes it).
+The parsing is in os/desktop/orion_shortcuts.py.
+"""
+from __future__ import annotations
+
+import json
+import os
+import signal
+import sys
+import threading
+from pathlib import Path
+
+HERE = Path(__file__).resolve()
+for _d in (os.environ.get("ORION_DESKTOP_DIR", ""), "/opt/orion/desktop", str(HERE.parent.parent.parent / "desktop")):
+    if _d and (Path(_d) / "orion_shortcuts.py").is_file():
+        sys.path.insert(0, _d)
+        break
+import orion_shortcuts as S  # noqa: E402
+
+RUNTIME = Path(os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}")
+PIDFILE = RUNTIME / "orion-shortcuts.pid"
+HOLD_MS = 550
+CSS = b"""
+window.orion-keys, .orion-keys { background-color: transparent; }
+.panel { background-color: rgba(11, 15, 30, 0.86); border: 1px solid rgba(124, 92, 255, 0.55);
+         border-radius: 22px; padding: 22px 26px; }
+.title { font-family: "Unbounded", "Figtree", sans-serif; font-size: 17px; color: #FFFFFF; }
+.hint { color: #8F96C4; font-size: 12px; }
+.group { font-family: "Figtree", "Noto Sans", sans-serif; font-weight: 700; font-size: 12px; color: #00E5FF;
+         letter-spacing: 1px; margin-top: 6px; }
+.does { color: #D8DEFF; font-family: "Figtree", "Noto Sans", sans-serif; font-size: 13px; }
+.key { background-color: rgba(124, 92, 255, 0.20); border: 1px solid rgba(124, 92, 255, 0.55); border-radius: 8px;
+       padding: 1px 8px; color: #FFFFFF; font-family: "JetBrains Mono", "Noto Sans Mono", monospace; font-size: 12px; }
+.or { color: #6B7090; font-size: 11px; }
+"""
+
+
+def compositor():
+    """Sway, or the optional Hyprland session (os/desktop/orion_compositor.py), or None."""
+    for d in (os.environ.get("ORION_DESKTOP_DIR", ""), "/opt/orion/desktop", str(Path(__file__).resolve().parents[2] / "desktop")):
+        if d and (Path(d) / "orion_compositor.py").is_file():
+            sys.path.insert(0, d)
+            break
+    try:
+        import orion_compositor  # noqa: E402
+    except ImportError:
+        return None
+    return orion_compositor.detect()
+
+
+def load() -> list[dict]:
+    home = str(Path.home())
+    comp = compositor()
+    if comp and comp.name == "hyprland":
+        return S.shortcuts(comp.bindings())
+    paths = [os.path.join(home, ".config/sway/config"), "/etc/sway/config"]
+    running = comp.config_text() if comp else None
+    text, base = S.active_config({"config": running} if running else None, paths)
+    if text is None:
+        return []
+    return S.shortcuts(S.parse(text, home=home, base=base))
+
+
+def kill_running() -> bool:
+    try:
+        pid = int(PIDFILE.read_text().strip())
+        os.kill(pid, signal.SIGTERM)
+        return True
+    except (OSError, ValueError):
+        return False
+    finally:
+        try:
+            PIDFILE.unlink()
+        except OSError:
+            pass
+
+
+def show(peek: bool) -> int:
+    """The glass panel. It is a layer-shell surface (gtk-layer-shell), so it floats above everything, the full-screen
+    Orion HUD included, and Sway's window rules never touch it. Peek (hold Super) never takes the keyboard."""
+    import gi
+    gi.require_version("Gtk", "3.0")
+    gi.require_version("Gdk", "3.0")
+    from gi.repository import Gdk, GLib, Gtk
+    try:
+        gi.require_version("GtkLayerShell", "0.1")
+        from gi.repository import GtkLayerShell  # type: ignore
+    except (ValueError, ImportError):
+        GtkLayerShell = None  # noqa: N806  (plain window: fine outside the full-screen HUD)
+
+    groups = load()
+    PIDFILE.write_text(str(os.getpid()))
+    # the window's app id without the word "orion", so the HUD's own window rules never grab it (sway-config)
+    GLib.set_prgname("keys-overlay")
+
+    def quit_(*_a):
+        Gtk.main_quit()
+        return False
+
+    prov = Gtk.CssProvider()
+    prov.load_from_data(CSS)
+    Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), prov, Gtk.STYLE_PROVIDER_PRIORITY_USER)
+    win = Gtk.Window(title="Orion shortcuts")
+    win.set_decorated(False)
+    win.get_style_context().add_class("orion-keys")
+    vis = win.get_screen().get_rgba_visual()
+    if vis is not None:
+        win.set_visual(vis)
+    win.set_app_paintable(True)
+    if GtkLayerShell is not None and GtkLayerShell.is_supported():
+        GtkLayerShell.init_for_window(win)
+        GtkLayerShell.set_namespace(win, "orion-shortcuts")
+        GtkLayerShell.set_layer(win, GtkLayerShell.Layer.OVERLAY)
+        GtkLayerShell.set_keyboard_mode(win, GtkLayerShell.KeyboardMode.NONE if peek else
+                                        GtkLayerShell.KeyboardMode.EXCLUSIVE)
+    panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+    panel.get_style_context().add_class("panel")
+    head = Gtk.Box(spacing=12)
+    t = Gtk.Label(label="Shortcuts", xalign=0)
+    t.get_style_context().add_class("title")
+    head.pack_start(t, True, True, 0)
+    h = Gtk.Label(label="Let go of Super to close" if peek else "Esc or Super+/ closes", xalign=1)
+    h.get_style_context().add_class("hint")
+    head.pack_end(h, False, False, 0)
+    panel.pack_start(head, False, False, 0)
+    flow = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=3, min_children_per_line=2,
+                       column_spacing=28, row_spacing=6, homogeneous=False)
+    for g in groups:
+        col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5, valign=Gtk.Align.START)
+        gl = Gtk.Label(label=g["group"].upper(), xalign=0)
+        gl.get_style_context().add_class("group")
+        col.pack_start(gl, False, False, 0)
+        for it in g["items"]:
+            r = Gtk.Box(spacing=6)
+            for i, k in enumerate(it["keys"][:2]):
+                if i:
+                    o = Gtk.Label(label="or")
+                    o.get_style_context().add_class("or")
+                    r.pack_start(o, False, False, 0)
+                kl = Gtk.Label(label=k)
+                kl.get_style_context().add_class("key")
+                r.pack_start(kl, False, False, 0)
+            d = Gtk.Label(label=it["does"], xalign=0)
+            d.set_margin_start(6)
+            d.get_style_context().add_class("does")
+            r.pack_start(d, True, True, 0)
+            col.pack_start(r, False, False, 0)
+        flow.add(col)
+    if not groups:
+        flow.add(Gtk.Label(label="No shortcuts found in the desktop's settings."))
+    sc = Gtk.ScrolledWindow()
+    sc.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+    sc.set_propagate_natural_height(True)
+    sc.set_propagate_natural_width(True)
+    try:   # never taller than the screen
+        mon = Gdk.Display.get_default().get_monitor(0).get_geometry()
+        sc.set_max_content_height(int(mon.height * 0.78))
+        sc.set_max_content_width(int(mon.width * 0.9))
+    except Exception:
+        sc.set_max_content_height(700)
+    sc.add(flow)
+    panel.pack_start(sc, True, True, 0)
+    win.add(panel)
+    win.connect("key-press-event", lambda _w, ev: quit_() if ev.keyval in (Gdk.KEY_Escape, Gdk.KEY_slash) else False)
+    win.connect("button-release-event", lambda *_a: quit_())
+    win.connect("destroy", quit_)
+    if peek:
+        GLib.timeout_add(HOLD_MS, lambda: (win.show_all(), False)[-1])
+        GLib.timeout_add(60_000, quit_)
+    else:
+        win.show_all()
+    watch(GLib, quit_)
+    try:
+        Gtk.main()
+    finally:
+        try:
+            if PIDFILE.read_text().strip() == str(os.getpid()):
+                PIDFILE.unlink()
+        except OSError:
+            pass
+    return 0
+
+
+def watch(GLib, quit_) -> None:  # noqa: N803
+    """Any shortcut Sway runs (Super+D, the Super release, Super+/ again) closes the panel, or stops it appearing."""
+    def run() -> None:
+        comp = compositor()
+        if not comp:
+            return
+        for ev in comp.subscribe(["binding"]):   # Sway only: Hyprland sends no binding events
+            cmd = (ev.get("binding") or {}).get("command", "")
+            if "orion-shortcuts hold" in cmd:
+                continue
+            GLib.idle_add(quit_)
+            break
+    threading.Thread(target=run, daemon=True).start()
+
+
+def main(argv: list[str]) -> int:
+    cmd = argv[0] if argv else "toggle"
+    if cmd == "list":
+        groups = load()
+        if "--json" in argv:
+            print(json.dumps({"groups": groups}))
+        else:
+            for g in groups:
+                print(g["group"])
+                for it in g["items"]:
+                    print(f"  {' or '.join(it['keys']):<34} {it['does']}")
+        return 0
+    if cmd == "toggle":
+        if kill_running():
+            return 0
+        return show(peek=False)
+    if cmd == "hold":
+        kill_running()
+        return show(peek=True)
+    if cmd == "release":
+        kill_running()
+        return 0
+    print(__doc__)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

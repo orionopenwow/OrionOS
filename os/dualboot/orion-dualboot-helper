@@ -1,0 +1,10 @@
+#!/bin/sh
+# OrionOS dual boot, root part (os/dualboot). Started through pkexec; polkit (51-orion-dualboot.rules) lets the session
+# user run exactly "restart-windows" without a password. Nothing else is accepted.
+set -eu
+PY=/opt/orion/dualboot/orion_dualboot.py
+case "${1:-}" in
+  restart-windows) [ $# -eq 1 ] || { echo "restart-windows takes no options" >&2; exit 2; }
+                   exec /usr/bin/python3 -I "$PY" restart-windows ;;
+  *) echo "usage: orion-dualboot-helper restart-windows" >&2; exit 2 ;;
+esac

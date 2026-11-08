@@ -1,0 +1,29 @@
+# Orion notifications (Art Update §7): frosted Event glass, Starlight text, a violet edge; Ember only for things
+# that need you.
+font=Figtree 11
+background-color=#0B0F1EE6
+text-color=#D8DEFF
+border-color=#262D50
+border-size=1
+border-radius=14
+padding=14,16
+margin=12
+width=380
+height=160
+icons=1
+max-icon-size=40
+default-timeout=8000
+progress-color=over #7C5CFF55
+format=<b>%s</b>\n%b
+anchor=top-right
+
+[app-name=Orion]
+border-color=#7C5CFF
+
+[urgency=low]
+text-color=#9DA6D8
+default-timeout=5000
+
+[urgency=high]
+border-color=#FFC66B
+default-timeout=0

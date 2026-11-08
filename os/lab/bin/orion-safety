@@ -1,0 +1,63 @@
+#!/bin/sh
+# OrionOS safety net from the terminal (orion-ctl undo|freeze|unfreeze|health|snapshots|changes run this).
+#   undo [ID] [--path FILE]  go back to before the last update (or to snapshot ID; --path: just that file or folder)
+#                            asks for the orion-admin password
+#   freeze [why]             kill switch: stop all self-changes, updates and agents now
+#   unfreeze                 asks your phone; Orion stays frozen until you approve it there
+#   health                   what Orion's health monitor sees
+#   snapshots                list snapshots;  snapshots take [why]  takes one now
+#   changes [N]              the last N changes Orion made (default 20)
+API=http://127.0.0.1:9120
+# Orion's API needs this run's key (review B1). It's read from the user's private token file and handed to curl on
+# file descriptor 3, so it never shows up in the process list.
+orion_token() {
+  for f in "${ORION_TOKEN_FILE:-}" "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/orion/daemon.token" \
+           "${ORION_DATA_DIR:-$HOME/.orion}/daemon.token"; do
+    if [ -n "$f" ] && [ -r "$f" ]; then cat "$f"; return 0; fi
+  done
+  return 0
+}
+ocurl() {
+  command curl -H @/dev/fd/3 "$@" 3<<EOF
+Authorization: Bearer $(orion_token)
+EOF
+}
+j() { ocurl -fsS -H 'content-type: application/json' "$@"; }
+need_jq() { command -v jq >/dev/null || { echo "jq is missing"; exit 1; }; }
+case "${1:-}" in
+  undo)
+    shift
+    ID=""; P=""
+    while [ $# -gt 0 ]; do
+      case "$1" in --path) P="${2:?--path needs a file or folder}"; shift 2 ;; *) ID="$1"; shift ;; esac
+    done
+    case "$ID" in *[!A-Za-z0-9_.-]*) echo "That isn't a snapshot name: $ID"; exit 2 ;; esac
+    case "$P" in *"'"*) echo "That path has a quote in it; restore it with: sudo orion-snapshot restore"; exit 2 ;; esac
+    orion-snapshot status 2>/dev/null | head -n 2
+    if [ -z "$ID" ]; then
+      echo "Going back to before the last update needs the orion-admin password."
+      exec su -P - orion-admin -c "sudo orion-snapshot undo"
+    fi
+    echo "Putting back ${P:-everything} from snapshot $ID needs the orion-admin password."
+    if [ -n "$P" ]; then exec su -P - orion-admin -c "sudo orion-snapshot restore '$ID' --path '$P'"; fi
+    exec su -P - orion-admin -c "sudo orion-snapshot restore '$ID'" ;;
+  freeze)
+    shift; need_jq
+    W="$(printf '%s' "$*" | jq -Rs .)"
+    j -X POST -d "{\"by\":\"the terminal\",\"why\":$W}" $API/freeze | jq -r '.freeze | if .frozen then "Frozen. No self-changes, updates or agents until you unfreeze it from your phone. \(.system_updates // "")" else "Not frozen?" end' \
+      || { echo "Orion isn't answering; freezing system updates only."; pkexec /opt/orion/safety/orion-freeze-helper on; } ;;
+  unfreeze)
+    need_jq; j -X POST $API/freeze/unfreeze | jq -r .message || echo "Orion isn't answering." ;;
+  health)
+    need_jq
+    j "$API/health/status?refresh=1" | jq -r '"\(.words)\n", (.checks[] | "  \(if .status=="ok" then "ok  " elif .status=="warn" then "WARN" else "FAIL" end)  \(.label): \(.reason)\(if .fix_words != "" and .status != "ok" then "\n        -> \(.fix_words)" else "" end)")' \
+      || echo "Orion isn't answering (orion-ctl logs)." ;;
+  snapshots)
+    if [ "${2:-}" = take ]; then shift 2; pkexec /usr/local/bin/orion-snapshot take --why "${*:-you took one}"; exit $?; fi
+    orion-snapshot list ;;
+  changes)
+    need_jq
+    j "$API/changes?limit=${2:-20}" | jq -r '.changes[] | "\(.ts | floor | strflocaltime("%Y-%m-%d %H:%M"))  \(.what)\(if .why != "" then " (\(.why))" else "" end)\(if .undone_by then "  [undone]" elif .undo then "  [can undo: \(.id)]" else "" end)"' \
+      || echo "Orion isn't answering (orion-ctl logs)." ;;
+  *) sed -n '2,9p' "$0"; exit 2 ;;
+esac

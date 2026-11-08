@@ -1,0 +1,91 @@
+#!/bin/sh
+# orion-timezone: the clock's time zone (OrionOS basics, os/basics/README.md).
+#   orion-timezone status        the zone, network time and how the hardware clock is kept
+#   orion-timezone choose        pick from a searchable list (wofi); your language's country comes first
+#   orion-timezone set ZONE      use ZONE (for example Europe/London); no password needed (50-orion-basics.rules)
+#   orion-timezone lookup        ONE request to Ubuntu's location service (geoip.ubuntu.com, which sees this
+#                                computer's internet address) and print the zone it suggests. Only run it after
+#                                you said yes: the first-run step and Settings ask first.
+#   orion-timezone first-start   the first-run step (in a terminal): keeps a zone already chosen, otherwise asks
+#   orion-timezone apply         make the night light, the Orion window and Orion's brain follow the zone
+# Network time (systemd-timesyncd) is always on. The hardware clock stays in UTC (see the README for Windows).
+LIB="${ORION_BASICS_LIB:-/opt/orion/basics/orion_basics.py}"
+[ -f "$LIB" ] || LIB="$(dirname "$(readlink -f "$0")")/../../basics/orion_basics.py"
+GEOIP_URL="https://geoip.ubuntu.com/lookup"
+MARK="$HOME/.config/orion/timezone-chosen"
+
+current() { python3 "$LIB" current; }
+say() { if [ -t 1 ]; then printf '%s\n' "$*"; else notify-send "Orion" "$*" 2>/dev/null || printf '%s\n' "$*"; fi; }
+
+apply() {
+  [ "${ORION_TZ_NO_RESTART:-0}" = 1 ] && return 0
+  orion-nightlight restart >/dev/null 2>&1 &
+  # The Orion window and the brain read the zone when they start: restart both (orion-hud brings the window back).
+  systemctl --user try-restart orion-daemon >/dev/null 2>&1 || true
+  pkill -u "$(id -u)" -x -f '(/usr/bin/orion|/usr/bin/Orion|/opt/orion/hud/orion)' 2>/dev/null || true
+  return 0
+}
+
+set_zone() {
+  z="$1"
+  python3 "$LIB" valid "$z" || { say "\"$z\" isn't a time zone this computer knows."; return 2; }
+  if [ "$z" != "$(current)" ]; then
+    timedatectl set-timezone "$z" || { say "Couldn't change the time zone (timedatectl refused)."; return 1; }
+  fi
+  timedatectl set-ntp true >/dev/null 2>&1 || true
+  mkdir -p "$(dirname "$MARK")" && printf '%s\n' "$z" > "$MARK"
+  apply
+  say "Time zone: $z. The clock now shows $(date +%H:%M)."
+}
+
+choose() {
+  pick=$(python3 "$LIB" zones | wofi --dmenu --insensitive --prompt "Your time zone (now $(current)): type a city or country" \
+    --cache-file /dev/null --height 520 2>/dev/null) || return 1
+  z="${pick%%  ·*}"
+  [ -n "$z" ] || return 1
+  set_zone "$z"
+}
+
+lookup() {
+  command -v curl >/dev/null || return 1
+  curl -fsS --max-time 8 --proto '=https' "$GEOIP_URL" 2>/dev/null | python3 "$LIB" geoip
+}
+
+ask_yes() {  # question default(y|n)
+  printf '%s ' "$1"; read -r a
+  case "$a" in y|Y|yes) return 0 ;; n|N|no) return 1 ;; *) [ "$2" = y ] ;; esac
+}
+
+first_start() {
+  cur=$(current)
+  if [ -f "$MARK" ] || { [ "$cur" != UTC ] && [ "$cur" != Etc/UTC ]; }; then
+    if ask_yes "   Your clock uses $cur ($(date +%H:%M) now). Keep it? [Y/n]" y; then
+      mkdir -p "$(dirname "$MARK")" && printf '%s\n' "$cur" > "$MARK"; return 0
+    fi
+  fi
+  printf '   Orion can find your time zone over the internet: it asks Ubuntu'"'"'s location service\n'
+  printf '   (geoip.ubuntu.com) once. That service sees this computer'"'"'s internet address; nothing else is sent.\n'
+  if ask_yes "   Look it up online? [y/N]" n; then
+    if z=$(lookup) && [ -n "$z" ]; then
+      if ask_yes "   It looks like $z. Use it? [Y/n]" y; then set_zone "$z"; return $?; fi
+    else
+      printf '   No answer (offline?). Pick it from the list instead.\n'
+    fi
+  fi
+  printf '   Pick your time zone from the list (type a city or country).\n'
+  choose || printf '   Skipped. Change it any time: Settings > Time zone.\n'
+}
+
+case "${1:-status}" in
+  status)
+    printf 'Time zone: %s (%s)\n' "$(current)" "$(date +'%H:%M %Z')"
+    timedatectl show -p NTP -p NTPSynchronized -p LocalRTC 2>/dev/null \
+      | sed 's/^NTP=yes/Network time: on/; s/^NTP=no/Network time: off/; s/^NTPSynchronized=yes/In sync: yes/;
+             s/^NTPSynchronized=no/In sync: not yet/; s/^LocalRTC=no/Hardware clock: UTC/; s/^LocalRTC=yes/Hardware clock: local time/' ;;
+  choose) choose ;;
+  set) [ -n "${2:-}" ] || { echo "usage: orion-timezone set Region/City"; exit 2; }; set_zone "$2" ;;
+  lookup) lookup ;;
+  first-start) first_start ;;
+  apply) apply ;;
+  *) sed -n '2,12p' "$0"; exit 2 ;;
+esac

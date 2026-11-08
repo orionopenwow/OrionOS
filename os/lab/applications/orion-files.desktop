@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Orion Files
+Comment=Your projects, captures and vault
+Exec=orion-files
+Icon=system-file-manager
+Categories=Utility;FileManager;

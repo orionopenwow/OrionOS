@@ -1,0 +1,2 @@
+[{"id":3,"type":"output","name":"eDP-1","active":true,"make":"BOE","model":"0x0BCA","serial":"Unknown","scale":1.25,"current_mode":{"width":2560,"height":1600,"refresh":165000},"rect":{"x":0,"y":0,"width":2048,"height":1280}},
+ {"id":4,"type":"output","name":"HDMI-A-1","active":true,"make":"Dell Inc.","model":"DELL U2720Q","serial":"ABC","scale":1.0,"current_mode":{"width":3840,"height":2160,"refresh":59997},"rect":{"x":2048,"y":0,"width":3840,"height":2160}}]

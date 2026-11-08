@@ -1,0 +1,21 @@
+#!/bin/sh
+# Orion Secret Shield: checks every commit (yours or an agent's) for passwords, tokens and keys before it's made.
+# Then Package Reality Check: new dependencies in the commit must be real, not look-alikes of popular packages.
+# Installed by: node scripts/secret-shield/install-hooks.mjs   (npm install and "Publish to GitHub.cmd" run it)
+# Works in Git for Windows' bash and on Linux/macOS.
+root="$(git rev-parse --show-toplevel)" || exit 1
+script="$root/scripts/secret-shield/pre-commit.mjs"
+[ -f "$script" ] || exit 0   # a branch from before Secret Shield existed
+for n in node node.exe; do
+  if command -v "$n" >/dev/null 2>&1; then
+    "$n" "$script" || exit 1   # Secret Shield first; a block stops the commit here
+    packages="$root/scripts/package-check/pre-commit.mjs"
+    if [ -f "$packages" ]; then
+      "$n" "$packages" || exit 1
+    fi
+    exit 0
+  fi
+done
+echo "Secret Shield: Node.js isn't installed, so this commit can't be checked for secrets." >&2
+echo "Install Node.js from https://nodejs.org and commit again." >&2
+exit 1

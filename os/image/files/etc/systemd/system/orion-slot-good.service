@@ -1,0 +1,15 @@
+[Unit]
+Description=OrionOS: this system slot reached a healthy Orion session, keep it
+ConditionKernelCommandLine=orion.slot
+After=greetd.service
+Wants=greetd.service
+
+[Service]
+# Kept only once Orion's brain answers on 127.0.0.1:9120/health and the Orion screen (HUD) has stayed up, then
+# again a minute later (orion-healthy). Waits up to 15 minutes however long unlocking the vault took; if Orion never
+# gets there, the slot isn't kept and the next start goes back to the one that worked (grub.cfg next/tries).
+Type=simple
+ExecStart=/usr/local/bin/orion-slot mark-good --wait 900
+
+[Install]
+WantedBy=graphical.target

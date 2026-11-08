@@ -1,0 +1,12 @@
+# OrionOS: Window list for Alt+Tab (orion-windows watch), started with the Sway session (sway-session.target).
+[Unit]
+Description=Window list for Alt+Tab (orion-windows watch)
+PartOf=sway-session.target
+After=sway-session.target
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+ExecStart=/usr/bin/env orion-windows watch
+Restart=on-failure
+RestartSec=2

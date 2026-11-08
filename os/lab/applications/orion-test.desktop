@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Test Orion
+Comment=Check that Orion works on this computer and your phone, step by step
+Exec=orion-ctl test
+Icon=orion
+Terminal=false
+Categories=Utility;
+Keywords=test;check;self-test;

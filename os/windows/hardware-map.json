@@ -1,0 +1,54 @@
+{
+  "_about": "Small list of laptop and PC chips and how well they work on OrionOS (Ubuntu 24.04, Linux 6.8 or newer). Read by os/windows/Check-OrionReady.ps1. Rules are tried in order and the first match wins, so specific chips come before 'any chip from this maker'. bus: PCI, USB, HDA (sound codec) or ACPI. vendor/device: the 4-digit hex ids Windows shows (VEN_xxxx&DEV_xxxx, VID_xxxx&PID_xxxx); acpi: the start of an ACPI id. status: good = works as soon as OrionOS starts; firmware = works, but needs extra firmware or a driver OrionOS installs, or a newer kernel; problem = often doesn't work on Linux yet. flavour (GPUs only): which OrionOS image to use.",
+  "checked": "2026-10-17",
+  "rules": [
+    {"kind": "wifi", "bus": "PCI", "vendor": "8086", "status": "good", "note": "Intel Wi-Fi works out of the box (iwlwifi)."},
+    {"kind": "wifi", "bus": "PCI", "vendor": "10ec", "device": ["8922"], "status": "firmware", "note": "Realtek RTL8922AE (Wi-Fi 7) needs a newer kernel than some OrionOS builds have. Keep a USB Wi-Fi stick or a cable handy."},
+    {"kind": "wifi", "bus": "PCI", "vendor": "10ec", "device": ["c822", "c821", "b822", "d723", "8852", "b852", "c852", "818b", "8179", "8178", "c82f", "b85b", "8822", "8821"], "status": "good", "note": "Realtek Wi-Fi works out of the box (rtw88 / rtw89)."},
+    {"kind": "wifi", "bus": "PCI", "vendor": "10ec", "status": "firmware", "note": "Realtek Wi-Fi: most chips work; this one isn't in Orion's list. Have a cable or USB Wi-Fi stick ready for the first start."},
+    {"kind": "wifi", "bus": "PCI", "vendor": "14c3", "device": ["7902"], "status": "problem", "note": "MediaTek MT7902 has no reliable Linux driver yet. Use a USB Wi-Fi stick or a cable."},
+    {"kind": "wifi", "bus": "PCI", "vendor": "14c3", "device": ["7925", "0717"], "status": "firmware", "note": "MediaTek MT7925 (Wi-Fi 7) works with Linux 6.8+ and current firmware; it can be unstable on early kernels."},
+    {"kind": "wifi", "bus": "PCI", "vendor": "14c3", "device": ["7961", "0608", "0616", "7922"], "status": "good", "note": "MediaTek MT7921 / MT7922 works out of the box (mt7921e)."},
+    {"kind": "wifi", "bus": "PCI", "vendor": "14c3", "status": "firmware", "note": "MediaTek Wi-Fi: most chips work; this one isn't in Orion's list."},
+    {"kind": "wifi", "bus": "PCI", "vendor": "14e4", "device": ["43a0", "43b1", "4365", "43a3"], "status": "firmware", "note": "Broadcom Wi-Fi needs Broadcom's own driver (bcmwl). Connect with a cable the first time so OrionOS can install it."},
+    {"kind": "wifi", "bus": "PCI", "vendor": "14e4", "status": "firmware", "note": "Broadcom Wi-Fi often needs an extra driver. Have a cable or USB Wi-Fi stick ready."},
+    {"kind": "wifi", "bus": "PCI", "vendor": "168c", "status": "good", "note": "Qualcomm Atheros Wi-Fi works out of the box (ath9k / ath10k)."},
+    {"kind": "wifi", "bus": "PCI", "vendor": "17cb", "device": ["1103"], "status": "firmware", "note": "Qualcomm WCN6855 works (ath11k) but sleep and resume can be flaky on some laptops."},
+    {"kind": "wifi", "bus": "PCI", "vendor": "17cb", "device": ["1107"], "status": "firmware", "note": "Qualcomm WCN7850 (Wi-Fi 7) needs current firmware (ath12k)."},
+    {"kind": "wifi", "bus": "PCI", "vendor": "17cb", "status": "firmware", "note": "Qualcomm Wi-Fi: usually works with current firmware."},
+    {"kind": "wifi", "bus": "USB", "status": "firmware", "note": "USB Wi-Fi: many work out of the box, some need a driver."},
+    {"kind": "wifi", "status": "firmware", "note": "This Wi-Fi chip isn't in Orion's list. Try OrionOS from the USB stick first to see if it connects."},
+
+    {"kind": "gpu", "bus": "PCI", "vendor": "10de", "status": "good", "flavour": "nvidia", "note": "NVIDIA graphics: use the nvidia OrionOS image (it has NVIDIA's driver). With Secure Boot on, the first start asks you to enrol a key once."},
+    {"kind": "gpu", "bus": "PCI", "vendor": "1002", "status": "good", "flavour": "standard", "note": "AMD graphics work out of the box (amdgpu)."},
+    {"kind": "gpu", "bus": "PCI", "vendor": "8086", "status": "good", "flavour": "standard", "note": "Intel graphics work out of the box."},
+    {"kind": "gpu", "bus": "PCI", "vendor": "1414", "status": "good", "flavour": "standard", "note": "Virtual machine graphics (Hyper-V)."},
+    {"kind": "gpu", "bus": "PCI", "vendor": "80ee", "status": "good", "flavour": "standard", "note": "Virtual machine graphics (VirtualBox)."},
+    {"kind": "gpu", "bus": "PCI", "vendor": "15ad", "status": "good", "flavour": "standard", "note": "Virtual machine graphics (VMware)."},
+    {"kind": "gpu", "status": "firmware", "flavour": "standard", "note": "This graphics chip isn't in Orion's list. The standard image should still show a picture."},
+
+    {"kind": "bluetooth", "bus": "USB", "vendor": "8087", "status": "good", "note": "Intel Bluetooth works out of the box."},
+    {"kind": "bluetooth", "bus": "USB", "vendor": "0bda", "status": "good", "note": "Realtek Bluetooth works out of the box."},
+    {"kind": "bluetooth", "bus": "USB", "vendor": "0e8d", "status": "good", "note": "MediaTek Bluetooth works out of the box."},
+    {"kind": "bluetooth", "bus": "USB", "vendor": "13d3", "status": "good", "note": "Bluetooth (IMC Networks, a Realtek or MediaTek chip) usually works out of the box."},
+    {"kind": "bluetooth", "bus": "USB", "vendor": "0489", "status": "good", "note": "Bluetooth (Foxconn, a MediaTek or Qualcomm chip) usually works out of the box."},
+    {"kind": "bluetooth", "bus": "USB", "vendor": "0a5c", "status": "firmware", "note": "Broadcom Bluetooth may need extra firmware."},
+    {"kind": "bluetooth", "status": "good", "note": "Bluetooth usually works out of the box."},
+
+    {"kind": "sound", "bus": "ACPI", "acpi": "CSC3551", "status": "firmware", "note": "This laptop uses Cirrus Logic speaker amplifiers. Headphones work; the built-in speakers may stay quiet until a firmware update for this model reaches Linux."},
+    {"kind": "sound", "bus": "ACPI", "acpi": "TIAS2781", "status": "firmware", "note": "This laptop uses TI speaker amplifiers. The built-in speakers may need a newer kernel."},
+    {"kind": "sound", "bus": "HDA", "vendor": "10ec", "status": "good", "note": "Realtek sound works out of the box."},
+    {"kind": "sound", "bus": "HDA", "vendor": "14f1", "status": "good", "note": "Conexant sound works out of the box."},
+    {"kind": "sound", "bus": "HDA", "status": "good", "note": "Sound works out of the box."},
+    {"kind": "sound", "bus": "PCI", "vendor": "8086", "status": "good", "note": "Intel sound works out of the box (on very new laptops the microphone may need a newer kernel)."},
+    {"kind": "sound", "bus": "PCI", "vendor": "1022", "status": "good", "note": "AMD sound works out of the box."},
+    {"kind": "sound", "status": "good", "note": "Sound usually works out of the box."},
+
+    {"kind": "touchpad", "status": "good", "note": "Touchpads work out of the box (gestures included)."},
+
+    {"kind": "fingerprint", "bus": "USB", "vendor": "27c6", "status": "problem", "note": "Goodix fingerprint readers mostly don't work on Linux. Orion's approvals use your phone's fingerprint instead."},
+    {"kind": "fingerprint", "status": "problem", "note": "Laptop fingerprint readers often don't work on Linux. Orion's approvals use your phone's fingerprint instead."},
+
+    {"kind": "ethernet", "status": "good", "note": "Wired network works out of the box."}
+  ]
+}

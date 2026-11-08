@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>OrionOS</title>
+  <meta name="description" content="OrionOS is a Linux system whose whole desktop is Orion: a living black hole, calm glass windows, one simple menu, coding agents you can watch, and your phone's fingerprint for every big decision." />
+  <meta name="theme-color" content="#05070E" />
+  <meta property="og:title" content="OrionOS: a desktop that is alive" />
+  <meta property="og:description" content="A Linux OS whose desktop is Orion. Preview it in your browser with sample data." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://orionopenwow.github.io/OrionOS/" />
+  <meta property="og:image" content="https://orionopenwow.github.io/OrionOS/screenshots/social.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="icon" href="site/img/orion-icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="site/img/icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Martian+Mono:wght@400;500&family=Unbounded:wght@400;500;600&display=swap" />
+  <link rel="stylesheet" href="site/site.css" />
+</head>
+<body>
+  <header class="bar" role="banner">
+    <a class="brand" href="#site" aria-label="OrionOS home"><img src="site/img/orion-os-lockup.png" alt="orion os" width="132" height="40" /></a>
+    <nav class="tabs" role="tablist" aria-label="Pages">
+      <a role="tab" id="tab-site" href="#site" aria-controls="site" aria-selected="true">Site</a>
+      <a role="tab" id="tab-preview" href="#preview" aria-controls="preview" aria-selected="false">Preview the OS</a>
+    </nav>
+    <a class="bar-link" id="repo-link" href="https://github.com/orionopenwow/OrionOS">GitHub</a>
+  </header>
+
+  <main>
+    <section id="site" role="tabpanel" aria-labelledby="tab-site">
+      <div class="hero">
+        <div class="hero-sky" aria-hidden="true"></div>
+        <div class="hero-text">
+          <p class="eyebrow" data-k="hero.eyebrow">A Linux OS · free and open source</p>
+          <h1 data-k="hero.title">Your desktop is alive.</h1>
+          <p class="lede" data-k="hero.lede">OrionOS is Ubuntu with Orion as the whole desktop.</p>
+          <div class="cta">
+            <a class="btn btn-main" id="hero-primary" href="#preview">Preview the OS</a>
+            <a class="btn" id="hero-secondary" href="#try">How to try it</a>
+          </div>
+          <p class="note" data-k="hero.note"></p>
+        </div>
+      </div>
+
+      <section class="block" aria-labelledby="h-features">
+        <h2 id="h-features" class="kicker">What it is</h2>
+        <div id="features" class="features"></div>
+      </section>
+
+      <section class="block" aria-labelledby="h-safety">
+        <h2 id="h-safety" class="kicker">You stay in charge</h2>
+        <div id="safety" class="grid4"></div>
+      </section>
+
+      <section class="block" id="try" aria-labelledby="h-try">
+        <h2 id="h-try" class="kicker">How to try it</h2>
+        <div id="try-cards" class="grid3"></div>
+        <div class="start-here" id="start-here"></div>
+      </section>
+
+      <section class="block" id="commands" aria-labelledby="h-commands">
+        <h2 id="h-commands" class="kicker">Things to say, press and type</h2>
+        <div class="subtabs" role="tablist" aria-label="Commands" id="cmd-tabs"></div>
+        <div id="cmd-list" class="cmd-list" role="tabpanel"></div>
+      </section>
+
+      <section class="block" aria-labelledby="h-shots">
+        <h2 id="h-shots" class="kicker">Pictures</h2>
+        <div id="shots" class="shots"></div>
+      </section>
+
+      <footer class="foot">
+        <div id="links" class="links"></div>
+        <p class="small">OrionOS is free software. The preview uses sample data and runs only in your browser. <span id="updated"></span></p>
+      </footer>
+    </section>
+
+    <section id="preview" role="tabpanel" aria-labelledby="tab-preview" hidden>
+      <div class="preview-bar">
+        <span class="dot" aria-hidden="true"></span>
+        <span>Preview — sample data. Nothing leaves your browser.</span>
+        <span class="grow"></span>
+        <a href="app/?tour=1" target="_top" class="mini" id="tour-link">Take the tour</a>
+        <a href="app/" target="_blank" rel="noopener" class="mini strong">Open full screen</a>
+      </div>
+      <iframe id="os-frame" title="OrionOS preview with sample data" allow="autoplay; clipboard-write" loading="lazy"></iframe>
+    </section>
+  </main>
+
+  <noscript><p class="noscript">This page needs JavaScript to show its content. The <a href="app/">OS preview</a> also needs it. The install guides are on <a href="https://github.com/orionopenwow/OrionOS/tree/main/docs/install">GitHub</a>.</p></noscript>
+  <script src="site/site.js" defer></script>
+</body>
+</html>

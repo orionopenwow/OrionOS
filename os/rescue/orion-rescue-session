@@ -1,0 +1,18 @@
+#!/bin/sh
+# OrionOS "Rescue desktop" (the login screen's second button): plain Sway with a terminal, your files, a browser and
+# the Rescue panel. No Orion screen (HUD), no SwayFX effects, nothing that started at login in the normal session.
+# Software drawing on VMs, the same as the normal session; the Orion daemon is left alone (it is a user service).
+export XDG_CURRENT_DESKTOP=sway XDG_SESSION_TYPE=wayland XDG_SESSION_DESKTOP=sway MOZ_ENABLE_WAYLAND=1
+export ORION_RESCUE_SESSION=1
+if grep -qw orion.hud_nojit /proc/cmdline 2>/dev/null; then export GALLIUM_DRIVER=softpipe; fi
+if systemd-detect-virt -q 2>/dev/null || [ -n "${ORION_SOFTWARE_RENDER:-}" ]; then
+  export WLR_RENDERER=pixman WLR_NO_HARDWARE_CURSORS=1
+fi
+# [hardware hook] NVIDIA's own driver: Sway refuses to start without --unsupported-gpu.
+EXTRA=""
+grep -q '^nvidia ' /proc/modules 2>/dev/null && EXTRA="--unsupported-gpu"
+[ -r /etc/profile.d/flatpak.sh ] && . /etc/profile.d/flatpak.sh
+CONF="${ORION_RESCUE_SWAY_CONF:-/opt/orion/rescue/sway-rescue.conf}"
+[ -r "$CONF" ] || CONF="$(dirname "$(readlink -f "$0")")/sway-rescue.conf"
+# shellcheck disable=SC2086
+exec sway $EXTRA -c "$CONF"

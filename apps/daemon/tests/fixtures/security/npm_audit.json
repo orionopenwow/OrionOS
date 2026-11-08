@@ -1,0 +1,18 @@
+{"auditReportVersion": 2,
+ "vulnerabilities": {
+  "semver": {"name": "semver", "severity": "moderate", "isDirect": false,
+             "via": [{"source": 1096482, "name": "semver", "dependency": "semver",
+                      "title": "semver vulnerable to Regular Expression Denial of Service",
+                      "url": "https://github.com/advisories/GHSA-c2qf-rxjj-qqgw", "severity": "moderate",
+                      "cwe": ["CWE-1333"], "cvss": {"score": 5.3}, "range": "<5.7.2"}],
+             "effects": ["make-dir"], "range": "<5.7.2", "nodes": ["node_modules/semver"], "fixAvailable": true},
+  "make-dir": {"name": "make-dir", "severity": "moderate", "isDirect": false, "via": ["semver"], "effects": [],
+               "range": "2.0.0 - 3.1.0", "nodes": ["node_modules/make-dir"], "fixAvailable": true},
+  "vite": {"name": "vite", "severity": "high", "isDirect": true,
+           "via": [{"source": 1099999, "name": "vite", "title": "Vite bypasses server.fs.deny",
+                    "url": "https://github.com/advisories/GHSA-x574-m823-4x7w", "severity": "high",
+                    "range": ">=5.0.0 <5.4.6"}],
+           "effects": [], "range": ">=5.0.0 <5.4.6", "nodes": ["node_modules/vite"],
+           "fixAvailable": {"name": "vite", "version": "6.0.0", "isSemVerMajor": true}}
+ },
+ "metadata": {"vulnerabilities": {"info": 0, "low": 0, "moderate": 2, "high": 1, "critical": 0, "total": 3}}}

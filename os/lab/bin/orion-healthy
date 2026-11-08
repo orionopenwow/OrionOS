@@ -1,0 +1,47 @@
+#!/bin/sh
+# orion-healthy: is Orion's session really up? Used before a new system is kept (orion-slot mark-good, orion-bootcount
+# good) and after an Orion update (orion-update). "Healthy" means both:
+#   - Orion's brain answers on 127.0.0.1:9120/health (an answer that asks for a sign-in token counts: it's running)
+#   - the HUD (the Orion screen) is running for the session user and has stayed up for 20 seconds
+#
+#   orion-healthy [--wait SECONDS] [--stable SECONDS] [--daemon-only] [--user NAME] [--quiet]
+#     --wait    keep checking up to this long (default: check once)
+#     --stable  once healthy, check again after this long; both must pass (default 0)
+# Exit 0 healthy, 1 not (the reason is printed).
+WAIT=0; STABLE=0; DAEMON_ONLY=0; U="${ORION_USER:-orion}"; QUIET=0
+URL="${ORION_HEALTH_URL:-http://127.0.0.1:9120/health}"
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --wait) WAIT="$2"; shift 2 ;;
+    --stable) STABLE="$2"; shift 2 ;;
+    --daemon-only) DAEMON_ONLY=1; shift ;;
+    --user) U="$2"; shift 2 ;;
+    --quiet) QUIET=1; shift ;;
+    *) sed -n '2,10p' "$0"; exit 2 ;;
+  esac
+done
+WHY=""
+daemon_ok() {
+  code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 "$URL" 2>/dev/null || true)"
+  case "$code" in 200|401|403) return 0 ;; esac
+  WHY="Orion's brain doesn't answer (port 9120${code:+, answer $code})."; return 1
+}
+hud_ok() {
+  for pid in $(pgrep -u "$U" -f '^(/usr/bin/orion|/usr/bin/Orion|/opt/orion/hud/orion)( |$)' 2>/dev/null); do
+    age="$(ps -o etimes= -p "$pid" 2>/dev/null | tr -d ' ')"
+    [ "${age:-0}" -ge 20 ] 2>/dev/null && return 0
+  done
+  WHY="The Orion screen (HUD) isn't running for $U, or keeps restarting."; return 1
+}
+check() { daemon_ok || return 1; [ "$DAEMON_ONLY" = 1 ] || hud_ok; }
+waited=0
+until check; do
+  if [ "$waited" -ge "$WAIT" ]; then [ "$QUIET" = 1 ] || echo "Not healthy: $WHY"; exit 1; fi
+  sleep 5; waited=$((waited + 5))
+done
+if [ "$STABLE" -gt 0 ]; then
+  sleep "$STABLE"
+  check || { [ "$QUIET" = 1 ] || echo "Not healthy after $STABLE seconds: $WHY"; exit 1; }
+fi
+[ "$QUIET" = 1 ] || echo "Healthy: Orion's brain answers$([ "$DAEMON_ONLY" = 1 ] || echo ' and the Orion screen is up')."
+exit 0

@@ -1,0 +1,8 @@
+#!/bin/sh
+# OrionOS laptop power: battery warnings at 15% and 7%, sleep at 4%, the power mode follows the battery, and whether
+# this computer can hibernate.
+#   orion-power status [--json] | watch | once | auto-saver on|off | hibernate on|off
+# The logic lives in /opt/orion/everyone/orion_everyone.py (os/everyone/README.md).
+LIB="${ORION_EVERYONE_LIB:-/opt/orion/everyone/orion_everyone.py}"
+[ -r "$LIB" ] || LIB="$(dirname "$(readlink -f "$0")")/../../everyone/orion_everyone.py"
+exec python3 "$LIB" power "$@"

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=X-GNOME-Metatheme
+Name=Orion Glass Solid
+Comment=OrionOS: the opaque twin of Orion Glass, for plain Sway (no blur)
+Encoding=UTF-8
+
+[X-GNOME-Metatheme]
+GtkTheme=Orion-Glass-Solid
+IconTheme=Orion
+CursorTheme=Adwaita
+ButtonLayout=close,minimize,maximize:minimize,maximize,close

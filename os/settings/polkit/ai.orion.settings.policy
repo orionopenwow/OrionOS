@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!-- Orion Settings: the two narrow root helpers. Anyone else needs an admin password; the session user sitting at
+     the computer is allowed by /etc/polkit-1/rules.d/50-orion-settings.rules. -->
+<policyconfig>
+  <vendor>OrionOS</vendor>
+  <action id="ai.orion.settings.power">
+    <description>Choose what the lid and the power button do</description>
+    <message>Changing what the lid and the power button do needs permission.</message>
+    <defaults><allow_any>no</allow_any><allow_inactive>no</allow_inactive><allow_active>auth_admin_keep</allow_active></defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/opt/orion/settings/helpers/orion-settings-power</annotate>
+  </action>
+  <action id="ai.orion.settings.camera">
+    <description>Turn the camera on or off</description>
+    <message>Turning the camera on or off needs permission.</message>
+    <defaults><allow_any>no</allow_any><allow_inactive>no</allow_inactive><allow_active>auth_admin_keep</allow_active></defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/opt/orion/settings/helpers/orion-settings-camera</annotate>
+  </action>
+</policyconfig>

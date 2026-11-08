@@ -1,0 +1,18 @@
+# OrionOS USB stick: logs in RAM, copied to the vault every hour and at shutdown (os/rescue/orion-log2ram).
+[Unit]
+Description=Keep logs in RAM and copy them to the vault (USB stick)
+DefaultDependencies=no
+After=local-fs.target
+Before=orion-journal-vault.service systemd-journal-flush.service sysinit.target shutdown.target
+Conflicts=shutdown.target
+ConditionPathExists=/dev/mapper/orionvault
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/orion/rescue/orion-log2ram start
+ExecStop=/opt/orion/rescue/orion-log2ram stop
+TimeoutStopSec=60
+
+[Install]
+WantedBy=sysinit.target

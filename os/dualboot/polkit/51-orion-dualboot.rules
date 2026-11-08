@@ -1,0 +1,9 @@
+// OrionOS dual boot (os/dualboot): the session user "orion", sitting at the computer, may restart into Windows once
+// without the admin password. Exactly that command line; nothing else (the helper accepts nothing else either).
+polkit.addRule(function(action, subject) {
+    if (action.id != "ai.orion.dualboot.restart-windows") return polkit.Result.NOT_HANDLED;
+    if (subject.user != "orion" || !subject.local || !subject.active) return polkit.Result.NOT_HANDLED;
+    var cl = action.lookup("command_line") || "";
+    if (cl == "/opt/orion/dualboot/orion-dualboot-helper restart-windows") return polkit.Result.YES;
+    return polkit.Result.NOT_HANDLED;
+});

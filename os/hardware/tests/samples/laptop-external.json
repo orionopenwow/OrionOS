@@ -1,0 +1,108 @@
+[
+  {
+    "id": 4,
+    "type": "output",
+    "name": "eDP-1",
+    "make": "Samsung Display Corp.",
+    "model": "ATNA40YK07-0",
+    "serial": "Unknown",
+    "active": true,
+    "dpms": true,
+    "power": true,
+    "primary": false,
+    "non_desktop": false,
+    "modes": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "refresh": 90000,
+        "picture_aspect_ratio": "none"
+      },
+      {
+        "width": 2880,
+        "height": 1800,
+        "refresh": 60001,
+        "picture_aspect_ratio": "none"
+      }
+    ],
+    "focused": true,
+    "subpixel_hinting": "rgb",
+    "adaptive_sync_status": "disabled",
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "scale": 2.0,
+    "scale_filter": "linear",
+    "transform": "normal",
+    "current_workspace": "1",
+    "current_mode": {
+      "width": 2880,
+      "height": 1800,
+      "refresh": 90000,
+      "picture_aspect_ratio": "none"
+    },
+    "max_render_time": "off"
+  },
+  {
+    "id": 7,
+    "type": "output",
+    "name": "DP-1",
+    "make": "Dell Inc.",
+    "model": "DELL S2721DGF",
+    "serial": "7CDLN13",
+    "active": true,
+    "dpms": true,
+    "power": true,
+    "primary": false,
+    "non_desktop": false,
+    "modes": [
+      {
+        "width": 2560,
+        "height": 1440,
+        "refresh": 59951,
+        "picture_aspect_ratio": "none"
+      },
+      {
+        "width": 1920,
+        "height": 1080,
+        "refresh": 60000,
+        "picture_aspect_ratio": "none"
+      },
+      {
+        "width": 1920,
+        "height": 1080,
+        "refresh": 50000,
+        "picture_aspect_ratio": "none"
+      },
+      {
+        "width": 1280,
+        "height": 720,
+        "refresh": 60000,
+        "picture_aspect_ratio": "none"
+      }
+    ],
+    "focused": false,
+    "subpixel_hinting": "rgb",
+    "adaptive_sync_status": "disabled",
+    "rect": {
+      "x": 1440,
+      "y": 0,
+      "width": 2560,
+      "height": 1440
+    },
+    "scale": 1.0,
+    "scale_filter": "linear",
+    "transform": "normal",
+    "current_workspace": "2",
+    "current_mode": {
+      "width": 2560,
+      "height": 1440,
+      "refresh": 59951,
+      "picture_aspect_ratio": "none"
+    },
+    "max_render_time": "off"
+  }
+]

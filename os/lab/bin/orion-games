@@ -1,0 +1,776 @@
+#!/usr/bin/env python3
+"""orion-games: play the games you already have, on OrionOS.
+
+Finds games on this PC's Windows drive (dual boot: it opens it read-only, BitLocker-aware, the same way as "Open
+Windows files") and games installed here, and sets up free launchers for them:
+  - Steam (Flathub) with Proton, for Steam games. A Steam game on the Windows drive is copied into Steam here, so
+    Steam checks it instead of downloading it again.
+  - Heroic Games Launcher (Flathub, GPL) for Epic games, such as Rocket League. An Epic game on the Windows drive is
+    copied for Heroic's "Import game".
+  - Lutris (Flathub) with its official Battle.net install script, for World of Warcraft (retail and Classic). Your
+    game folder from Windows can be copied in so Battle.net finds it ("Locate the game").
+  - Your own WoW 1.12 client folder (private servers, your own server): copied off the Windows drive if needed,
+    then run with orion-wow-client. Orion never downloads Blizzard's files.
+  - GameMode and MangoHud, optional (an OrionOS recipe).
+Nothing on the Windows drive is ever changed: games are read from it and copied.
+
+    orion-games                         a simple menu (Settings > Games and the Orion window open it)
+    orion-games list [--json]           what's found, on the Windows drive and here
+    orion-games setup steam|heroic|battlenet|extras
+    orion-games setup wow112 [FOLDER]   your WoW 1.12 client
+    orion-games import ID               copy a game from the Windows drive for its launcher (ID from list)
+    orion-games play ID
+    orion-games notes [ID] [--online]   anti-cheat notes (--online also asks ProtonDB / AreWeAntiCheatYet)
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import shutil
+import sqlite3
+import subprocess
+import sys
+import time
+import urllib.request
+from pathlib import Path
+from typing import Any, Callable, Iterable, Optional
+
+FLATPAK = os.environ.get("ORION_FLATPAK", "flatpak")
+APPS_CMD = os.environ.get("ORION_APPS_CMD", "orion-apps")
+SYSTEMCTL = os.environ.get("ORION_SYSTEMCTL", "systemctl")
+WINDOWS_FILES = os.environ.get("ORION_WINDOWS_FILES", "orion-windows-files")
+WOW_CLIENT = os.environ.get("ORION_WOW_CLIENT", "orion-wow-client")
+DUALBOOT_PY = os.environ.get("ORION_DUALBOOT_PY", "/opt/orion/dualboot/orion_dualboot.py")
+
+STEAM = "com.valvesoftware.Steam"
+HEROIC = "com.heroicgameslauncher.hgl"
+LUTRIS = "net.lutris.Lutris"
+LAUNCHERS = {
+    "steam": {"name": "Steam", "flatpak": STEAM, "for": "Steam games (Proton runs the Windows ones)"},
+    "heroic": {"name": "Heroic Games Launcher", "flatpak": HEROIC, "for": "Epic games, such as Rocket League"},
+    "battlenet": {"name": "Lutris (Battle.net)", "flatpak": LUTRIS, "for": "World of Warcraft and other Blizzard games"},
+}
+SKIP_STEAM = re.compile(r"^(Proton|Steam Linux Runtime|Steamworks Common|SteamVR)", re.I)
+SKIP_APPIDS = {"228980", "1070560", "1391110", "1628350"}
+ID_RE = re.compile(r"^(steam|epic|wow|wow112|lutris):[A-Za-z0-9._ -]{1,120}$")
+
+GENERIC_NOTE = ("Most Windows games run through Proton or Wine. Games with anti-cheat may refuse online play on "
+                "Linux (for example Valorant, Fortnite and some Call of Duty games), and any game can break for a "
+                "while after an update. areweanticheatyet.com and protondb.com keep track.")
+NOTES = [
+    (re.compile(r"rocket ?league|^sugar$", re.I),
+     "Rocket League runs through Heroic with Proton/Wine. Online matches generally work, but Epic doesn't support "
+     "Linux, so a game update can break it for a while."),
+    (re.compile(r"world of warcraft|^wow:", re.I),
+     "World of Warcraft runs under Wine through Battle.net (Lutris). Blizzard doesn't support Linux but allows "
+     "playing this way; an update can break it for a while."),
+    (re.compile(r"^wow112:|1\.12", re.I),
+     "Your own 1.12 client on your own or a private server: no anti-cheat involved."),
+]
+
+
+def home() -> Path:
+    return Path(os.environ.get("HOME") or Path.home())
+
+
+def run(argv: list[str], timeout: float = 60, **kw: Any) -> subprocess.CompletedProcess:
+    try:
+        return subprocess.run(argv, capture_output=True, text=True, timeout=timeout, **kw)
+    except (OSError, subprocess.SubprocessError) as e:
+        return subprocess.CompletedProcess(argv, 127, "", str(e))
+
+
+def spawn(argv: list[str]) -> None:
+    """Start a launcher or game in the background (it outlives this command)."""
+    subprocess.Popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+
+
+def ask(q: str, default: bool = True) -> bool:
+    try:
+        a = input(f"{q} {'[Y/n]' if default else '[y/N]'} ").strip().lower()
+    except EOFError:
+        return default
+    return default if not a else a.startswith("y")
+
+
+def find_ci(base: Path, rel: str) -> Optional[Path]:
+    """base/rel, matching each part without caring about upper/lower case (Windows drives)."""
+    cur = base
+    for part in [p for p in re.split(r"[\\/]+", rel) if p]:
+        nxt = cur / part
+        if not nxt.exists():
+            try:
+                nxt = next((c for c in cur.iterdir() if c.name.lower() == part.lower()), None)
+            except OSError:
+                nxt = None
+            if nxt is None:
+                return None
+        cur = nxt
+    return cur
+
+
+# ===================================================================================================== Windows drive
+def mount_bases() -> list[Path]:
+    if os.environ.get("ORION_GAMES_MOUNTS") is not None:
+        return [Path(p) for p in os.environ["ORION_GAMES_MOUNTS"].split(":") if p]
+    user = os.environ.get("USER", "")
+    out = []
+    for b in (Path("/media") / user, Path("/run/media") / user, Path("/mnt")):
+        try:
+            out += [d for d in sorted(b.iterdir()) if d.is_dir()]
+        except OSError:
+            pass
+    return out
+
+
+def windows_roots(bases: Optional[Iterable[Path]] = None) -> list[Path]:
+    """Mounted drives that hold Windows (C:) first, then other drives with games on them."""
+    bases = list(mount_bases() if bases is None else bases)
+    win = [b for b in bases if find_ci(b, "Windows/System32")]
+    other = [b for b in bases if b not in win and (find_ci(b, "SteamLibrary") or find_ci(b, "Program Files (x86)")
+                                                   or find_ci(b, "Games") or find_ci(b, "Epic Games"))]
+    return win + other
+
+
+def windows_drive_state() -> dict[str, Any]:
+    """{present, open, bitlocker}: is there a Windows drive, is it open (mounted), is it locked with BitLocker."""
+    if windows_roots():
+        return {"present": True, "open": True, "bitlocker": False}
+    if not Path(DUALBOOT_PY).is_file():
+        return {"present": False, "open": False, "bitlocker": False}
+    r = run([sys.executable, DUALBOOT_PY, "windows-parts", "--json"], timeout=20)
+    try:
+        parts = json.loads(r.stdout or "[]")
+    except ValueError:
+        parts = []
+    return {"present": bool(parts), "open": any(p.get("mounted") for p in parts),
+            "bitlocker": any(p.get("bitlocker") for p in parts)}
+
+
+def open_windows_drive() -> bool:
+    """orion-windows-files mount: read-only; asks the admin password, and BitLocker's recovery key if it's locked."""
+    if not sys.stdin.isatty():
+        return False
+    try:
+        return subprocess.run([WINDOWS_FILES, "mount"], timeout=900).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def win_path(roots: list[Path], winpath: str) -> Optional[Path]:
+    """A Windows path (D:\\SteamLibrary) on one of the mounted drives (drive letters aren't known here: C: is the
+    Windows drive, the rest are tried on every drive)."""
+    m = re.match(r"^([A-Za-z]):[\\/]*(.*)$", winpath.strip())
+    if not m:
+        return None
+    letter, rest = m.group(1).upper(), m.group(2)
+    order = roots if letter == "C" else roots[::-1]
+    for r in order:
+        p = find_ci(r, rest) if rest else r
+        if p is not None and p.exists():
+            return p
+    return None
+
+
+# ===================================================================================================== Steam
+def parse_vdf(text: str) -> dict[str, Any]:
+    """Valve's KeyValues text format (libraryfolders.vdf, appmanifest_*.acf)."""
+    toks = re.findall(r'"((?:[^"\\]|\\.)*)"|(\{)|(\})', text)
+    stack: list[dict[str, Any]] = [{}]
+    key: Optional[str] = None
+    for s, op, cl in toks:
+        if op:
+            d: dict[str, Any] = {}
+            stack[-1][key or ""] = d
+            stack.append(d)
+            key = None
+        elif cl:
+            if len(stack) > 1:
+                stack.pop()
+            key = None
+        elif key is None:
+            key = s.replace("\\\\", "\\")
+        else:
+            stack[-1][key] = s.replace("\\\\", "\\")
+            key = None
+    return stack[0]
+
+
+def steam_libraries_windows(roots: list[Path]) -> list[Path]:
+    libs: list[Path] = []
+    for r in roots:
+        for rel in ("Program Files (x86)/Steam", "Program Files/Steam", "SteamLibrary", "Games/SteamLibrary",
+                    "Steam", "Games/Steam"):
+            p = find_ci(r, rel)
+            if p and find_ci(p, "steamapps") and p not in libs:
+                libs.append(p)
+    for lib in list(libs):
+        vdf = find_ci(lib, "steamapps/libraryfolders.vdf")
+        if not vdf:
+            continue
+        try:
+            data = parse_vdf(vdf.read_text(encoding="utf-8", errors="replace"))
+        except OSError:
+            continue
+        folders = data.get("libraryfolders") or data.get("LibraryFolders") or {}
+        for v in folders.values():
+            path = v.get("path") if isinstance(v, dict) else v
+            if isinstance(path, str):
+                p = win_path(roots, path)
+                if p and find_ci(p, "steamapps") and p not in libs:
+                    libs.append(p)
+    return libs
+
+
+def steam_games_in(lib: Path, where: str) -> list[dict[str, Any]]:
+    out = []
+    apps = find_ci(lib, "steamapps")
+    if not apps:
+        return out
+    for acf in sorted(apps.glob("appmanifest_*.acf")):
+        try:
+            st = parse_vdf(acf.read_text(encoding="utf-8", errors="replace")).get("AppState") or {}
+        except OSError:
+            continue
+        appid, name, idir = str(st.get("appid", "")), str(st.get("name", "")), str(st.get("installdir", ""))
+        if not appid.isdigit() or appid in SKIP_APPIDS or SKIP_STEAM.match(name) or not idir:
+            continue
+        game = find_ci(apps, f"common/{idir}")
+        out.append({"id": f"steam:{appid}", "name": name or idir, "store": "steam", "launcher": "steam",
+                    "where": where, "appid": appid, "path": str(game) if game else "", "manifest": str(acf),
+                    "size": int(st.get("SizeOnDisk") or 0) or None})
+    return out
+
+
+def steam_here_dirs() -> list[Path]:
+    h = home()
+    return [h / ".var/app" / STEAM / ".local/share/Steam", h / ".local/share/Steam", h / ".steam/steam"]
+
+
+def steam_here_library() -> Optional[Path]:
+    for d in steam_here_dirs():
+        if (d / "steamapps").is_dir():
+            return d
+    return None
+
+
+# ===================================================================================================== Epic, Heroic, Lutris
+def epic_games_windows(roots: list[Path]) -> list[dict[str, Any]]:
+    out = []
+    for r in roots[:1] if roots else []:
+        man = find_ci(r, "ProgramData/Epic/EpicGamesLauncher/Data/Manifests")
+        if not man:
+            continue
+        for item in sorted(man.glob("*.item")):
+            try:
+                d = json.loads(item.read_text(encoding="utf-8-sig", errors="replace"))
+            except (OSError, ValueError):
+                continue
+            app, name = str(d.get("AppName", "")), str(d.get("DisplayName", ""))
+            if not app or not re.match(r"^[A-Za-z0-9._ -]{1,120}$", app):
+                continue
+            loc = win_path(roots, str(d.get("InstallLocation", "")))
+            out.append({"id": f"epic:{app}", "name": name or app, "store": "epic", "launcher": "heroic",
+                        "where": "windows", "app_name": app, "path": str(loc) if loc else "",
+                        "size": int(d.get("InstallSize") or 0) or None})
+    return out
+
+
+def heroic_games_here() -> list[dict[str, Any]]:
+    out = []
+    for base in (home() / ".var/app" / HEROIC / "config/heroic", home() / ".config/heroic"):
+        f = base / "legendaryConfig/legendary/installed.json"
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        for app, g in (data or {}).items():
+            if isinstance(g, dict) and re.match(r"^[A-Za-z0-9._ -]{1,120}$", str(app)):
+                out.append({"id": f"epic:{app}", "name": g.get("title", app), "store": "epic", "launcher": "heroic",
+                            "where": "here", "app_name": app, "path": g.get("install_path", "")})
+    return out
+
+
+def lutris_games_here() -> list[dict[str, Any]]:
+    out = []
+    for db in (home() / ".var/app" / LUTRIS / "data/lutris/pga.db", home() / ".local/share/lutris/pga.db"):
+        if not db.is_file():
+            continue
+        try:
+            con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+            rows = con.execute("SELECT slug, name, runner FROM games WHERE installed = 1").fetchall()
+            con.close()
+        except sqlite3.Error:
+            continue
+        for slug, name, runner in rows:
+            if slug and re.match(r"^[A-Za-z0-9._-]{1,120}$", slug):
+                out.append({"id": f"lutris:{slug}", "name": name or slug, "store": "lutris", "launcher": "battlenet",
+                            "where": "here", "slug": slug, "runner": runner or ""})
+    return out
+
+
+# ===================================================================================================== World of Warcraft
+def is_wow112(d: Path) -> bool:
+    exe = (d / "WoW.exe").is_file() or (d / "Wow.exe").is_file()
+    return exe and (find_ci(d, "realmlist.wtf") is not None or find_ci(d, "Data/dbc.MPQ") is not None)
+
+
+def wow_windows(roots: list[Path], depth: int = 2) -> list[dict[str, Any]]:
+    out, seen = [], set()
+    for r in roots:
+        wow = find_ci(r, "Program Files (x86)/World of Warcraft") or find_ci(r, "Program Files/World of Warcraft")
+        if wow:
+            flavours = [f for f in ("_retail_", "_classic_", "_classic_era_") if find_ci(wow, f)]
+            if flavours:
+                out.append({"id": "wow:retail", "name": "World of Warcraft (" + ", ".join(
+                    f.strip("_").replace("_", " ") for f in flavours) + ")", "store": "battlenet",
+                    "launcher": "battlenet", "where": "windows", "path": str(wow)})
+        starts = [r, find_ci(r, "Games"), find_ci(r, "Program Files"), find_ci(r, "Program Files (x86)")]
+        users = find_ci(r, "Users")
+        if users:
+            for u in sorted(p for p in users.iterdir() if p.is_dir()) if users.is_dir() else []:
+                starts += [find_ci(u, x) for x in ("Desktop", "Documents", "Games", "Downloads")]
+        for s in [x for x in starts if x and x.is_dir()]:
+            for d in walk_dirs(s, depth):
+                if d in seen or not is_wow112(d) or "_retail_" in d.parts:
+                    continue
+                seen.add(d)
+                out.append({"id": f"wow112:{safe_id(d.name)}", "name": f"WoW 1.12 client ({d.name})", "store": "wow112",
+                            "launcher": "wow112", "where": "windows", "path": str(d)})
+    return out
+
+
+def wow112_here() -> list[dict[str, Any]]:
+    out = []
+    conf = Path(os.environ.get("XDG_CONFIG_HOME") or home() / ".config") / "orion/wow-client.conf"
+    configured = ""
+    try:
+        m = re.search(r"^DIR=(.*)$", conf.read_text(), re.M)
+        configured = m.group(1).strip("'\"") if m else ""
+    except OSError:
+        pass
+    games = home() / "Games"
+    dirs = [d for d in sorted(games.iterdir()) if d.is_dir()] if games.is_dir() else []
+    for d in dirs:
+        if is_wow112(d):
+            out.append({"id": f"wow112:{safe_id(d.name)}", "name": f"WoW 1.12 client ({d.name})", "store": "wow112",
+                        "launcher": "wow112", "where": "here", "path": str(d),
+                        "ready": bool(configured) and Path(configured) == d})
+    return out
+
+
+def walk_dirs(top: Path, depth: int) -> Iterable[Path]:
+    yield top
+    if depth <= 0:
+        return
+    try:
+        kids = sorted(p for p in top.iterdir() if p.is_dir() and not p.is_symlink())
+    except OSError:
+        return
+    for k in kids:
+        if k.name.lower() in ("windows", "$recycle.bin", "system volume information", "appdata", "programdata"):
+            continue
+        yield from walk_dirs(k, depth - 1)
+
+
+def safe_id(name: str) -> str:
+    return re.sub(r"[^A-Za-z0-9._ -]", "_", name)[:100] or "client"
+
+
+# ===================================================================================================== together
+def flatpak_installed(app: str) -> bool:
+    return run([FLATPAK, "info", app], timeout=20).returncode == 0
+
+
+def find_games(bases: Optional[Iterable[Path]] = None) -> dict[str, Any]:
+    roots = windows_roots(bases)
+    games: list[dict[str, Any]] = []
+    for lib in steam_libraries_windows(roots):
+        games += steam_games_in(lib, "windows")
+    games += epic_games_windows(roots)
+    games += wow_windows(roots)
+    lib = steam_here_library()
+    here_steam = steam_games_in(lib, "here") if lib else []
+    here = here_steam + heroic_games_here() + lutris_games_here() + wow112_here()
+    have = {g["id"] for g in here}
+    for g in games:
+        g["copied"] = g["id"] in have
+    for g in games + here:
+        g["note"] = note_for(g)
+        g["reuse"] = reuse_words(g)
+    launchers = {k: {**v, "installed": flatpak_installed(v["flatpak"])} for k, v in LAUNCHERS.items()}
+    launchers["wow112"] = {"name": "WoW 1.12 client", "for": "your own client folder", "installed": bool(shutil.which(WOW_CLIENT))}
+    return {"ok": True, "windows_roots": [str(r) for r in roots], "windows": games, "here": here,
+            "launchers": launchers, "general_note": GENERIC_NOTE}
+
+
+def note_for(g: dict[str, Any]) -> str:
+    for pat, text in NOTES:
+        if pat.search(g.get("id", "")) or pat.search(g.get("name", "")) or pat.search(g.get("app_name", "") or ""):
+            return text
+    return GENERIC_NOTE
+
+
+def reuse_words(g: dict[str, Any]) -> str:
+    if g["where"] == "here":
+        return ""
+    if g["store"] == "steam":
+        return ("Copied into Steam here (Steam checks the files instead of downloading again). Steam can't play it "
+                "straight off the Windows drive: OrionOS opens that drive read-only, and Proton doesn't work well "
+                "on Windows drives.")
+    if g["store"] == "epic":
+        return "Copied for Heroic's \"Import game\" (sign in to Epic in Heroic first), so it isn't downloaded again."
+    if g["store"] == "battlenet":
+        return ("Copied into the Battle.net that Lutris installs; then Battle.net > the game > \"Locate the game\". "
+                "Battle.net may still update it.")
+    return "Copied to ~/Games (the client writes its settings and cache next to itself), then set up to play."
+
+
+# ===================================================================================================== notes online
+def online_allowed() -> bool:
+    if os.environ.get("ORION_GAMES_ONLINE") == "1":
+        return True
+    try:
+        cfg = json.loads((Path(os.environ.get("XDG_CONFIG_HOME") or home() / ".config") / "orion/games.json").read_text())
+        return bool(cfg.get("online_notes"))
+    except (OSError, ValueError):
+        return False
+
+
+def default_fetch(url: str) -> bytes:
+    req = urllib.request.Request(url, headers={"User-Agent": "OrionOS-games"})
+    with urllib.request.urlopen(req, timeout=20) as r:
+        return r.read(8 * 1024 * 1024)
+
+
+AWACY = "https://raw.githubusercontent.com/AreWeAntiCheatYet/AreWeAntiCheatYet/HEAD/games.json"
+PROTONDB = "https://www.protondb.com/api/v1/reports/summaries/{appid}.json"
+
+
+def online_notes(g: dict[str, Any], fetch: Callable[[str], bytes] = default_fetch) -> list[str]:
+    """Live notes for one game, only when you turned online notes on. Any failure: no extra notes."""
+    out = []
+    if g.get("appid"):
+        try:
+            d = json.loads(fetch(PROTONDB.format(appid=g["appid"])))
+            if d.get("tier"):
+                out.append(f"ProtonDB: players rate it {d['tier']}" + (f" ({d.get('total')} reports)." if d.get("total") else "."))
+        except Exception:
+            pass
+    try:
+        games = json.loads(fetch(AWACY))
+        want = re.sub(r"[^a-z0-9]", "", g.get("name", "").lower())
+        for x in games if isinstance(games, list) else []:
+            if re.sub(r"[^a-z0-9]", "", str(x.get("name", "")).lower()) == want and want:
+                ac = ", ".join(x.get("anticheats") or []) or "none listed"
+                out.append(f"AreWeAntiCheatYet: {x.get('status', 'unknown')} (anti-cheat: {ac}).")
+                break
+    except Exception:
+        pass
+    return out
+
+
+# ===================================================================================================== actions
+def install_flatpak(app: str, say: Callable[[str], None] = print) -> bool:
+    if flatpak_installed(app):
+        return True
+    say(f"Installing {app} from Flathub (Get apps; it may ask for your password) ...")
+    r = run([APPS_CMD, "install", app, "--json"], timeout=3600)
+    try:
+        say("  " + (json.loads(r.stdout).get("message") or ""))
+    except ValueError:
+        pass
+    return r.returncode == 0
+
+
+def tree_size(p: Path) -> int:
+    n = 0
+    for f in p.rglob("*"):
+        try:
+            if f.is_file() and not f.is_symlink():
+                n += f.stat().st_size
+        except OSError:
+            pass
+    return n
+
+
+def copy_game(src: Path, dst: Path, say: Callable[[str], None] = print) -> dict[str, Any]:
+    """Copy a game folder (never changes src). Files already there with the same size are skipped, so an interrupted
+    copy carries on."""
+    need = tree_size(src)
+    have = tree_size(dst) if dst.exists() else 0
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    free = shutil.disk_usage(dst.parent).free
+    if need - have > free:
+        return {"ok": False, "message": f"Not enough room: it needs {gb(need - have)} and there's {gb(free)} free."}
+    done = 0
+    last = time.time()
+    for f in sorted(src.rglob("*")):
+        if f.is_symlink():
+            continue
+        t = dst / f.relative_to(src)
+        if f.is_dir():
+            t.mkdir(parents=True, exist_ok=True)
+            continue
+        size = f.stat().st_size
+        if not (t.is_file() and t.stat().st_size == size):
+            t.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(f, t)
+        done += size
+        if time.time() - last > 2:
+            say(f"  {gb(done)} of {gb(need)}")
+            last = time.time()
+    return {"ok": True, "bytes": need, "message": f"Copied {gb(need)} to {dst}."}
+
+
+def gb(n: int) -> str:
+    return f"{n / 1e9:.1f} GB" if n >= 1e8 else f"{n / 1e6:.0f} MB"
+
+
+def steam_running() -> bool:
+    return run(["pgrep", "-x", "steam"], timeout=5).returncode == 0
+
+
+def import_game(g: dict[str, Any], say: Callable[[str], None] = print) -> dict[str, Any]:
+    if g.get("where") != "windows" or not g.get("path"):
+        return {"ok": False, "message": "That game isn't on the Windows drive (or its folder wasn't found)."}
+    src = Path(g["path"])
+    if g["store"] == "steam":
+        lib = steam_here_library()
+        if lib is None:
+            return {"ok": False, "message": "Open Steam once first (orion-games setup steam), then try again."}
+        if steam_running():
+            return {"ok": False, "message": "Close Steam first (Steam > Exit), then try again."}
+        r = copy_game(src, lib / "steamapps" / "common" / src.name, say)
+        if r["ok"]:
+            shutil.copyfile(g["manifest"], lib / "steamapps" / Path(g["manifest"]).name)
+            r["message"] += " Start Steam: it checks the files (\"Verifying\") instead of downloading them again."
+        return r
+    if g["store"] == "epic":
+        dst = home() / "Games" / "Heroic" / src.name
+        r = copy_game(src, dst, say)
+        if r["ok"]:
+            r["message"] += (f" In Heroic: sign in to Epic, find {g['name']}, click Install, then \"Import Game\" and "
+                             f"pick {dst}.")
+        return r
+    if g["store"] == "battlenet":
+        prefix = home() / "Games" / "battlenet"
+        if not prefix.is_dir():
+            return {"ok": False, "message": "Install Battle.net first (orion-games setup battlenet), then try again."}
+        dst = prefix / "drive_c" / "Program Files (x86)" / "World of Warcraft"
+        r = copy_game(src, dst, say)
+        if r["ok"]:
+            r["message"] += " In Battle.net: World of Warcraft > \"Locate the game\" and pick that folder."
+        return r
+    if g["store"] == "wow112":
+        dst = home() / "Games" / src.name
+        return copy_game(src, dst, say)
+    return {"ok": False, "message": "Orion can't copy that one."}
+
+
+def setup(which: str, folder: str = "", say: Callable[[str], None] = print, interactive: bool = True) -> int:
+    if which == "steam":
+        if not install_flatpak(STEAM, say):
+            return 1
+        say("Steam is ready. In Steam: Settings > Compatibility > turn on \"Enable Steam Play for all other titles\" "
+            "(that's Proton, which runs Windows games).")
+        say("Games already on the Windows drive: orion-games list, then orion-games import steam:<number>.")
+        return 0
+    if which == "heroic":
+        if not install_flatpak(HEROIC, say):
+            return 1
+        say("Heroic is ready. Open it and sign in to Epic Games. Rocket League and your other Epic games are there.")
+        say("A game already on the Windows drive: orion-games import epic:<name> copies it for \"Import Game\".")
+        return 0
+    if which == "battlenet":
+        if not install_flatpak(LUTRIS, say):
+            return 1
+        say("Opening Lutris's official Battle.net installer. Keep its suggested folder (~/Games/battlenet). Then sign in "
+            "to Battle.net and install, or locate, World of Warcraft.")
+        spawn([FLATPAK, "run", LUTRIS, "lutris:battlenet"])
+        say("Your WoW folder from the Windows drive: orion-games import wow:retail (after Battle.net is installed).")
+        return 0
+    if which == "extras":
+        say("Installing GameMode and MangoHud (the admin password may be asked) ...")
+        r = run([SYSTEMCTL, "start", "orion-recipe@game-extras.service"], timeout=1800)
+        say("Done. In Steam, a game's launch options: gamemoderun %command%" if r.returncode == 0 else
+            "That didn't work; see /var/log/orion-recipes/game-extras.log")
+        return r.returncode
+    if which == "wow112":
+        if not folder:
+            found = [g for g in find_games()["here"] + find_games()["windows"] if g["store"] == "wow112"]
+            if not found:
+                say("No WoW 1.12 client folder found. Give its folder: orion-games setup wow112 /path/to/client")
+                return 1
+            folder = found[0]["path"]
+        src = Path(folder)
+        if not is_wow112(src):
+            say(f"There's no WoW 1.12 client (WoW.exe with realmlist.wtf) in {src}.")
+            return 1
+        if not os.access(src, os.W_OK) or any(str(src).startswith(r) for r in map(str, windows_roots())):
+            dst = home() / "Games" / src.name
+            say(f"That folder is on the Windows drive (read-only). The client needs to write its settings, so it's "
+                f"copied to {dst} ({gb(tree_size(src))}).")
+            if interactive and not ask("Copy it?"):
+                return 1
+            r = copy_game(src, dst, say)
+            say(r["message"])
+            if not r["ok"]:
+                return 1
+            src = dst
+        return subprocess.run([WOW_CLIENT, "setup", str(src)]).returncode
+    say(f"Unknown: {which}. Try steam, heroic, battlenet, wow112 or extras.")
+    return 2
+
+
+def play(gid: str) -> int:
+    if not ID_RE.match(gid):
+        print("That's not a game id from orion-games list.")
+        return 2
+    store, _, key = gid.partition(":")
+    if store == "steam" and key.isdigit():
+        cmd = [FLATPAK, "run", STEAM, f"steam://rungameid/{key}"] if flatpak_installed(STEAM) else ["steam", f"steam://rungameid/{key}"]
+    elif store == "epic":
+        cmd = [FLATPAK, "run", HEROIC, f"heroic://launch/legendary/{key}"]
+    elif store == "lutris":
+        cmd = [FLATPAK, "run", LUTRIS, f"lutris:rungame/{key}"]
+    elif store == "wow112":
+        cmd = [WOW_CLIENT, "start"]
+    elif store == "wow":
+        cmd = [FLATPAK, "run", LUTRIS, "lutris:rungame/battlenet"]
+    else:
+        return 2
+    try:
+        spawn(cmd)
+    except OSError as e:
+        print(f"Couldn't start it: {e}")
+        return 1
+    return 0
+
+
+# ===================================================================================================== talking
+def describe(res: dict[str, Any]) -> str:
+    out = []
+    if res["windows_roots"]:
+        out.append("On the Windows drive (read-only):")
+        for g in res["windows"]:
+            out.append(f"  {g['id']:<28} {g['name']}" + ("  (already copied here)" if g.get("copied") else ""))
+        if not res["windows"]:
+            out.append("  No games found.")
+    out.append("Here on OrionOS:")
+    for g in res["here"]:
+        out.append(f"  {g['id']:<28} {g['name']}")
+    if not res["here"]:
+        out.append("  None yet.")
+    out.append("Launchers: " + ", ".join(f"{v['name']} ({'ready' if v['installed'] else 'not installed'})"
+                                         for v in res["launchers"].values()))
+    return "\n".join(out)
+
+
+def menu() -> int:
+    st = windows_drive_state()
+    if st["present"] and not st["open"]:
+        print("This PC has a Windows drive. Games on it can be found once it's open (read-only"
+              + (", BitLocker asks for its recovery key" if st["bitlocker"] else "") + ").")
+        if ask("Open it now?"):
+            open_windows_drive()
+    res = find_games()
+    print("\nGames\n" + describe(res))
+    print("\n" + GENERIC_NOTE)
+    while True:
+        print("\n  1) Set up Steam    2) Epic games (Heroic)    3) Battle.net / World of Warcraft (Lutris)")
+        print("  4) WoW 1.12 client    5) GameMode + MangoHud    6) Copy a game from the Windows drive")
+        print("  7) Play    8) Notes on a game    Enter) Close")
+        try:
+            c = input("Which? ").strip()
+        except EOFError:
+            return 0
+        if not c:
+            return 0
+        if c in "12345" and len(c) == 1:
+            setup({"1": "steam", "2": "heroic", "3": "battlenet", "4": "wow112", "5": "extras"}[c])
+        elif c in ("6", "7", "8"):
+            pool = res["windows"] if c == "6" else res["here"] if c == "7" else res["windows"] + res["here"]
+            if not pool:
+                print("Nothing to pick.")
+                continue
+            for i, g in enumerate(pool, 1):
+                print(f"  {i}) {g['name']}")
+            try:
+                n = int(input("Number: ").strip()) - 1
+                g = pool[n]
+            except (ValueError, IndexError, EOFError):
+                continue
+            if c == "6":
+                print(g["reuse"])
+                if ask("Copy it now?"):
+                    print(import_game(g)["message"])
+            elif c == "7":
+                play(g["id"])
+            else:
+                print(g["note"])
+                for line in (online_notes(g) if online_allowed() else []):
+                    print(line)
+            res = find_games()
+
+
+def find_by_id(gid: str) -> Optional[dict[str, Any]]:
+    res = find_games()
+    for g in res["windows"] + res["here"]:
+        if g["id"] == gid:
+            return g
+    return None
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    ap = argparse.ArgumentParser(prog="orion-games", description="Play the games you already have, on OrionOS.")
+    ap.add_argument("cmd", nargs="?", default="")
+    ap.add_argument("arg", nargs="?", default="")
+    ap.add_argument("folder", nargs="?", default="")
+    ap.add_argument("--json", action="store_true")
+    ap.add_argument("--online", action="store_true")
+    ap.add_argument("--yes", action="store_true")
+    a = ap.parse_args(argv)
+    if a.cmd == "":
+        return menu() if sys.stdin.isatty() else main(["list"])
+    if a.cmd == "list":
+        res = find_games()
+        res["windows_drive"] = windows_drive_state()
+        print(json.dumps(res) if a.json else describe(res))
+        return 0
+    if a.cmd == "setup":
+        if a.arg == "wow112":
+            return setup("wow112", a.folder, interactive=not a.yes)
+        return setup(a.arg)
+    if a.cmd == "import":
+        g = find_by_id(a.arg)
+        if not g:
+            print("No such game on the Windows drive. See: orion-games list")
+            return 1
+        print(g["reuse"])
+        if not a.yes and sys.stdin.isatty() and not ask("Copy it now?"):
+            return 1
+        r = import_game(g)
+        print(json.dumps(r) if a.json else r["message"])
+        return 0 if r["ok"] else 1
+    if a.cmd == "play":
+        return play(a.arg)
+    if a.cmd == "notes":
+        g = find_by_id(a.arg) if a.arg else None
+        lines = [g["note"]] if g else [GENERIC_NOTE]
+        if g and (a.online or online_allowed()):
+            lines += online_notes(g) or ["(Couldn't look it up online just now.)"]
+        print(json.dumps({"ok": True, "notes": lines}) if a.json else "\n".join(lines))
+        return 0
+    print(__doc__)
+    return 2
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        print("\nStopped. Nothing on the Windows drive was changed.")
+        sys.exit(130)

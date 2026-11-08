@@ -1,0 +1,84 @@
+#!/bin/sh
+# Root side of  orion-ctl login ...  : switch between auto-login and the starry login screen.
+#   orion-login-mode auto | password | reduced-motion on|off | status
+# Changes apply the next time the login screen would appear (restart, or log out).
+set -u
+G=/opt/orion/greeter
+CONF=/etc/orion/login.conf
+get() { sed -n "s/^$1=//p" "$CONF" 2>/dev/null | tail -n1; }
+set_key() {
+  [ -f "$CONF" ] || install -m 644 "$G/login.conf" "$CONF"
+  if grep -q "^$1=" "$CONF"; then sed -i "s/^$1=.*/$1=$2/" "$CONF"; else printf '%s=%s\n' "$1" "$2" >> "$CONF"; fi
+}
+USER_NAME="$(get LOGIN_USER)"; USER_NAME="${USER_NAME:-orion}"
+has_password() { [ "$(passwd -S "$USER_NAME" 2>/dev/null | awk '{print $2}')" = P ]; }
+greeter_ok() {
+  command -v cage >/dev/null 2>&1 && /usr/bin/python3 -c \
+    'import gi; gi.require_version("Gtk", "4.0"); gi.require_version("WebKit", "6.0"); from gi.repository import Gtk, WebKit' >/dev/null 2>&1
+}
+
+# The USB stick's boot splash follows the same setting: GRUB reads "motion" from its grubenv on ORIONEFI and starts
+# the reduced-motion splash (plymouth.splash=orion-still). Nothing to do where there's no ORIONEFI partition.
+boot_motion() {
+  command -v grub-editenv >/dev/null 2>&1 || return 0
+  dev="$(blkid -t LABEL=ORIONEFI -o device 2>/dev/null | head -n1)"; [ -n "$dev" ] || return 0
+  m="$(findmnt -no TARGET "$dev" 2>/dev/null | head -n1)"; tmp=""; was_ro=""
+  if [ -z "$m" ]; then tmp="$(mktemp -d)"; mount "$dev" "$tmp" 2>/dev/null || { rmdir "$tmp"; return 0; }; m="$tmp"
+  else
+    findmnt -no OPTIONS "$m" | grep -qw ro && was_ro=1
+    mount -o remount,rw "$m" 2>/dev/null || true
+  fi
+  if [ -f "$m/EFI/orion/grubenv" ]; then
+    if [ "$1" = still ]; then grub-editenv "$m/EFI/orion/grubenv" set motion=still
+    else grub-editenv "$m/EFI/orion/grubenv" unset motion; fi
+  fi
+  if [ -n "$tmp" ]; then umount "$tmp" 2>/dev/null; rmdir "$tmp" 2>/dev/null; fi
+  [ -n "$was_ro" ] && mount -o remount,ro "$m" 2>/dev/null
+  return 0
+}
+
+# greetd's config: the graphical login screen is always the login screen (Start Orion again / Rescue desktop);
+# "auto" adds the power-on auto-login (os/greeter/greetd_config.py).
+write_greetd() { /usr/bin/python3 "$G/greetd_config.py" write "$1" --user "$USER_NAME" 2>/dev/null; }
+
+CMD="${1:-status}"
+if [ "$CMD" != status ] && [ "$(id -u)" -ne 0 ]; then echo "This needs admin rights: orion-ctl login $CMD"; exit 1; fi
+
+case "$CMD" in
+  auto)
+    write_greetd auto || install -m 644 "$G/greetd-auto.toml" /etc/greetd/config.toml
+    set_key LOGIN_MODE auto
+    echo "Done. OrionOS will start straight into Orion, without asking for a password."
+    echo "(Your lock screen password, if you set one, still works with Super+L.)"
+    ;;
+  password)
+    if ! has_password; then
+      echo "You don't have a password yet, so the login screen would have nothing to check."
+      echo "Choose one now. You'll type it on the login screen (and on the lock screen, Super+L)."
+      echo
+      passwd "$USER_NAME" || { echo; echo "No password was set, so nothing changed."; exit 1; }
+      H="$(getent passwd "$USER_NAME" | cut -d: -f6)"
+      if [ -d "$H" ]; then
+        install -d -o "$USER_NAME" -g "$USER_NAME" "$H/.config" "$H/.config/orion"
+        touch "$H/.config/orion/lock-ready" && chown "$USER_NAME:$USER_NAME" "$H/.config/orion/lock-ready"
+      fi
+    fi
+    write_greetd password || install -m 644 "$G/greetd-password.toml" /etc/greetd/config.toml
+    set_key LOGIN_MODE password
+    echo "Done. Next time OrionOS starts, the starry login screen asks for your password."
+    greeter_ok || echo "Note: the login screen's parts (cage, WebKit) are missing, so you'll get the text login until a system update installs them."
+    ;;
+  reduced-motion)
+    case "${2:-}" in
+      on)  set_key REDUCED_MOTION 1; boot_motion still; echo "The login screen will simply fade instead of swirling into the black hole (and the boot splash too)." ;;
+      off) set_key REDUCED_MOTION 0; boot_motion full; echo "The login screen will swirl into the black hole again." ;;
+      *)   echo "usage: orion-ctl login reduced-motion on|off"; exit 2 ;;
+    esac ;;
+  status)
+    if [ "$(get LOGIN_MODE)" = password ]; then echo "Login: the starry login screen asks for your password."
+    else echo "Login: straight into Orion (auto-login)."; fi
+    if [ "$(get REDUCED_MOTION)" = 1 ]; then echo "Login animation: a simple fade (reduced motion)."
+    else echo "Login animation: the swirl into the black hole."; fi
+    ;;
+  *) echo "usage: orion-login-mode auto | password | reduced-motion on|off | status"; exit 2 ;;
+esac

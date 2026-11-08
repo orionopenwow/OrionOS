@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- OrionOS: Thunar (Orion Files) per the Art Update: large Orion folders, breadcrumb path pill in the toolbar
+     (with back / forward / up and search), Places / Devices / Network sidebar, status bar with item count,
+     selection and free space. The colours come from the Orion Glass GTK theme. Installed once; your changes stay. -->
+<channel name="thunar" version="1.0">
+  <!-- breadcrumb buttons (the "path pill") instead of a typed path; Ctrl+L still opens the entry -->
+  <property name="last-location-bar" type="string" value="ThunarLocationButtons"/>
+  <!-- toolbar (Thunar 4.18 order): [menu] back forward up | location bar | search. The menu button shows by itself
+       while the menu bar is hidden. Items: 0 menu 1 back 2 forward 3 up 4 home 5 undo 6 redo 7-9 zoom 10-12 views
+       13 split 14 location 15 reload 16 search -->
+  <property name="last-toolbar-visible-buttons" type="string" value="0,1,1,1,0,0,0,0,0,0,0,0,0,0,1,0,1"/>
+  <property name="last-toolbar-item-order" type="string" value="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16"/>
+  <property name="last-view" type="string" value="ThunarIconView"/>
+  <property name="last-icon-view-zoom-level" type="string" value="THUNAR_ZOOM_LEVEL_150_PERCENT"/>
+  <property name="last-details-view-zoom-level" type="string" value="THUNAR_ZOOM_LEVEL_50_PERCENT"/>
+  <property name="last-side-pane" type="string" value="ThunarShortcutsPane"/>
+  <property name="last-statusbar-visible" type="bool" value="true"/>
+  <property name="last-menubar-visible" type="bool" value="false"/>
+  <property name="last-separator-position" type="int" value="210"/>
+  <property name="last-window-width" type="int" value="1080"/>
+  <property name="last-window-height" type="int" value="680"/>
+  <property name="misc-folders-first" type="bool" value="true"/>
+  <property name="misc-single-click" type="bool" value="false"/>
+  <property name="misc-thumbnail-draw-frames" type="bool" value="false"/>
+  <property name="misc-full-path-in-window-title" type="bool" value="false"/>
+  <property name="shortcuts-icon-emblems" type="bool" value="true"/>
+</channel>

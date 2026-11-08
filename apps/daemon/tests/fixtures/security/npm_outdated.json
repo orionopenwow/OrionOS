@@ -1,0 +1,5 @@
+{
+  "vite": {"current": "5.4.2", "wanted": "5.4.10", "latest": "6.0.1", "dependent": "orion", "location": "node_modules/vite"},
+  "three": {"current": "0.169.0", "wanted": "0.169.0", "latest": "0.170.0", "dependent": "orion", "location": "node_modules/three"},
+  "typescript": {"wanted": "5.6.3", "latest": "5.6.3", "dependent": "orion", "location": "node_modules/typescript"}
+}

@@ -1,0 +1,16 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>New release</title></head>
+<body>
+  <h1>New release</h1>
+  <form action="done.html" method="get" id="release-form">
+    <p><label for="tag">Tag name</label> <input id="tag" name="tag"></p>
+    <p><label for="channel">Channel</label>
+      <select id="channel" name="channel"><option value="beta">Beta</option><option value="stable">Stable</option></select></p>
+    <p><label><input type="checkbox" id="pre" name="pre" checked> Pre-release</label></p>
+    <p><label for="pw">Confirm with password</label> <input id="pw" type="password" name="pw"></p>
+    <p><label for="cc">Billing</label> <input id="cc" autocomplete="cc-number" name="billing"></p>
+    <p><label for="otp">Enter the code we texted you</label> <input id="otp" inputmode="numeric" maxlength="6" name="c"></p>
+    <p><button type="button" id="preview-btn">Preview notes</button></p>
+    <p><button type="submit" data-testid="publish">Publish release</button></p>
+  </form>
+</body></html>

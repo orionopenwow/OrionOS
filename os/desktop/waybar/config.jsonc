@@ -1,0 +1,19 @@
+// Orion's tray (orion-tray): waybar with only its tray, a small glass pill at the bottom right of app workspaces.
+// It keeps a thin strip at the bottom free (exclusive), so windows never sit under it. The full-screen Orion HUD on workspace 1 covers it (waybar sits on the "top" layer, under full-screen windows).
+{
+  "layer": "top",
+  "position": "bottom",
+  "height": 34,
+  "exclusive": true,
+  "margin-bottom": 8,
+  "margin-right": 10,
+  "spacing": 0,
+  "modules-left": [],
+  "modules-center": [],
+  "modules-right": ["tray"],
+  "tray": {
+    "icon-size": 18,
+    "spacing": 10,
+    "show-passive-items": true
+  }
+}

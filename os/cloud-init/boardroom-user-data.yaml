@@ -1,0 +1,29 @@
+#cloud-config
+# OrionOS orion-boardroom first boot. New-OrionVMs.ps1 fills in the __PLACEHOLDERS__ and puts this file on the
+# VM's seed disc (label CIDATA) next to orion-bundle.tar.gz.
+hostname: orion-boardroom
+fqdn: orion-boardroom
+users:
+  - name: orion-admin
+    gecos: OrionOS admin
+    groups: [sudo, adm]
+    shell: /bin/bash
+    lock_passwd: false
+    sudo: "ALL=(ALL) ALL"
+    ssh_authorized_keys: [__SSH_KEYS__]
+chpasswd:
+  expire: true          # you must choose a new password at the first admin login
+  users:
+    - {name: orion-admin, password: "__ADMIN_PASSWORD__", type: text}
+ssh_pwauth: false
+growpart: {mode: auto, devices: ["/"]}
+runcmd:
+  - [bash, -c, "set -e; mkdir -p /mnt/orion-seed /opt/orion-src; mount -o ro \"$(blkid -L CIDATA || blkid -L cidata || echo /dev/sr0)\" /mnt/orion-seed; tar -xzf /mnt/orion-seed/orion-bundle.tar.gz -C /opt/orion-src; umount /mnt/orion-seed"]
+  - [bash, -c, "find /opt/orion-src/os /opt/orion-src/apps/boardroom -type f ! -name '*.png' ! -name '*.deb' -exec sed -i 's/\\r$//' {} +"]
+  - [bash, -c, "bash /opt/orion-src/os/boardroom/provision.sh 2>&1 | tee /var/log/orion-provision.log"]
+  - [bash, -c, "__TAILSCALE_UP__"]
+power_state:
+  mode: reboot
+  message: "OrionOS boardroom provisioned. Rebooting into the sign-off console."
+  timeout: 60
+  condition: true

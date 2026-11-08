@@ -1,0 +1,11 @@
+[Unit]
+Description=Get apps: weekly safe app updates (update, check each app still starts, roll back if not, then tell you)
+Documentation=file:///opt/orion/getapps/README.md
+After=network-online.target
+
+[Service]
+Type=oneshot
+# The setting lives in ~/.config/orion/apps.json: "auto_update": "auto" (default) | "notify" | "off".
+ExecStart=/usr/local/bin/orion-apps update-all --auto
+Nice=10
+IOSchedulingClass=idle

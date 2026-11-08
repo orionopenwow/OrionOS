@@ -1,0 +1,38 @@
+#!/bin/sh
+# Lock the screen (Super+L / Ctrl+Alt+L, before sleep, after 5 minutes away: os/lab/bin/orion-idle).
+#   orion-lock          lock now (says how to set a password if there's none yet)
+#   orion-lock --now    lock now and return as soon as the lock is on screen (before sleep: swayidle waits for it)
+#   orion-lock --idle   the same, quietly (no notification when there's no password yet)
+# The hot mic pauses while locked and comes back when you unlock. While locked, Orion doesn't read the screen
+# ($XDG_RUNTIME_DIR/orion-locked, apps/daemon/capture_privacy.py).
+MODE="${1:-}"
+has_password() {
+  [ -f "$HOME/.config/orion/lock-ready" ] && return 0
+  [ "$(passwd -S "$(id -un)" 2>/dev/null | awk '{print $2}')" = P ]
+}
+if ! has_password; then
+  [ "$MODE" = --idle ] || notify-send "Orion" "Set a password first, so the lock screen has something to check: Settings > Users > Set a password." 2>/dev/null
+  exit 1
+fi
+pgrep -u "$(id -u)" -x swaylock >/dev/null 2>&1 && exit 0    # already locked
+MARK="${XDG_RUNTIME_DIR:-/tmp}/orion-locked"
+: > "$MARK"
+orion-ctl mic pause >/dev/null 2>&1
+if [ -r /usr/share/orion/swaylock.conf ]; then
+  # Orion's lock theme, on a still of the black hole when there is one
+  set -- -C /usr/share/orion/swaylock.conf
+  [ -r /usr/share/orion/lock.png ] && set -- "$@" -i /usr/share/orion/lock.png -s fill
+else
+  set -- -c 05070E --inside-color 0B0F1E --ring-color 7C5CFF --key-hl-color 00E5FF --line-color 00000000 \
+    --text-color D8DEFF --ring-ver-color 00E5FF --inside-ver-color 0B0F1E --ring-wrong-color FF5C8A \
+    --inside-wrong-color 0B0F1E --indicator-radius 90 --indicator-thickness 10 --show-failed-attempts
+fi
+after_unlock() { rm -f "$MARK"; orion-ctl mic resume >/dev/null 2>&1; }
+if [ "$MODE" = --now ] || [ "$MODE" = --idle ]; then
+  # -f: swaylock returns once the screen is locked; a small watcher puts things back after the unlock
+  swaylock -f "$@" || { after_unlock; exit 1; }
+  ( while pgrep -u "$(id -u)" -x swaylock >/dev/null 2>&1; do sleep 1; done; after_unlock ) >/dev/null 2>&1 &
+  exit 0
+fi
+swaylock "$@"
+after_unlock

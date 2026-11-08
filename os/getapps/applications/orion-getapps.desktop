@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Get apps
+GenericName=App store
+Comment=Install apps from Flathub; updates are checked and undone if an app breaks
+Exec=orion-apps open
+Icon=system-software-install
+Terminal=false
+Categories=System;PackageManager;
+Keywords=apps;store;install;flatpak;flathub;software;update;
+StartupWMClass=local.GetApps

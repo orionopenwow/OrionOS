@@ -1,0 +1,122 @@
+#!/opt/orion/venv/bin/python
+"""orion-approval-check: does this file prove your phone just approved something? (root side, H9)
+
+Root helpers that must not trust the session user's own processes (unfreezing Orion, installing an app without
+someone at the keyboard) accept a "phone approval token": the exact request your phone signed with its
+fingerprint-protected key, saved by the daemon as JSON:
+
+    {"device": "...", "method": "POST", "path": "/phone/unfreeze", "ts": "<ms>", "sig": "<base64>", "body_b64": "..."}
+
+It is checked against the phone keys root pinned when you paired the phone (/etc/orion/phone-keys/<device>.pub,
+written by `orion-freeze-helper pin-phone`, which asks for your password). The session user can't add a key there,
+so nothing running as "orion" can make a token of its own. Each token works once, and only for 5 minutes.
+
+    orion-approval-check PURPOSE FILE     PURPOSE: unfreeze | install      exit 0 = valid
+
+What it can't tell: *which* app or decision the phone approved (the daemon keeps that). It proves your
+fingerprint was on the phone in the last 5 minutes for a request of the right kind.
+"""
+from __future__ import annotations
+
+import base64
+import hashlib
+import json
+import os
+import re
+import sys
+import time
+from pathlib import Path
+
+SIG_DOMAIN = b"ORION-BOARDROOM-v1\n"   # same as apps/daemon/boardroom.py
+MAX_AGE_S = 300
+KEYS = Path(os.environ.get("ORION_PHONE_KEYS", "/etc/orion/phone-keys"))
+USED = Path(os.environ.get("ORION_APPROVAL_USED", "/var/lib/orion/approval-used.json"))
+PATHS = {
+    "unfreeze": re.compile(r"^/phone/(unfreeze|verdict)$"),
+    "install": re.compile(r"^/phone/(verdict|card/do|approvals?/[A-Za-z0-9_-]{1,64}(/approve)?)$"),
+}
+DEVICE_RE = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
+
+
+def signing_message(method: str, path: str, ts: str, body: bytes) -> bytes:
+    return SIG_DOMAIN + f"{method.upper()}\n{path}\n{ts}\n{hashlib.sha256(body).hexdigest()}".encode()
+
+
+def verify_p256(spki_der: bytes, message: bytes, sig_b64: str) -> bool:
+    from cryptography.exceptions import InvalidSignature
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+    try:
+        key = serialization.load_der_public_key(spki_der)
+        if not isinstance(key, ec.EllipticCurvePublicKey) or key.curve.name != "secp256r1":
+            return False
+        key.verify(base64.b64decode(sig_b64, validate=True), message, ec.ECDSA(hashes.SHA256()))
+        return True
+    except (InvalidSignature, ValueError, TypeError):
+        return False
+
+
+def check(purpose: str, token: dict, now: float | None = None) -> str:
+    """'' = valid, else the reason it isn't."""
+    now = time.time() if now is None else now
+    if purpose not in PATHS:
+        return "unknown purpose"
+    dev, method, path = str(token.get("device", "")), str(token.get("method", "")), str(token.get("path", ""))
+    ts, sig = str(token.get("ts", "")), str(token.get("sig", ""))
+    if not DEVICE_RE.match(dev) or method != "POST" or not PATHS[purpose].match(path) or not ts.isdigit() or not sig:
+        return "not an approval of the right kind"
+    if abs(now - int(ts) / 1000) > MAX_AGE_S:
+        return "too old (approvals last 5 minutes)"
+    try:
+        body = base64.b64decode(str(token.get("body_b64", "")), validate=True)
+    except ValueError:
+        return "bad body"
+    if path == "/phone/verdict":
+        try:
+            if json.loads(body.decode() or "{}").get("verdict") != "approve":
+                return "the phone didn't approve"
+        except (ValueError, AttributeError):
+            return "bad body"
+    keyfile = KEYS / f"{dev}.pub"
+    try:
+        if keyfile.stat().st_uid != 0 and not os.environ.get("ORION_APPROVAL_TEST"):
+            return "the phone key isn't root's"
+        der = base64.b64decode(keyfile.read_text().strip(), validate=True)
+    except (OSError, ValueError):
+        return "this phone isn't pinned (pair it again with orion-ctl pair-phone)"
+    if not verify_p256(der, signing_message(method, path, ts, body), sig):
+        return "bad signature"
+    try:
+        used = json.loads(USED.read_text())
+    except (OSError, ValueError):
+        used = {}
+    if int(ts) <= int(used.get(dev, 0)):
+        return "already used"
+    used[dev] = int(ts)
+    USED.parent.mkdir(parents=True, exist_ok=True)
+    tmp = USED.with_suffix(".tmp")
+    tmp.write_text(json.dumps(used))
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, USED)
+    return ""
+
+
+def main(argv: list[str]) -> int:
+    if len(argv) != 2:
+        print(__doc__.strip(), file=sys.stderr)
+        return 2
+    try:
+        raw = Path(argv[1]).read_text(encoding="utf-8")[:200_000]
+        token = json.loads(raw)
+    except (OSError, ValueError):
+        print("approval: unreadable token", file=sys.stderr)
+        return 1
+    why = check(argv[0], token if isinstance(token, dict) else {})
+    if why:
+        print(f"approval refused: {why}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

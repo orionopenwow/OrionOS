@@ -1,0 +1,4 @@
+Time zone: Europe/Lisbon (21:14 WEST)
+Network time: on
+In sync: yes
+Hardware clock: UTC

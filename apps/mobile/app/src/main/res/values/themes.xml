@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="OrionTheme" parent="android:Theme.Material.NoActionBar">
+        <item name="android:colorPrimary">#7C5CFF</item>
+        <item name="android:colorAccent">#00E5FF</item>
+        <item name="android:windowBackground">#05070E</item>
+        <item name="android:statusBarColor">#05070E</item>
+        <item name="android:navigationBarColor">#05070E</item>
+    </style>
+</resources>

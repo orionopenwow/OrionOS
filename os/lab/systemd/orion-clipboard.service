@@ -1,0 +1,12 @@
+# OrionOS: clipboard history (os/lab/bin/orion-clipboard; passwords and keys are left out).
+[Unit]
+Description=Clipboard history
+PartOf=sway-session.target
+After=sway-session.target
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+ExecStart=/usr/local/bin/orion-clipboard watch
+Restart=on-failure
+RestartSec=2

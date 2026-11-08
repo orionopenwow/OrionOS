@@ -1,0 +1,274 @@
+#!/usr/bin/env bash
+# orion-boardroom-vm: the boardroom (Orion's separate sign-off machine) as a virtual machine on OrionOS itself, with
+# KVM, which is built into Linux. On Windows it was the orion-boardroom VirtualBox VM (os/windows/New-OrionVMs.ps1);
+# this makes the same VM here, from the same Ubuntu cloud image and the same first-boot seed, so replacing Windows
+# doesn't lose the boardroom.
+#
+#   orion-boardroom-vm status               is it there, is it running
+#   orion-boardroom-vm create               make a new boardroom VM (first start sets itself up: 10-20 minutes)
+#   orion-boardroom-vm import DISK          bring the old one from Windows (its .vdi/.vmdk from "Move my stuff");
+#                                           it keeps its signing key
+#   orion-boardroom-vm console              its screen, in this terminal (leave with Ctrl+])
+#   orion-boardroom-vm start | stop
+#
+# Network: a private network "orionnet" (10.77.0.0/24) like the Windows one. The boardroom is 10.77.0.11 and this
+# computer answers on 10.77.0.1 and on 10.77.0.10, the lab's old address, so a boardroom brought from Windows works
+# unchanged. Nothing is shared with this computer: no shared folders, no clipboard, no screen (a text console only).
+# Only orion-admin can manage it: Orion's everyday user "orion" (and its agents) can't reach the VM's disk or memory.
+# Needs the "virtual-machines" install recipe (QEMU, libvirt, virt-install); it offers to run it.
+set -euo pipefail
+NAME=orion-boardroom
+NET=orionnet
+BRIDGE=virbr-orion
+HOST_IP=10.77.0.1
+LAB_IP=10.77.0.10
+BR_IP=10.77.0.11
+MAC=52:54:00:4f:52:0b
+DIR=/var/lib/libvirt/images/orion
+IMG_URL=https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
+SUMS_URL=https://cloud-images.ubuntu.com/noble/current/SHA256SUMS
+SRC="${ORION_SRC:-/opt/orion-src}"
+[ -d "$SRC/os/cloud-init" ] || SRC="$(cd "$(dirname "$(readlink -f "$0")")/../../.." && pwd)"
+MEM_MB="${ORION_BOARDROOM_MEMORY_MB:-2048}"
+DISK_GB="${ORION_BOARDROOM_DISK_GB:-12}"
+V="virsh -q -c qemu:///system"
+C='\033[1;36m'; Y='\033[1;33m'; R='\033[1;31m'; G='\033[1;32m'; N='\033[0m'
+say() { printf "${C}%s${N}\n" "$*"; }
+ok() { printf "${G}%s${N}\n" "$*"; }
+warn() { printf "${Y}%s${N}\n" "$*"; }
+die() { printf "${R}%s${N}\n" "$*" >&2; exit 1; }
+
+as_admin() {   # managing system VMs needs root; ask for the orion-admin password if we aren't admin yet
+  [ "$(id -u)" -eq 0 ] && return 0
+  if id -nG | grep -qw sudo; then exec sudo "$(readlink -f "$0")" "$@"; fi
+  say "This needs the orion-admin password."
+  exec su -P - orion-admin -c "sudo $(printf '%q ' "$(readlink -f "$0")" "$@")"
+}
+
+need_tools() {
+  local missing=""
+  for t in virsh virt-install qemu-img; do command -v "$t" >/dev/null || missing="$missing $t"; done
+  command -v genisoimage >/dev/null || command -v xorriso >/dev/null || missing="$missing genisoimage"
+  if [ -n "$missing" ]; then
+    warn "Virtual machine tools aren't installed yet (missing:$missing)."
+    read -rp "Install them now (QEMU, libvirt, virt-manager; about 150 MB)? [Y/n] " a
+    case "$a" in n|N|no) die "Nothing changed." ;; esac
+    systemctl start orion-recipe@virtual-machines.service || die "That didn't work; see /var/log/orion-recipes/virtual-machines.log"
+  fi
+  [ -e /dev/kvm ] || die "This computer's virtualisation is off. Turn on VT-x / AMD-V (SVM) in the firmware settings, then try again."
+  systemctl start libvirtd >/dev/null 2>&1 || true
+}
+
+exists() { $V dominfo "$NAME" >/dev/null 2>&1; }
+
+# ------------------------------------------------------------------ the private network
+network() {
+  if ! $V net-info "$NET" >/dev/null 2>&1; then
+    say "Making the private network $NET (10.77.0.0/24)..."
+    local x; x="$(mktemp)"
+    cat > "$x" <<EOF
+<network>
+  <name>$NET</name>
+  <forward mode='nat'/>
+  <bridge name='$BRIDGE' stp='on' delay='0'/>
+  <ip address='$HOST_IP' netmask='255.255.255.0'/>
+</network>
+EOF
+    $V net-define "$x" >/dev/null; rm -f "$x"
+  fi
+  $V net-autostart "$NET" >/dev/null
+  # The boardroom calls the lab at 10.77.0.10 (that's how it was on Windows). Here the lab is this computer, so
+  # the bridge also answers on that address, every time the network starts (a libvirt network hook).
+  local hook=/etc/libvirt/hooks/network.d/50-orion-lab-address
+  if [ ! -x "$hook" ]; then
+    install -d -m 755 /etc/libvirt/hooks/network.d
+    cat > "$hook" <<EOF
+#!/bin/sh
+# OrionOS (orion-boardroom-vm): this computer is the lab, at $LAB_IP on the $NET network.
+[ "\$1" = "$NET" ] && [ "\$2" = started ] && ip addr replace $LAB_IP/32 dev $BRIDGE
+exit 0
+EOF
+    chmod 755 "$hook"
+    systemctl try-restart libvirtd >/dev/null 2>&1 || true   # libvirt finds new hooks when it starts; VMs keep running
+  fi
+  $V net-info "$NET" 2>/dev/null | grep -q 'Active:.*yes' || $V net-start "$NET" >/dev/null
+  ip addr replace "$LAB_IP/32" dev "$BRIDGE" 2>/dev/null || true
+  if command -v ufw >/dev/null && ufw status 2>/dev/null | grep -q "Status: active"; then
+    ufw status | grep -q "9121.*ALLOW IN.*$BR_IP" || ufw allow in from "$BR_IP" to any port 9121 proto tcp comment "boardroom verdicts" >/dev/null
+  fi
+}
+
+# ------------------------------------------------------------------ first-boot seed (same as New-OrionVMs.ps1)
+password() { tr -dc 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789' < /dev/urandom | head -c 20; }
+
+ssh_keys() {   # the admin's public keys, as a YAML list body
+  local h k out=""
+  h="$(getent passwd orion-admin | cut -d: -f6)"
+  for k in id_ed25519.pub id_ecdsa.pub id_rsa.pub; do
+    [ -n "$h" ] && [ -f "$h/.ssh/$k" ] || continue
+    out="${out:+$out, }\"$(tr -d '"\r\n' < "$h/.ssh/$k")\""
+  done
+  printf '%s' "$out"
+}
+
+# write_seed DIR PASSWORD: user-data, meta-data, network-config for the boardroom.
+write_seed() {
+  local d="$1" pw="$2" keys
+  keys="$(ssh_keys)"
+  python3 - "$SRC/os/cloud-init/boardroom-user-data.yaml" "$d/user-data" "$keys" "$pw" <<'PY'
+import sys
+src, out, keys, pw = sys.argv[1:5]
+ud = open(src, encoding="utf-8").read().replace("\r\n", "\n")
+ud = ud.replace("__SSH_KEYS__", keys).replace("__ADMIN_PASSWORD__", pw).replace("__TAILSCALE_UP__", "true")
+# On KVM the boardroom's screen is its serial console (orion-boardroom-vm console): show the sign-off console there.
+line = '  - [bash, -c, "bash /opt/orion-src/os/boardroom/provision.sh'
+i = ud.index(line)
+j = ud.index("\n", i) + 1
+ud = ud[:j] + "  - [bash, /opt/orion-src/orion-kvm/serial-console.sh]\n" + ud[j:]
+open(out, "w", encoding="utf-8", newline="\n").write(ud)
+PY
+  printf 'instance-id: %s-%s\nlocal-hostname: %s\n' "$NAME" "$(head -c4 /dev/urandom | od -An -tx1 | tr -d ' \n')" "$NAME" > "$d/meta-data"
+  cat > "$d/network-config" <<EOF
+version: 2
+ethernets:
+  orionnet:
+    match: {name: "en*"}
+    dhcp4: false
+    addresses: [$BR_IP/24]
+    routes: [{to: default, via: $HOST_IP}]
+    nameservers: {addresses: [1.1.1.1, 9.9.9.9]}
+EOF
+}
+
+# bundle DIR: the boardroom's part of Orion (client, provisioning, hardening) plus the serial-console tweak.
+bundle() {
+  local stage; stage="$(mktemp -d)"
+  mkdir -p "$stage/apps" "$stage/os" "$stage/orion-kvm"
+  cp -r "$SRC/apps/boardroom" "$stage/apps/"
+  cp -r "$SRC/os/boardroom" "$SRC/os/common" "$stage/os/"
+  cat > "$stage/orion-kvm/serial-console.sh" <<'EOF'
+#!/bin/sh
+# Show the sign-off console on the serial port too (that's the boardroom's screen on KVM).
+set -e
+mkdir -p /etc/systemd/system/serial-getty@ttyS0.service.d
+printf '[Service]\nExecStart=\nExecStart=-/sbin/agetty --autologin boardroom --keep-baud 115200,57600,38400,9600 %%I $TERM\n' \
+  > /etc/systemd/system/serial-getty@ttyS0.service.d/autologin.conf
+P=/home/boardroom/.bash_profile
+[ -f "$P" ] && sed -i 's#if \[ "$(tty)" = "/dev/tty1" \]; then#if [ "$(tty)" = "/dev/tty1" ] || [ "$(tty)" = "/dev/ttyS0" ]; then#' "$P"
+EOF
+  date -u +%FT%TZ > "$stage/BUNDLE_VERSION"
+  tar -czf "$1/orion-bundle.tar.gz" -C "$stage" .
+  rm -rf "$stage"
+}
+
+make_iso() {   # make_iso DIR ISO
+  if command -v genisoimage >/dev/null; then genisoimage -quiet -output "$2" -volid CIDATA -joliet -rock "$1"
+  else xorriso -as mkisofs -quiet -output "$2" -volid CIDATA -joliet -rock "$1"; fi
+}
+
+cloud_image() {   # prints only the image path on stdout (messages go to stderr)
+  local img="$DIR/noble-server-cloudimg-amd64.img" sums want got
+  sums="$(curl -fsSL --retry 3 "$SUMS_URL")" || die "Couldn't reach cloud-images.ubuntu.com. Check the internet connection."
+  want="$(printf '%s\n' "$sums" | awk '$2 ~ /^\*?noble-server-cloudimg-amd64\.img$/ {print $1; exit}')"
+  [ -n "$want" ] || die "Couldn't find the image's checksum."
+  if [ -f "$img" ] && [ "$(sha256sum "$img" | cut -d' ' -f1)" != "$want" ]; then warn "The saved image is out of date; downloading again." >&2; rm -f "$img"; fi
+  if [ ! -f "$img" ]; then
+    say "Downloading the Ubuntu 24.04 cloud image (about 600 MB)..." >&2
+    curl -fL --retry 3 -o "$img.part" "$IMG_URL"
+    mv "$img.part" "$img"
+  fi
+  got="$(sha256sum "$img" | cut -d' ' -f1)"
+  [ "$got" = "$want" ] || { rm -f "$img"; die "The image download was damaged (checksum mismatch). Run this again."; }
+  ok "Image checked (SHA-256 ${want:0:16}...)." >&2
+  printf '%s' "$img"
+}
+
+osinfo() { virt-install --osinfo list 2>/dev/null | grep -qx 'ubuntu24.04' && echo ubuntu24.04 || echo ubuntu22.04; }
+
+install_vm() {   # install_vm DISK [SEED_ISO]
+  local extra=()
+  [ -n "${2:-}" ] && extra=(--disk "path=$2,device=cdrom,readonly=on")
+  virt-install --connect qemu:///system --name "$NAME" --memory "$MEM_MB" --vcpus 2 --import \
+    --disk "path=$1,format=qcow2,bus=virtio" "${extra[@]}" \
+    --network "network=$NET,model=virtio,mac=$MAC" \
+    --graphics none --console pty,target_type=serial --sound none --osinfo "$(osinfo)" \
+    --autostart --noautoconsole >/dev/null
+}
+
+# ------------------------------------------------------------------ commands
+create() {
+  as_admin create
+  need_tools
+  exists && die "There's already a boardroom VM here. (To start over, delete it in virt-manager first: that deletes its signing key.)"
+  install -d -m 711 "$DIR"
+  network
+  local img pw seed disk="$DIR/$NAME.qcow2" iso="$DIR/$NAME-seed.iso"
+  img="$(cloud_image)"
+  pw="$(password)"
+  seed="$(mktemp -d)"; chmod 700 "$seed"
+  write_seed "$seed" "$pw"
+  bundle "$seed"
+  make_iso "$seed" "$iso"; chmod 600 "$iso"
+  rm -rf "$seed"   # the plain-text seed isn't kept
+  say "Making its disk ($DISK_GB GB)..."
+  qemu-img convert -q -O qcow2 "$img" "$disk"
+  qemu-img resize -q "$disk" "${DISK_GB}G"
+  install_vm "$disk" "$iso"
+  echo
+  ok "The boardroom VM is setting itself up now (10-20 minutes, then it restarts once)."
+  printf "${Y}  One-time admin password (user orion-admin; you must change it at the first login): %s${N}\n" "$pw"
+  printf "${Y}  It isn't saved anywhere. Note it now.${N}\n"
+  pw=""
+  next_steps
+}
+
+import_disk() {
+  local src="${1:-}"
+  [ -n "$src" ] || die "Which disk? orion-boardroom-vm import /path/to/orion-boardroom.vdi"
+  src="$(readlink -f "$src")"
+  as_admin import "$src"
+  [ -f "$src" ] || die "Can't find $src."
+  case "$src" in *.vdi|*.vmdk|*.qcow2|*.img|*.raw) ;; *) die "That isn't a VM disk (.vdi, .vmdk or .qcow2)." ;; esac
+  need_tools
+  exists && die "There's already a boardroom VM here. Remove it in virt-manager first (that deletes its signing key)."
+  install -d -m 711 "$DIR"
+  network
+  say "Converting the boardroom's disk from VirtualBox (a few minutes)..."
+  qemu-img convert -q -p -O qcow2 "$src" "$DIR/$NAME.qcow2"
+  install_vm "$DIR/$NAME.qcow2"
+  ok "The boardroom from Windows is running here now, with its own signing key."
+  say "Its screen is on tty1, so use virt-manager (as orion-admin) to see it, or SSH over Tailscale as before."
+  say "Once you've checked it works, wipe the copy on the USB drive."
+  next_steps
+}
+
+next_steps() {
+  echo
+  say "Next:"
+  say "  1. Watch it: orion-boardroom-vm console   (leave with Ctrl+])"
+  say "  2. When it shows the sign-off console, choose the key passphrase. It then asks for a pairing code."
+  say "  3. Here, in a terminal: orion-ctl pair-boardroom, and type that code in the boardroom."
+  say "  4. Both screens must show the same key fingerprint."
+  say "It starts by itself with this computer from now on."
+}
+
+status() {
+  if ! command -v virsh >/dev/null; then say "No boardroom VM (virtual machine tools aren't installed)."; return 0; fi
+  local st; st="$(virsh -q -r -c qemu:///system domstate "$NAME" 2>/dev/null || true)"
+  if [ -z "$st" ]; then say "No boardroom VM on this computer. Make one: orion-boardroom-vm create (or import the one from Windows)."; return 0; fi
+  case "$st" in running) ok "The boardroom VM is running ($BR_IP)." ;; *) warn "The boardroom VM is $st. Start it: orion-boardroom-vm start" ;; esac
+  virsh -q -r -c qemu:///system dominfo "$NAME" 2>/dev/null | awk -F: '/Autostart/ {gsub(/ /,"",$2); print "Starts with this computer: " $2}'
+}
+
+case "${1:-status}" in
+  status) status ;;
+  create) create ;;
+  import) shift; import_disk "${1:-}" ;;
+  start) as_admin start; exists || die "No boardroom VM yet: orion-boardroom-vm create"; network; $V start "$NAME" && ok "Started." ;;
+  stop) as_admin stop; $V shutdown "$NAME" && ok "Shutting down." ;;
+  console) as_admin console; exists || die "No boardroom VM yet: orion-boardroom-vm create"; say "The boardroom's screen. Leave with Ctrl+] (it keeps running)."; exec $V console "$NAME" ;;
+  seed-preview) # tests: write the seed files (fake password) to a folder, no admin, no VM
+    [ -n "${2:-}" ] || die "seed-preview DIR"; mkdir -p "$2"; write_seed "$2" "preview-only"; bundle "$2" ;;
+  -h|--help|help) sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//' ;;
+  *) die "Unknown: $1 (try: orion-boardroom-vm help)" ;;
+esac

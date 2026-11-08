@@ -1,0 +1,23 @@
+[Unit]
+Description=OrionOS welcome (vault and first-time setup, from the USB stick)
+# Not after plymouth-quit-wait: greetd (which waits for this) quits the splash itself, so waiting would deadlock.
+# ExecStartPre below quits the splash before the welcome screen takes tty1.
+After=systemd-user-sessions.service plymouth-start.service NetworkManager.service
+Before=greetd.service getty@tty1.service
+Conflicts=getty@tty1.service
+# Every start from the stick, "Try Orion" too: each path ends with an orion-admin account (review H6).
+ConditionKernelCommandLine=orion.slot
+
+[Service]
+Type=oneshot
+ExecStartPre=-/usr/bin/plymouth quit
+ExecStart=/usr/local/bin/orion-welcome
+StandardInput=tty
+StandardOutput=tty
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

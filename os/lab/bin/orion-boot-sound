@@ -1,0 +1,41 @@
+#!/bin/sh
+# Orion's boot sound: a low swell, and a soft chime when the photon ring ignites (2.6 s in).
+#   orion-boot-sound              play it once per boot, if it's on (the session runs this when it starts)
+#   orion-boot-sound on | off     turn it on or off (also: Settings > Boot sound, or  orion sound on|off)
+#   orion-boot-sound status | test
+# It plays through the normal sound output, so it follows the system volume and mute. Plymouth can't play sound,
+# so it plays the moment the session's audio is up. ORION_BOOT_SOUND=0 also turns it off.
+CONF="${XDG_CONFIG_HOME:-$HOME/.config}/orion/boot-sound"
+SOUND="${ORION_BOOT_SOUND_FILE:-/usr/share/sounds/orion/boot.ogg}"
+enabled() {
+  [ "${ORION_BOOT_SOUND:-1}" = 0 ] && return 1
+  [ "$(cat "$CONF" 2>/dev/null)" = off ] && return 1
+  return 0
+}
+play() {
+  [ -r "$SOUND" ] || return 0
+  # wait (briefly) for the session's sound server
+  i=0
+  while [ $i -lt 30 ]; do
+    if command -v pw-play >/dev/null 2>&1 && pw-cli info 0 >/dev/null 2>&1; then exec pw-play --volume 0.8 "$SOUND"; fi
+    if command -v paplay >/dev/null 2>&1 && pactl info >/dev/null 2>&1; then exec paplay "$SOUND"; fi
+    sleep 0.1; i=$((i + 1))
+  done
+  return 0
+}
+case "${1:-}" in
+  on|off)
+    mkdir -p "$(dirname "$CONF")" && echo "$1" > "$CONF"
+    [ "$1" = on ] && echo "The boot sound is on (it follows your volume and mute)." || echo "The boot sound is off."
+    ;;
+  status) enabled && echo "Boot sound: on" || echo "Boot sound: off" ;;
+  test) play ;;
+  "")
+    enabled || exit 0
+    boot="$(cat /proc/sys/kernel/random/boot_id 2>/dev/null)"
+    mark="${XDG_CACHE_HOME:-$HOME/.cache}/orion/boot-sound.last"
+    [ -n "$boot" ] && [ "$(cat "$mark" 2>/dev/null)" = "$boot" ] && exit 0   # once per boot, not per login
+    mkdir -p "$(dirname "$mark")" 2>/dev/null && echo "$boot" > "$mark" 2>/dev/null
+    play ;;
+  *) sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+esac

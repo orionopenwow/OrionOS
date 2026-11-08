@@ -1,0 +1,27 @@
+# OrionOS files run inside Linux VMs: keep LF line endings even on a Windows checkout.
+os/** text eol=lf
+apps/boardroom/** text eol=lf
+*.sh text eol=lf
+*.png binary
+*.ogg binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.pf2 binary
+# Xcursor files have no extension
+os/theme/cursor/Orion/cursors/* binary
+*.deb binary
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+# Binary assets must never be eol-converted (os/** above would otherwise mangle fonts under os/theme/fonts)
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.ico binary
+*.icns binary
+*.jpg binary
+*.glb binary
+*.vsix binary

@@ -1,0 +1,62 @@
+# OrionOS GRUB menu: star background, the Orion mark, Unbounded/Figtree, violet highlight.
+# Installed to /EFI/orion/theme on the ORIONEFI partition by os/image/art-boot.sh, which also makes the .pf2
+# fonts with grub-mkfont (names: "Orion Unbounded Regular N", "Orion Figtree Regular N").
+title-text: ""
+desktop-image: "background.png"
+desktop-image-scale-method: "crop"
+desktop-color: "#05070E"
+terminal-font: "Orion Figtree Regular 16"
+terminal-left: "10%"
+terminal-top: "10%"
+terminal-width: "80%"
+terminal-height: "80%"
+
++ image {
+  left = 50%-56
+  top = 14%
+  width = 112
+  height = 112
+  file = "mark.png"
+}
+
++ label {
+  left = 0
+  top = 14%+124
+  width = 100%
+  height = 44
+  align = "center"
+  text = "orion"
+  font = "Orion Unbounded Regular 32"
+  color = "#D8DEFF"
+}
+
++ boot_menu {
+  left = 50%-320
+  top = 45%
+  width = 640
+  height = 43%
+  item_font = "Orion Figtree Regular 20"
+  selected_item_font = "Orion Figtree Regular 20"
+  item_color = "#9DA6D8"
+  selected_item_color = "#FFFFFF"
+  item_height = 42
+  item_padding = 18
+  item_spacing = 6
+  icon_width = 0
+  icon_height = 0
+  item_icon_space = 0
+  selected_item_pixmap_style = "select_*.png"
+  scrollbar = false
+}
+
++ label {
+  id = "__timeout__"
+  left = 0
+  top = 90%
+  width = 100%
+  height = 24
+  align = "center"
+  text = "Starting OrionOS in %d s"
+  font = "Orion Figtree Regular 16"
+  color = "#6B7090"
+}

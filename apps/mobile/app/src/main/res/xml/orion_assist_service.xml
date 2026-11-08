@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Orion as the phone's digital assistant (AssistService.kt). Long-press power opens the listening sheet.
+     Not offered on the lock screen: replies can contain private things. -->
+<voice-interaction-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:sessionService="com.orion.mobile.AssistSessionService"
+    android:recognitionService="com.orion.mobile.AssistRecognitionService"
+    android:settingsActivity="com.orion.mobile.PhoneSetupActivity"
+    android:supportsAssist="true"
+    android:supportsLaunchVoiceAssistFromKeyguard="false"
+    android:supportsLocalInteraction="false" />

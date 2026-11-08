@@ -1,0 +1,38 @@
+{
+  "results": [
+    {
+      "source": {"path": "/work/openwow/Cargo.lock", "type": "lockfile"},
+      "packages": [
+        {
+          "package": {"name": "time", "version": "0.1.43", "ecosystem": "crates.io"},
+          "vulnerabilities": [
+            {"id": "GHSA-wcg3-cvx6-7396", "aliases": ["CVE-2020-26235", "RUSTSEC-2020-0071"],
+             "summary": "Segmentation fault in time",
+             "affected": [{"package": {"name": "time", "ecosystem": "crates.io"},
+                           "ranges": [{"type": "SEMVER", "events": [{"introduced": "0.0.0-0"}, {"fixed": "0.2.23"}]}]}],
+             "database_specific": {"severity": "MODERATE"}},
+            {"id": "RUSTSEC-2020-0071", "aliases": ["CVE-2020-26235", "GHSA-wcg3-cvx6-7396"],
+             "summary": "Potential segfault in the time crate",
+             "affected": [{"package": {"name": "time", "ecosystem": "crates.io"},
+                           "ranges": [{"type": "SEMVER", "events": [{"introduced": "0.0.0-0"}, {"fixed": "0.2.23"}]}]}]}
+          ],
+          "groups": [{"ids": ["GHSA-wcg3-cvx6-7396", "RUSTSEC-2020-0071"],
+                      "aliases": ["CVE-2020-26235", "GHSA-wcg3-cvx6-7396", "RUSTSEC-2020-0071"],
+                      "experimentalAnalysis": {"RUSTSEC-2020-0071": {"called": false, "unimported": false}},
+                      "max_severity": "6.2"}]
+        },
+        {
+          "package": {"name": "openssl", "version": "0.10.55", "ecosystem": "crates.io"},
+          "vulnerabilities": [
+            {"id": "GHSA-xcf7-rvmh-g6q4", "aliases": ["CVE-2023-50000"],
+             "summary": "openssl X509StoreRef::objects is unsound",
+             "affected": [{"package": {"name": "openssl", "ecosystem": "crates.io"},
+                           "ranges": [{"type": "SEMVER", "events": [{"introduced": "0.10.0"}, {"fixed": "0.10.60"}]}]}]}
+          ],
+          "groups": [{"ids": ["GHSA-xcf7-rvmh-g6q4"], "aliases": ["CVE-2023-50000", "GHSA-xcf7-rvmh-g6q4"],
+                      "experimentalAnalysis": {"GHSA-xcf7-rvmh-g6q4": {"called": true}}, "max_severity": "7.5"}]
+        }
+      ]
+    }
+  ]
+}

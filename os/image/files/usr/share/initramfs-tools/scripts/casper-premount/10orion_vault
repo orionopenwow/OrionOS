@@ -1,0 +1,138 @@
+#!/bin/sh
+# OrionOS: unlock the encrypted vault before casper looks for persistence.
+# The vault is a LUKS2 partition labelled "OrionVault" on the USB stick; inside it is an ext4 filesystem labelled
+# "writable", which casper then uses to keep everything you do (your home, settings, Wi-Fi, installed apps).
+# "Try Orion" boots without the "persistent" option, so the vault is never touched.
+#
+# Only the vault, ever (review H4). Casper (1.498, Ubuntu 24.04) on its own takes ANY partition labelled "writable"
+# or "casper-rw" (another USB stick, a partition on the laptop), any file called "writable" on any FAT partition, and
+# "home-rw" / "casper-sn" / "home-sn" ones too; with free space next to the system it even makes a new, unencrypted
+# "writable" partition. So whatever happens here, this script tells casper exactly what to use, through
+# /conf/param.conf, which initramfs-tools reads back into casper after every casper-premount script (the ORDER file):
+#   vault open      -> persistence = /dev/mapper/orionvault only (as the path /dev/disk/by-label/../../mapper/...,
+#                      which casper's find_cow_device accepts as is); no home-rw, no snapshot copy-in
+#   no vault/locked -> no persistence at all (PERSISTENT empty, NOPERSISTENT=Yes): everything stays in memory, and
+#                      casper also won't make a partition of its own
+#
+# A new system slot (review H1): apt is off on the stick (01orion-slot-guard), but older sticks may have package
+# files from before in the vault's overlay, and they would hide the new slot's versions. The first time a slot
+# version starts, its stale package layers (upper/usr except /usr/local, upper/var/lib/dpkg and apt, Orion's own
+# /opt parts) are cleared from the vault before casper mounts it. Your files, settings and Flatpak apps stay.
+#
+# Tests (os/image/tests/test_vault_premount.py) point the paths elsewhere with ORION_VAULT_* variables.
+PREREQ=""
+prereqs() { echo "$PREREQ"; }
+case "$1" in prereqs) prereqs; exit 0 ;; esac
+
+PARAM="${ORION_VAULT_PARAM_CONF:-/conf/param.conf}"
+CMDLINE="${ORION_VAULT_CMDLINE:-/proc/cmdline}"
+MAPPER="${ORION_VAULT_MAPPER:-/dev/mapper/orionvault}"
+VMNT="${ORION_VAULT_MNT:-/run/orion-vault-check}"
+SMNT="${ORION_VAULT_SYSMNT:-/run/orion-sys-check}"
+
+no_persistence() {
+  {
+    echo '# orion_vault: no unlocked vault, so nothing is kept and no other partition is used'
+    echo 'PERSISTENT=""'
+    echo 'NOPERSISTENT="Yes"'
+    echo 'export PERSISTENT NOPERSISTENT'
+  } >> "$PARAM"
+}
+only_the_vault() {
+  {
+    echo '# orion_vault: persistence comes from the unlocked vault and nowhere else'
+    echo 'root_persistence="../../mapper/orionvault"'
+    echo 'home_persistence="../../null"'
+    echo 'root_snapshot_label="../../../../proc/orion-no-snapshot"'
+    echo 'home_snapshot_label="../../../../proc/orion-no-snapshot"'
+  } >> "$PARAM"
+}
+
+clear_stale_packages() {  # H1: first start of a new slot version
+  slot="$(sed -n 's/.*orion\.slot=\([ab]\).*/\1/p' "$CMDLINE")"
+  [ -n "$slot" ] || return 0
+  sysdev="$(blkid -L ORIONSYS 2>/dev/null)"
+  [ -n "$sysdev" ] || return 0
+  mkdir -p "$SMNT" "$VMNT"
+  mount -t ext4 -o ro "$sysdev" "$SMNT" 2>/dev/null || return 0
+  ver="$(head -n1 "$SMNT/slots/$slot/VERSION" 2>/dev/null | tr -cd 'A-Za-z0-9._+-')"
+  umount "$SMNT" 2>/dev/null || true
+  [ -n "$ver" ] || return 0
+  mount -t ext4 -o rw,noatime "$MAPPER" "$VMNT" 2>/dev/null || return 0
+  seen="$(cat "$VMNT/orion/slot-seen" 2>/dev/null || true)"
+  if [ "$seen" != "$slot:$ver" ] && [ -d "$VMNT/upper" ]; then
+    U="$VMNT/upper"
+    if [ -d "$U/usr" ]; then
+      for e in "$U"/usr/* "$U"/usr/.[!.]*; do
+        [ -e "$e" ] || [ -L "$e" ] || continue
+        [ "$e" = "$U/usr/local" ] && continue
+        rm -rf "$e"
+      done
+    fi
+    rm -rf "$U/var/lib/dpkg" "$U/var/lib/apt" "$U/var/cache/apt" "$U/opt/orion" "$U/opt/orion-src" \
+           "$U/bin" "$U/sbin" "$U/lib" "$U/lib64" "$U/lib32" "$U/libx32"
+    rm -rf "$VMNT/work/work" 2>/dev/null || true
+    plymouth message --text="New OrionOS version: tidying up the vault (your files stay)." 2>/dev/null || true
+  fi
+  mkdir -p "$VMNT/orion"
+  echo "$slot:$ver" > "$VMNT/orion/slot-seen"
+  sync
+  umount "$VMNT" 2>/dev/null || true
+}
+
+if ! grep -qw persistent "$CMDLINE"; then
+  no_persistence                 # "Try Orion": nothing kept, and casper must not adopt or make anything either
+  exit 0
+fi
+if ! command -v cryptsetup >/dev/null 2>&1; then no_persistence; exit 0; fi
+
+dev=""
+i=0
+while [ $i -lt 6 ]; do
+  dev=""
+  for d in $(blkid -t LABEL=OrionVault -o device 2>/dev/null); do dev="$d"; break; done
+  [ -n "$dev" ] && break
+  udevadm settle --timeout=1 2>/dev/null || sleep 1
+  i=$((i + 1))
+done
+if [ -z "$dev" ]; then             # no vault yet: the welcome screen offers to make one
+  no_persistence
+  exit 0
+fi
+if [ -e "$MAPPER" ]; then clear_stale_packages; only_the_vault; exit 0; fi
+
+modprobe -q dm_crypt 2>/dev/null || true
+tries=0
+while [ $tries -lt 5 ]; do
+  if plymouth --ping 2>/dev/null; then
+    # One try per prompt, so the splash hears how it went (stars fall into the hole, or spin off the orbit).
+    if plymouth ask-for-password --prompt="Unlock your Orion vault" --number-of-tries=1 \
+      --command="/sbin/cryptsetup open --type luks2 $dev orionvault --key-file=-"; then
+      plymouth update --status=orion-vault-open 2>/dev/null || true
+      break
+    fi
+    plymouth update --status=orion-vault-wrong 2>/dev/null || true
+  else
+    printf "Unlock your Orion vault: " > /dev/console
+    stty -echo < /dev/console 2>/dev/null
+    read -r pass < /dev/console
+    stty echo < /dev/console 2>/dev/null
+    echo > /dev/console
+    printf '%s' "$pass" | /sbin/cryptsetup open --type luks2 "$dev" orionvault --key-file=- && { pass=""; break; }
+    pass=""
+  fi
+  tries=$((tries + 1))
+  if plymouth --ping 2>/dev/null; then plymouth message --text="That passphrase didn't open the vault. Try again (or your recovery key)."; fi
+done
+if [ -e "$MAPPER" ]; then
+  udevadm settle --timeout=5 2>/dev/null || true
+  plymouth message --text="" 2>/dev/null || true
+  clear_stale_packages
+  only_the_vault
+else
+  plymouth update --status=orion-vault-locked 2>/dev/null || true
+  plymouth message --text="Vault stays locked: starting without your saved data." 2>/dev/null || true
+  no_persistence
+  sleep 3
+fi
+exit 0

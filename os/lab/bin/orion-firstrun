@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# Orion's first-run, inside the Orion session (opens once in a terminal window): your password, screen reading,
+# your phone, Orion's brain, voice. (orion-firstrun.service; the VM lab skips it.)
+set -u
+DONE="$HOME/.config/orion/firstrun-done"
+C='\033[1;36m'; W='\033[1;37m'; D='\033[2m'; N='\033[0m'
+step() { printf "\n${C}%s${N}\n" "$*"; }
+ask() { read -rp "$1 [Y/n] " a; case "$a" in n|N|no) return 1 ;; *) return 0 ;; esac; }
+clear
+printf "\n   ${W}Hi. I'm Orion.${N} Let's get a few things ready. Apart from your password, each one can be skipped\n"
+printf "   and done later from Settings (Ctrl+Alt+S).\n"
+
+# ---- B7: a password (protects this laptop, unlocks the lock screen). Skippable only on the VM lab.
+PROFILE="$(cat /etc/orion/profile 2>/dev/null)"
+has_pw() { [ "$(passwd -S "$(id -un)" 2>/dev/null | awk '{print $2}')" = P ]; }
+if ! has_pw && [ -x /opt/orion/privacy/orion-first-password ]; then
+  printf "\n${C}Your password${N}\n"
+  printf "   Choose a password for this computer. It protects your files if the laptop is lost or someone sits at\n"
+  printf "   it, and it unlocks the screen: OrionOS locks itself when the lid closes or after 5 minutes away.\n"
+  if [ "$PROFILE" = image ]; then
+    printf "   (On the USB stick your vault passphrase still opens the stick; this one unlocks the screen.)\n"
+  fi
+  while ! has_pw; do
+    pkexec /opt/orion/privacy/orion-first-password && break
+    if [ "$PROFILE" = vm ]; then
+      ask "   No password set. Skip it for now? (fine on this test VM)" && break
+    else
+      printf "   A password is needed on a real computer. Let's try again.\n"
+    fi
+  done
+fi
+
+# ---- B7: screen reading is off unless you say yes
+printf "\n${C}Should Orion read your screen?${N}\n"
+printf "   With this on, Orion reads the text on your screen (on this computer, every few seconds) so it can help\n"
+printf "   with what you're doing. Nothing is sent anywhere by this. It never reads password managers, banking\n"
+printf "   sites, private browser windows or the lock screen, and the top bar says so whenever it's on.\n"
+read -rp "   Turn screen reading on? [y/N] " sr
+f="$HOME/.config/orion/daemon.env"; mkdir -p "$(dirname "$f")"; touch "$f"; chmod 600 "$f"
+grep -v '^ORION_CAPTURE_ENABLED=' "$f" > "$f.tmp" || true
+case "$sr" in y|Y|yes) echo 'ORION_CAPTURE_ENABLED=1' >> "$f.tmp"; m="On. Turn it off any time: Settings > Privacy." ;;
+  *) echo 'ORION_CAPTURE_ENABLED=0' >> "$f.tmp"; m="Off. Turn it on any time: Settings > Privacy." ;; esac
+mv "$f.tmp" "$f"; printf "   %s\n" "$m"
+
+printf "\n   ${W}Need any help seeing, hearing or typing?${N} "
+if [ -n "$(command -v orion-access)" ] && read -rp "[y/N] " h && case "$h" in y|Y|yes) true ;; *) false ;; esac; then
+  orion-access wizard || true
+fi
+
+step "1/4  Your clock: the time zone"
+orion-timezone first-start || true
+# Your keyboard layout (H13): a guess from the time zone, Enter keeps it. Settings > Keyboard & windows changes it.
+if command -v orion-keyboard >/dev/null; then printf "\n"; orion-keyboard first-start || true; fi
+
+step "2/4  Your phone: approvals with your fingerprint, alerts, and chat"
+printf "   Install Orion Mobile on your Android phone first (Build Orion APK.cmd on Windows makes it).\n"
+printf "   The phone must be on the same Wi-Fi as this computer.\n"
+if ask "   Pair your phone now?"; then orion-ctl pair-phone || true; fi
+
+step "3/4  Orion's brain"
+RAM_GB=$(( $(awk '/MemTotal/ {print $2}' /proc/meminfo) / 1024 / 1024 ))
+printf "   a) On this computer, private and offline (Ollama; downloads 2-9 GB; this PC has %s GB of memory)\n" "$RAM_GB"
+printf "   b) Your own API key (Anthropic, OpenAI or Google): faster on small computers, needs internet\n"
+printf "   c) Later\n"
+read -rp "   a, b or c? " b
+case "$b" in
+  a|A)
+    printf "   Installing Ollama and the right model for %s GB (several minutes)…\n" "$RAM_GB"
+    systemctl start orion-recipe@ollama.service && { orion-ctl restart; printf "   Done.\n"; } \
+      || printf "   That didn't work; see /var/log/orion-recipes/ollama.log. Try again from Settings.\n" ;;
+  b|B)
+    read -rp "   Which: anthropic, openai or google? " p
+    case "$p" in anthropic*) k=ANTHROPIC_API_KEY ;; openai*) k=OPENAI_API_KEY ;; google*|gemini*) k=GEMINI_API_KEY ;; *) k="" ;; esac
+    if [ -n "$k" ]; then
+      read -rsp "   Paste the key (it's hidden, and stays only in your vault): " v; echo
+      f="$HOME/.config/orion/daemon.env"; mkdir -p "$(dirname "$f")"; touch "$f"; chmod 600 "$f"
+      grep -v "^$k=" "$f" > "$f.tmp" || true; printf '%s=%s\n' "$k" "$v" >> "$f.tmp"; mv "$f.tmp" "$f"; v=""
+      orion-ctl restart; printf "   Saved.\n"
+    fi ;;
+esac
+
+step "4/4  Voice: talk to Orion, the hot mic that only answers you, and Orion's own voice (about 1.5 GB)"
+if ask "   Install voice? (your phone asks for your fingerprint)"; then
+  orion-ctl setup voice >/dev/null 2>&1 && printf "   Approve \"Install voice for Orion\" on your phone. Then: Settings > Set up my voice.\n"
+fi
+
+# [move-kit] Bring my stuff: a move kit from "Move my stuff to Orion.cmd" on a USB drive, in a VM's shared folder,
+# or on this PC's Windows drive (dual boot). One summary, one yes, then apps, Firefox (extensions, Tampermonkey
+# scripts, default browser), bookmarks, Wi-Fi and files, with progress. Skippable; running it again carries on.
+if command -v orion-move-in >/dev/null && { orion-move-in find >/dev/null 2>&1 || orion-move-in windows-drive >/dev/null 2>&1; }; then
+  step "Bring my stuff from Windows"
+  printf "   Your apps, Chrome set-up (for Firefox), bookmarks, Wi-Fi and files, from 'Move my stuff to Orion'.\n"
+  if ask "   Look for it now? (Skip: Settings > Bring my stuff from Windows, any time)"; then orion-move-in bring || true; fi
+fi
+
+mkdir -p "$(dirname "$DONE")"; date -u +%FT%TZ > "$DONE"
+orion-ctl restart >/dev/null 2>&1 || true   # Orion's brain picks up the screen-reading choice
+# [testcenter] last screen: offer the Test Center (it waits for the restarted brain, then opens in the HUD)
+printf "\n${C}Test everything now?${N}\n"
+printf "   The Test Center checks Orion on this computer and your phone, one step at a time (about 10 minutes).\n"
+printf "   Later: Super+T, or say \"Orion, test everything\".\n"
+if ask "   Test everything now?"; then orion-ctl test || true; fi
+printf "\n   ${W}All set.${N} Press Super+D (or Ctrl+Alt+Space) for apps, Ctrl+Alt+S for settings, and just type to\n"
+printf "   talk to me in the Orion window. ${D}Press Enter to close.${N}\n"; read -r _
+swaymsg -q workspace number 1 2>/dev/null || true

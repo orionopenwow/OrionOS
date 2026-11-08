@@ -1,0 +1,4 @@
+# OrionOS on real hardware: NetworkManager handles Wi-Fi and wired networks.
+network:
+  version: 2
+  renderer: NetworkManager

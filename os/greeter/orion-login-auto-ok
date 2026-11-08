@@ -1,0 +1,16 @@
+#!/bin/sh
+# PAM helper for greetd's login screen (pam_exec, "auth sufficient", put in /etc/pam.d/greetd by os/image/os-rescue.sh).
+# While OrionOS starts without a password (LOGIN_MODE=auto: the VM lab, the USB stick whose vault passphrase already
+# protects it, a fresh install before first-run sets one), the login screen's "Start Orion again" and "Rescue
+# desktop" let the login user in without typing anything, just like the power-on auto-login does. In every other
+# case this exits non-zero and PAM asks for the password as usual. It only answers; it never changes anything.
+CONF=/etc/orion/login.conf
+[ "${PAM_TYPE:-}" = auth ] || exit 1
+[ "${PAM_SERVICE:-}" = greetd ] || exit 1
+get() { sed -n "s/^$1=//p" "$CONF" 2>/dev/null | tr -d "\"' " | tail -n1; }
+[ "$(get LOGIN_MODE)" = auto ] || exit 1
+want="$(get LOGIN_USER)"; want="${want:-orion}"
+[ -n "${PAM_USER:-}" ] && [ "$PAM_USER" = "$want" ] || exit 1
+# the conf must be root's own (nobody else can switch this on)
+[ "$(stat -c '%u %a' "$CONF" 2>/dev/null)" = "0 644" ] || exit 1
+exit 0

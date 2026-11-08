@@ -1,0 +1,4 @@
+// OrionOS on its USB stick (review H1): system packages come only with whole-system updates (orion-slot update).
+// Packages changed here would live in the vault's overlay and hide the next system version's own. The guard only
+// acts when the kernel was started with orion.slot= (the stick); installed systems use apt as usual.
+DPkg::Pre-Invoke { "/usr/local/sbin/orion-apt-guard"; };

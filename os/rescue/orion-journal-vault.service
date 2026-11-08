@@ -1,0 +1,15 @@
+# OrionOS on the USB stick: saved, size-capped logs while the vault is unlocked (os/rescue/orion-journal-vault).
+[Unit]
+Description=Keep logs on the unlocked vault (USB stick)
+DefaultDependencies=no
+After=local-fs.target systemd-journald.service
+Before=sysinit.target
+ConditionPathExists=/dev/mapper/orionvault
+
+[Service]
+Type=oneshot
+ExecStart=/opt/orion/rescue/orion-journal-vault
+RemainAfterExit=yes
+
+[Install]
+WantedBy=sysinit.target

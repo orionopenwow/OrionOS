@@ -1,0 +1,9 @@
+[Unit]
+Description=OrionOS nightly snapshot (undo for the whole system)
+ConditionPathExists=/usr/local/bin/orion-snapshot
+
+[Service]
+Type=oneshot
+Nice=15
+IOSchedulingClass=idle
+ExecStart=/usr/local/bin/orion-snapshot take --kind nightly --why nightly --quiet

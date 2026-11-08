@@ -1,0 +1,29 @@
+# Optional extras. Install with: npm run setup:daemon:full
+# Local embeddings (pulls PyTorch, ~2 GB). Used when EMBEDDING_BACKEND=st or auto without OpenAI key.
+sentence-transformers>=3.0
+# Discord gateway listener (Discord Monitor agent).
+discord.py>=2.4
+# V2 Comms hub: optional Telegram user-account bridge for true personal DMs (TELEGRAM_API_ID/HASH).
+telethon>=1.36
+# Feature Bible: watch-and-learn macro recorder (keyboard/mouse capture between explicit start/stop).
+pynput>=1.7
+# Feature Bible: PDFs in the offline knowledge vault (~/.orion/vault).
+pypdf>=4.0
+# Feature Bible: [Remove Background] asset pill (large: pulls onnxruntime + a model on first use).
+rembg>=2.0
+# Music widget: Windows system media session (now playing, play/pause/skip).
+winsdk>=1.0.0b10; sys_platform == "win32"
+# MCP bus: the mysql_query tool for coding agents (orion-mcp). Pure Python.
+PyMySQL>=1.1
+# Video Scout: fetch TikTok / YouTube / Instagram Reels (also needs ffmpeg + Tesseract for on-screen text).
+yt-dlp>=2025.1
+rapidfuzz>=3.0
+# Presence (after-1.0 plan §6): webcam presence + hand gestures, all on this computer. Off by default.
+opencv-python-headless>=4.8
+mediapipe>=0.10.9,<0.11
+# Desktop Skill Recorder: UI Automation identity on Windows (Linux uses AT-SPI from apt: python3-gi gir1.2-atspi-2.0).
+uiautomation>=2.0; sys_platform == "win32"
+# Desktop Skill Recorder: Wayland fallback that reads keyboards/mice from /dev/input (user in the 'input' group).
+evdev>=1.6; sys_platform == "linux"
+# Wake word "Orion" for the hot mic (wake_word.py; off by default; needs a custom model in ~/.orion/models/wake).
+openwakeword>=0.6

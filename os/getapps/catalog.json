@@ -1,0 +1,62 @@
+{
+  "_about": "Get apps catalogue (os/getapps). Every Flathub id below was checked on 2026-10-16 against its Flathub packaging repo, github.com/flathub/<id>. Orion Studio ids come from each app's own Flatpak manifest in its official repo (github.com/storytold/<app>/packaging/linux/flatpak/). Never add an id that hasn't been checked like this.",
+  "checked": "2026-10-16",
+  "categories": ["Chat", "Games", "Windows apps", "Create", "Code", "Music & video", "Notes & tools"],
+  "picks": [
+    {"id": "com.discordapp.Discord", "name": "Discord", "category": "Chat", "summary": "Voice, video and text chat for communities and friends.", "open_source": false, "icon": "discord"},
+    {"id": "org.signal.Signal", "name": "Signal", "category": "Chat", "summary": "Private messages and calls, linked to the app on your phone.", "open_source": true, "icon": "signal-desktop"},
+    {"id": "org.telegram.desktop", "name": "Telegram", "category": "Chat", "summary": "Fast messaging with chats, channels and file sharing.", "open_source": true, "icon": "telegram"},
+    {"id": "com.valvesoftware.Steam", "name": "Steam", "category": "Games", "summary": "Your Steam library, with Proton for Windows games.", "open_source": false, "icon": "steam"},
+    {"id": "com.heroicgameslauncher.hgl", "name": "Heroic Games Launcher", "category": "Games", "summary": "Epic, GOG and Amazon games in one launcher.", "open_source": true, "icon": "heroic"},
+    {"id": "net.lutris.Lutris", "name": "Lutris", "category": "Games", "summary": "Install and run games from many stores and emulators.", "open_source": true, "icon": "lutris"},
+    {"id": "com.usebottles.bottles", "name": "Bottles", "category": "Windows apps", "summary": "Run Windows programs, each in its own sandboxed bottle (uses Wine).", "open_source": true, "icon": "com.usebottles.bottles"},
+    {"id": "com.obsproject.Studio", "name": "OBS Studio", "category": "Create", "summary": "Record your screen and stream live.", "open_source": true, "icon": "com.obsproject.Studio"},
+    {"id": "org.blender.Blender", "name": "Blender", "category": "Create", "summary": "3D modelling, animation and rendering.", "open_source": true, "icon": "blender"},
+    {"id": "org.kde.krita", "name": "Krita", "category": "Create", "summary": "Digital painting and drawing.", "open_source": true, "icon": "krita"},
+    {"id": "org.gimp.GIMP", "name": "GIMP", "category": "Create", "summary": "Photo editing and image retouching.", "open_source": true, "icon": "gimp"},
+    {"id": "org.inkscape.Inkscape", "name": "Inkscape", "category": "Create", "summary": "Vector drawing and illustration (SVG).", "open_source": true, "icon": "inkscape"},
+    {"id": "org.kde.kdenlive", "name": "Kdenlive", "category": "Create", "summary": "Video editing on a timeline.", "open_source": true, "icon": "kdenlive"},
+    {"id": "org.audacityteam.Audacity", "name": "Audacity", "category": "Create", "summary": "Record and edit audio.", "open_source": true, "icon": "audacity"},
+    {"id": "com.vscodium.codium", "name": "VSCodium", "category": "Code", "summary": "VS Code without Microsoft's tracking, from open source.", "open_source": true, "icon": "vscodium"},
+    {"id": "com.visualstudio.code", "name": "Visual Studio Code", "category": "Code", "summary": "Microsoft's code editor (works with the Event Horizon theme).", "open_source": false, "icon": "visual-studio-code"},
+    {"id": "com.spotify.Client", "name": "Spotify", "category": "Music & video", "summary": "Music and podcasts.", "open_source": false, "icon": "spotify"},
+    {"id": "org.videolan.VLC", "name": "VLC", "category": "Music & video", "summary": "Plays almost any video or music file, and discs.", "open_source": true, "icon": "vlc"},
+    {"id": "md.obsidian.Obsidian", "name": "Obsidian", "category": "Notes & tools", "summary": "Notes in plain Markdown files, linked together.", "open_source": false, "icon": "obsidian"},
+    {"id": "org.localsend.localsend_app", "name": "LocalSend", "category": "Notes & tools", "summary": "Send files to Windows, Android, iPhone and Mac on your Wi-Fi. Orion's Share files uses it.", "open_source": true, "icon": "localsend"},
+    {"id": "com.bitwarden.desktop", "name": "Bitwarden", "category": "Notes & tools", "summary": "Password manager.", "open_source": true, "icon": "bitwarden"},
+    {"id": "com.github.tchx84.Flatseal", "name": "Flatseal", "category": "Notes & tools", "summary": "See and change what each app is allowed to reach.", "open_source": true, "icon": "com.github.tchx84.Flatseal"}
+  ],
+  "windows": {
+    "title": "Run Windows apps",
+    "about": "Many Windows programs and games run on OrionOS. Bottles runs Windows programs, each in its own sandboxed bottle. Steam runs most Windows games with Proton. Lutris adds other game stores. Nothing here is installed unless you choose it.",
+    "caution": "Not everything works: games with strict anti-cheat (Valorant, League of Legends, Fortnite) and Adobe's apps don't. Check a program at protondb.com (games) or the Bottles and WineHQ app lists before you rely on it. Orion never ships Windows programs or game files: you bring your own.",
+    "apps": [
+      {"id": "com.usebottles.bottles", "name": "Bottles", "use": "Windows programs: make a bottle (Application or Gaming), then add the program's installer or .exe."},
+      {"id": "com.valvesoftware.Steam", "name": "Steam", "use": "Windows games: Steam > Settings > Compatibility > turn on Steam Play for all titles."},
+      {"id": "net.lutris.Lutris", "name": "Lutris", "use": "Optional: Battle.net, EA, Ubisoft and other stores, with install scripts for many games."}
+    ],
+    "recipes": [
+      {"name": "WoW 1.12 on your own server", "command": "orion-wow-client setup", "about": "Your own 1.12 client folder (bring it from Windows with Move my stuff) in a Bottles bottle, with realmlist.wtf pointing at your server. No game files are downloaded or shipped."},
+      {"name": "Bring my Windows apps list", "command": "orion-move-in apps", "about": "Reads the list Move my stuff made on Windows and offers the Linux version of each app."}
+    ]
+  },
+  "studio": {
+    "title": "Orion Studio",
+    "about": "The Craft creative suite from the ArtCraft team (storytold on GitHub): free apps written in Rust that imitate well-known commercial tools, dual-licensed MIT / Apache-2.0. Optional: nothing here is installed unless you choose it.",
+    "caution": "Most of the suite is alpha or still in development; PhotoCraft's own README says it is not yet a replacement for daily professional work. The apps describe themselves as clean-room reimplementations. Some people have publicly questioned how they were made, and nothing is proven either way, so Orion only offers them from their official releases and never bundles them.",
+    "how_to_install": "These aren't on Flathub yet. Their official GitHub releases have a Flatpak bundle and an AppImage. Download the .flatpak and SHA256SUMS.txt into the same folder, then press Install downloaded file: Orion checks the checksum and that it's this app before installing.",
+    "org_url": "https://github.com/storytold",
+    "apps": [
+      {"name": "PhotoCraft", "like": "Like Photoshop: layers, masks, PSD files", "icon": "applications-graphics", "status": "Early alpha", "flatpak_id": "ai.storyteller.photocraft", "bundle_prefix": "photocraft", "source": "Flatpak bundle or AppImage from the official GitHub release", "url": "https://github.com/storytold/photocraft/releases/latest", "agent_hooks": "Command-line tool with hundreds of commands; MCP server"},
+      {"name": "PdfCraft", "like": "Reading, editing, merging and redacting PDFs", "icon": "application-pdf", "status": "Early alpha", "flatpak_id": "ai.storyteller.pdfcraft", "bundle_prefix": "pdfcraft", "source": "Flatpak bundle or AppImage from the official GitHub release", "url": "https://github.com/storytold/pdfcraft/releases/latest", "agent_hooks": "Command-line tool; MCP with about 160 tools"},
+      {"name": "LightCraft", "like": "Photo library and RAW development", "status": "In development", "coming_soon": true, "url": "https://github.com/storytold"},
+      {"name": "VectorCraft", "like": "Vector illustration", "status": "In development", "coming_soon": true, "url": "https://github.com/storytold"},
+      {"name": "FilmCraft", "like": "Video editing, colour and sound", "status": "In development", "coming_soon": true, "url": "https://github.com/storytold"},
+      {"name": "EffectCraft", "like": "Motion graphics and effects", "status": "In development", "coming_soon": true, "url": "https://github.com/storytold"},
+      {"name": "DesignCraft", "like": "Page layout", "status": "In development", "coming_soon": true, "url": "https://github.com/storytold"},
+      {"name": "FigCraft", "like": "Interface design and prototyping", "status": "In development", "coming_soon": true, "url": "https://github.com/storytold"},
+      {"name": "WordCraft", "like": "Word processor", "status": "In development", "coming_soon": true, "url": "https://github.com/storytold"},
+      {"name": "GridCraft, DeckCraft, SoundCraft, CADCraft", "like": "Spreadsheets, slides, audio, CAD", "status": "In development", "coming_soon": true, "url": "https://github.com/storytold"}
+    ]
+  }
+}

@@ -1,0 +1,30 @@
+#!/bin/sh
+# OrionOS guest account (os/everyone/README.md). Run by PAM (pam_exec in /etc/pam.d/greetd) when anyone logs in or
+# out on the login screen; it only acts for the guest. Log-in: a fresh RAM-disk home with Orion's look, nothing
+# from earlier guests. Log-out: every guest program stops and the RAM disk is thrown away, so nothing is left.
+# Installed as /usr/local/sbin/orion-guest-home by os/image/os-everyone.sh.
+GUEST="${ORION_GUEST_USER:-guest}"
+[ "${PAM_USER:-}" = "$GUEST" ] || exit 0
+H="/home/$GUEST"
+SKEL=/etc/orion/guest-skel
+wipe() {
+  loginctl terminate-user "$GUEST" 2>/dev/null
+  pkill -KILL -u "$GUEST" 2>/dev/null
+  sleep 0.5
+  while mountpoint -q "$H"; do umount -l "$H" 2>/dev/null || break; done
+}
+case "${PAM_TYPE:-}" in
+  open_session)
+    [ -f /etc/orion/guest-enabled ] || exit 1
+    mountpoint -q "$H" && wipe
+    install -d -m 755 -o root -g root "$H"
+    uid="$(id -u "$GUEST")" && gid="$(id -g "$GUEST")" || exit 1
+    mount -t tmpfs -o "size=25%,mode=700,uid=$uid,gid=$gid,nosuid,nodev" orion-guest-home "$H" || exit 1
+    if [ -d "$SKEL" ]; then cp -a "$SKEL/." "$H/"; fi
+    chown -R "$uid:$gid" "$H"
+    ;;
+  close_session)
+    wipe
+    ;;
+esac
+exit 0

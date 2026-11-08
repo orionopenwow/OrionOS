@@ -1,0 +1,13 @@
+# OrionOS: the Orion screen (HUD). os/lab/bin/orion-hud restarts the HUD itself and opens the Rescue panel after a
+# few quick crashes; this unit restarts the wrapper if it ever stops, within limits.
+[Unit]
+Description=Orion screen (HUD)
+PartOf=sway-session.target
+After=sway-session.target orion-mako.service
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+ExecStart=/usr/local/bin/orion-hud
+Restart=on-failure
+RestartSec=3

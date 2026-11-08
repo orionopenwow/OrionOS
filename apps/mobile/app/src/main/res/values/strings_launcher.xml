@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Orion Launcher (Android Stage 1, the look): home screen, app list, wallpaper. Plain, short words. -->
+<resources>
+    <string name="launcher_name">Orion Home</string>
+    <string name="wallpaper_name">Orion black hole</string>
+    <string name="wallpaper_description">Orion\'s living black hole. It reacts to your PC.</string>
+    <string name="launcher_search_apps">Search apps</string>
+    <string name="launcher_app_info">App info</string>
+    <string name="launcher_pin">Pin to taskbar</string>
+    <string name="launcher_unpin">Unpin from taskbar</string>
+    <string name="launcher_cant_open">That app can\'t be opened.</string>
+    <string name="launcher_pc_online_waiting">PC online, %1$d waiting</string>
+    <string name="launcher_pc_online_clear">PC online, nothing waiting</string>
+    <string name="launcher_pc_offline">PC offline</string>
+    <string name="launcher_not_paired">Not paired yet. Tap to pair.</string>
+    <string name="launcher_running">Running</string>
+    <string name="launcher_frozen">Frozen</string>
+    <string name="launcher_listening">Listening. Let go to send.</string>
+    <string name="launcher_thinking">Orion is thinking</string>
+    <string name="launcher_mic_needed">Allow the microphone, then hold the core again.</string>
+    <string name="launcher_mic_failed">The microphone is busy. Try again.</string>
+    <string name="launcher_too_short">Hold the core while you talk.</string>
+    <string name="launcher_approvals">Approvals</string>
+    <string name="launcher_approvals_sub">Tap one to open it. Approving needs your fingerprint.</string>
+    <string name="launcher_nothing_waiting">Nothing waiting.</string>
+    <string name="launcher_agents">Agents</string>
+    <string name="launcher_agents_sub">Coding agents working on your PC.</string>
+    <string name="launcher_no_agents">No agents running.</string>
+    <string name="launcher_open_on_pc">Open on PC</string>
+    <string name="launcher_pause">Pause</string>
+    <string name="launcher_stop">Stop</string>
+    <string name="launcher_stop_confirm">Tap again to stop</string>
+    <string name="launcher_close">Close</string>
+    <string name="launcher_set_wallpaper">Set as wallpaper</string>
+    <string name="launcher_home_settings">Change Home app</string>
+    <string name="launcher_open_chat">Open Orion chat</string>
+    <string name="launcher_apps">Apps</string>
+    <string name="launcher_chat">Chat</string>
+    <string name="launcher_message_hint">Message Orion</string>
+    <string name="launcher_taskbar_empty">Long-press an app in Apps to pin it here.</string>
+    <string name="launcher_swipe_hint">Swipe up for apps. Hold the core to talk.</string>
+    <string name="launcher_wallpaper_missing">This phone can\'t show live wallpapers.</string>
+    <string name="launcher_asking_pc">Asking your PC…</string>
+</resources>

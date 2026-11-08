@@ -1,0 +1,722 @@
+{
+  "_about": "Everything the website shows. Edit the words here; the page (docs/index.html + docs/site/site.js) renders them with no build step. The 'commands' section is regenerated from the code by scripts/update-site.mjs (keep hand-written lines under commands.voice). Screenshots are re-captured by scripts/capture-screenshots.mjs.",
+  "meta": {
+    "title": "OrionOS: a desktop that is alive",
+    "description": "OrionOS is a Linux system whose whole desktop is Orion: a living black hole, calm glass windows, one simple menu, coding agents you can watch, and your phone's fingerprint for every big decision.",
+    "repo": "https://github.com/orionopenwow/OrionOS",
+    "pages": "https://orionopenwow.github.io/OrionOS/",
+    "updated": "2026-11-07"
+  },
+  "hero": {
+    "eyebrow": "A Linux OS · free and open source",
+    "title": "Your desktop is alive.",
+    "lede": "OrionOS is Ubuntu with Orion as the whole desktop: a living black hole at the centre, calm glass windows, one simple menu, and helpers that do the work while you stay in charge.",
+    "primary": {
+      "label": "Preview the OS",
+      "href": "#preview"
+    },
+    "secondary": {
+      "label": "How to try it",
+      "href": "#try"
+    },
+    "note": "The preview runs in your browser with sample data. Nothing leaves your computer."
+  },
+  "features": [
+    {
+      "id": "core",
+      "title": "The living black hole",
+      "text": "Orion's core sits in the middle of your desktop. It is calm when all is well, brighter while you talk, warmer when it is time to rest. Messages fall in as small comets; things waiting for your OK orbit it.",
+      "image": "screenshots/os-desktop.png"
+    },
+    {
+      "id": "projects",
+      "title": "Start a project with Claude",
+      "text": "Name it, pick a starter (web game, website, Python tool), say what you want, and watch it being built. Play it when it's ready.",
+      "image": "screenshots/projects.png"
+    },
+    {
+      "id": "missions",
+      "title": "Mission Control",
+      "text": "Every agent job on one board: Claude Code, Codex or Gemini CLI, each in its own branch, with its live log, changes and cost. A second agent reviews the work. Nothing is merged until you approve it.",
+      "image": "screenshots/mission-control.png"
+    },
+    {
+      "id": "phone",
+      "title": "Your phone, paired in one go",
+      "text": "Point your phone's camera at the QR code and check five words match. Then your phone shows what needs you, mirrors your inbox if you want, and approves big decisions with your fingerprint.",
+      "image": "screenshots/phone-pairing.png"
+    },
+    {
+      "id": "privacy",
+      "title": "Privacy you can see",
+      "text": "One dashboard lists everything Orion can see or hear, with one tap to turn each off. The camera and the hot mic are off until you turn them on, work on this computer, and always show a light.",
+      "image": "screenshots/privacy.png"
+    },
+    {
+      "id": "tests",
+      "title": "Start Here and the Test Center",
+      "text": "Double-click Start Here on Windows and it walks you through everything. The Test Center checks each part, one card at a time, with a big Do it for me button.",
+      "image": "screenshots/test-center.png"
+    },
+    {
+      "id": "glass",
+      "title": "Glass windows, one menu",
+      "text": "Soft glass windows with a violet glow on the one in focus. Everything lives in one menu at the bottom left: six main things and More for the rest. Or just type what you want."
+    },
+    {
+      "id": "messages",
+      "title": "Every chat in one place",
+      "text": "Telegram, Discord, Messenger and your phone's messages in one inbox. Orion drafts replies in your style; nothing is ever sent until you tap Send."
+    },
+    {
+      "id": "voice",
+      "title": "Talk to it",
+      "text": "Say \"Orion, ...\" and it listens. Speech is turned into text on this computer. The hot mic and the wake word are off until you turn them on, and Ctrl+Alt+M mutes it."
+    },
+    {
+      "id": "skills",
+      "title": "Skills it learns by watching",
+      "text": "Say \"Orion, watch what I do next\", do a task once, and it becomes a skill you can run again by voice. Risky steps always ask first."
+    },
+    {
+      "id": "guide",
+      "title": "Guide Mode",
+      "text": "Ask \"show me how to connect to Wi-Fi\" and Orion puts a ring around each button in turn. It only looks at the screen while a guide runs."
+    },
+    {
+      "id": "self",
+      "title": "It can improve itself, with your OK",
+      "text": "Ask for a change to Orion itself and you see a ghost preview first. Approve it and it swaps in; say \"undo that\" to put it back. The protected core can never change itself."
+    }
+  ],
+  "safety": [
+    {
+      "title": "Nothing sends without you",
+      "text": "Every message, post and reply waits for your tap. Voice and gestures never approve money or big decisions."
+    },
+    {
+      "title": "Fingerprint for the big things",
+      "text": "Merges, payments and anything public need your fingerprint on your paired phone."
+    },
+    {
+      "title": "Stays on your computer",
+      "text": "Screen reading, voice and the camera run on this computer. Orion sends no usage data anywhere."
+    },
+    {
+      "title": "One tap to freeze",
+      "text": "The snowflake stops every agent, update and self-change at once. Only your phone can unfreeze it."
+    }
+  ],
+  "try": [
+    {
+      "title": "In a virtual machine",
+      "what": "Nothing changes on your PC: OrionOS runs in a window on Windows.",
+      "time": "15 min",
+      "href": "docs/install/1-try-it-in-a-vm.md",
+      "cmd": "Try OrionOS VM.cmd"
+    },
+    {
+      "title": "From a USB stick",
+      "what": "Start the PC from the stick. Your stuff lives encrypted on the stick.",
+      "time": "30 min",
+      "href": "docs/install/2-usb-stick.md",
+      "cmd": "Make Orion USB.cmd"
+    },
+    {
+      "title": "Alongside Windows",
+      "what": "Adds OrionOS next to Windows; pick one every time you start.",
+      "time": "1-2 hours",
+      "href": "docs/install/3-side-by-side-with-windows.md",
+      "cmd": "Prepare Laptop for Orion.cmd"
+    }
+  ],
+  "start_here": {
+    "title": "Not sure where to start?",
+    "text": "Download the repository, open the folder on Windows and double-click Start Here.cmd. It checks your PC (changing nothing), sets Orion up and opens the Test Center.",
+    "honest": "So far OrionOS has been tested in virtual machines, not yet on a real laptop. Keep Windows on any computer you depend on."
+  },
+  "links": [
+    {
+      "label": "Install guides",
+      "href": "docs/install/README.md"
+    },
+    {
+      "label": "How to test everything",
+      "href": "docs/TESTING.md"
+    },
+    {
+      "label": "Your phone",
+      "href": "docs/install/5-phone.md"
+    },
+    {
+      "label": "Source code",
+      "href": ""
+    }
+  ],
+  "screenshots": [
+    {
+      "id": "site",
+      "file": "site-hero.png",
+      "title": "The website",
+      "caption": "The OrionOS website's Site tab.",
+      "size": [
+        1600,
+        1000
+      ],
+      "hidden": true
+    },
+    {
+      "id": "desktop",
+      "file": "os-desktop.png",
+      "title": "The desktop",
+      "caption": "The living black hole with the one simple menu open.",
+      "size": [
+        1600,
+        1000
+      ]
+    },
+    {
+      "id": "tests",
+      "file": "test-center.png",
+      "title": "Test Center",
+      "caption": "The Test Center with its Next card and a big Do it for me button.",
+      "size": [
+        1600,
+        1000
+      ]
+    },
+    {
+      "id": "projects",
+      "file": "projects.png",
+      "title": "Projects",
+      "caption": "Start a project with Claude: name it, pick a starter, say what you want.",
+      "size": [
+        1600,
+        1000
+      ]
+    },
+    {
+      "id": "missions",
+      "file": "mission-control.png",
+      "title": "Mission Control",
+      "caption": "Every agent job on one board, with its live log, changes and cost.",
+      "size": [
+        1600,
+        1000
+      ]
+    },
+    {
+      "id": "phone",
+      "file": "phone-pairing.png",
+      "title": "Phone pairing",
+      "caption": "Pair your phone by pointing its camera at the code.",
+      "size": [
+        1600,
+        1000
+      ]
+    },
+    {
+      "id": "privacy",
+      "file": "privacy.png",
+      "title": "Privacy dashboard",
+      "caption": "Everything Orion can see or hear, with one tap to turn each off.",
+      "size": [
+        1600,
+        1000
+      ]
+    },
+    {
+      "id": "social",
+      "file": "social.png",
+      "title": "Social preview",
+      "caption": "The picture shown when the site is shared.",
+      "size": [
+        1200,
+        630
+      ],
+      "hidden": true
+    }
+  ],
+  "commands": {
+    "voice": [
+      {
+        "say": "Orion, test everything",
+        "does": "Opens the Test Center and runs the automatic checks."
+      },
+      {
+        "say": "Orion, show me how to ...",
+        "does": "Guide Mode: a ring around each button, step by step."
+      },
+      {
+        "say": "Orion, watch what I do next",
+        "does": "Records a skill you can run again."
+      },
+      {
+        "say": "Orion, undo that",
+        "does": "Puts back the last change Orion made to itself."
+      },
+      {
+        "say": "focus mode / take a break / wind down",
+        "does": "Pacing, breaks and the evening wind-down."
+      },
+      {
+        "say": "idea: ...",
+        "does": "Saves an idea to the project you're in."
+      }
+    ],
+    "menu": [
+      {
+        "id": "chat",
+        "label": "Chat",
+        "group": "main",
+        "does": "Talk to Orion."
+      },
+      {
+        "id": "projects",
+        "label": "Projects",
+        "group": "main",
+        "does": "Start a project with Claude, or see the ones running."
+      },
+      {
+        "id": "phone",
+        "label": "Phone",
+        "group": "main",
+        "does": "Pair your phone and see how it is doing."
+      },
+      {
+        "id": "skills",
+        "label": "Skills",
+        "group": "main",
+        "does": "Things Orion learned by watching you, ready to run again."
+      },
+      {
+        "id": "tests",
+        "label": "Test",
+        "group": "main",
+        "does": "Check that every part of Orion works."
+      },
+      {
+        "id": "settings",
+        "label": "Settings",
+        "group": "main",
+        "does": "Look, sound, voice, accessibility and more."
+      },
+      {
+        "id": "messages",
+        "label": "Messages",
+        "group": "more",
+        "does": "Every chat from your phone and socials in one place."
+      },
+      {
+        "id": "queue",
+        "label": "Waiting for your OK",
+        "group": "more",
+        "does": "Things Orion will only do after you say yes."
+      },
+      {
+        "id": "missions",
+        "label": "Mission Control",
+        "group": "more",
+        "does": "Every agent job: its live log, changes and cost."
+      },
+      {
+        "id": "agents",
+        "label": "Agents",
+        "group": "more",
+        "does": "Turn helper agents on or off. Coding agents also orbit the black hole."
+      },
+      {
+        "id": "scout",
+        "label": "Video Scout",
+        "group": "more",
+        "does": "Paste video links; Orion watches them and pulls out what matters."
+      },
+      {
+        "id": "tools",
+        "label": "Toolkit tools",
+        "group": "more",
+        "does": "Collision Guard, Proof Gate, package checks and the other tools."
+      },
+      {
+        "id": "life",
+        "label": "Life",
+        "group": "more",
+        "does": "Routines, breaks, sleep and the day ahead."
+      },
+      {
+        "id": "guide",
+        "label": "Guide Mode",
+        "group": "more",
+        "does": "Ask \"show me how to...\" and Orion points at each step."
+      },
+      {
+        "id": "privacy",
+        "label": "Privacy dashboard",
+        "group": "more",
+        "does": "Everything Orion can see or hear, with one tap to turn it off."
+      },
+      {
+        "id": "camera",
+        "label": "Camera presence",
+        "group": "more",
+        "does": "Turn the camera for presence and hand gestures on or off."
+      },
+      {
+        "id": "selfchanges",
+        "label": "Self-changes history",
+        "group": "more",
+        "does": "Changes Orion made to itself, with Undo."
+      },
+      {
+        "id": "screen_tasks",
+        "label": "Screen tasks",
+        "group": "more",
+        "does": "Let Orion click and type through a task on screen, step by step."
+      },
+      {
+        "id": "analytics",
+        "label": "Computer health",
+        "group": "more",
+        "does": "CPU, memory and what is running."
+      },
+      {
+        "id": "chrome",
+        "label": "Chrome reader",
+        "group": "more",
+        "does": "Read and pull text from the page open in Chrome."
+      },
+      {
+        "id": "discord",
+        "label": "Discord community",
+        "group": "more",
+        "does": "Your Discord server at a glance."
+      },
+      {
+        "id": "game_bugs",
+        "label": "Game bug hub",
+        "group": "more",
+        "does": "Bug reports from players, sorted and ready to answer."
+      },
+      {
+        "id": "personality",
+        "label": "Personality and voice",
+        "group": "more",
+        "does": "How Orion talks and sounds."
+      },
+      {
+        "id": "widgets",
+        "label": "Side widgets",
+        "group": "more",
+        "does": "Show or hide music, messages, alerts and the agent pet on the side."
+      }
+    ],
+    "quick": [
+      {
+        "say": "status",
+        "does": "say a short status"
+      },
+      {
+        "say": "stream",
+        "does": "open discord, then start the OpenWoW server"
+      },
+      {
+        "say": "done",
+        "does": "stop the OpenWoW server"
+      },
+      {
+        "say": "start the server",
+        "does": "OpenWoW server: start"
+      },
+      {
+        "say": "stop the server",
+        "does": "OpenWoW server: stop"
+      },
+      {
+        "say": "restart the server",
+        "does": "OpenWoW server: restart"
+      },
+      {
+        "say": "is the server up?",
+        "does": "OpenWoW server: status"
+      },
+      {
+        "say": "show the server logs",
+        "does": "OpenWoW server: logs"
+      }
+    ],
+    "keys": [
+      {
+        "keys": [
+          "Super + Space",
+          "Alt + Space"
+        ],
+        "does": "Open the Orion menu"
+      },
+      {
+        "keys": [
+          "Ctrl + Space"
+        ],
+        "does": "Show or hide the chat"
+      },
+      {
+        "keys": [
+          "Ctrl + Alt + Delete",
+          "Super + Escape"
+        ],
+        "does": "Rescue panel"
+      },
+      {
+        "keys": [
+          "Super + O",
+          "Ctrl + Alt + O"
+        ],
+        "does": "Back to Orion"
+      },
+      {
+        "keys": [
+          "Super + Enter",
+          "Ctrl + Alt + T"
+        ],
+        "does": "Terminal"
+      },
+      {
+        "keys": [
+          "Super + D",
+          "Ctrl + Alt + Space"
+        ],
+        "does": "App launcher"
+      },
+      {
+        "keys": [
+          "Super + E",
+          "Ctrl + Alt + E"
+        ],
+        "does": "Files"
+      },
+      {
+        "keys": [
+          "Super + ,",
+          "Ctrl + Alt + S"
+        ],
+        "does": "Settings"
+      },
+      {
+        "keys": [
+          "Ctrl + Alt + M",
+          "Mic mute key"
+        ],
+        "does": "Hot mic on or off"
+      },
+      {
+        "keys": [
+          "Ctrl + Alt + C"
+        ],
+        "does": "Camera presence on or off"
+      },
+      {
+        "keys": [
+          "Super + L",
+          "Ctrl + Alt + L"
+        ],
+        "does": "Lock the screen"
+      },
+      {
+        "keys": [
+          "Super + Shift + Q",
+          "Alt + F4"
+        ],
+        "does": "Close the window"
+      },
+      {
+        "keys": [
+          "Super + F"
+        ],
+        "does": "Full screen"
+      },
+      {
+        "keys": [
+          "Super + Shift + C"
+        ],
+        "does": "Hide private things before sharing the screen"
+      },
+      {
+        "keys": [
+          "Alt + Tab"
+        ],
+        "does": "Switch windows"
+      },
+      {
+        "keys": [
+          "Super + W"
+        ],
+        "does": "Window menu"
+      },
+      {
+        "keys": [
+          "Super + /",
+          "Ctrl + Alt + /"
+        ],
+        "does": "Show every shortcut"
+      },
+      {
+        "keys": [
+          "Print"
+        ],
+        "does": "Screenshot"
+      },
+      {
+        "keys": [
+          "Shift + Print",
+          "Ctrl + Alt + P"
+        ],
+        "does": "Screenshot of an area"
+      },
+      {
+        "keys": [
+          "Ctrl + Print"
+        ],
+        "does": "Screenshot and draw on it"
+      },
+      {
+        "keys": [
+          "Super + V",
+          "Ctrl + Alt + V"
+        ],
+        "does": "Clipboard history"
+      },
+      {
+        "keys": [
+          "Super + N",
+          "Ctrl + Alt + N"
+        ],
+        "does": "Night light"
+      }
+    ],
+    "ctl": [
+      {
+        "cmd": "orion-ctl status",
+        "does": "daemon, Linux adapters, boardroom, paper treasury, autonomy levels"
+      },
+      {
+        "cmd": "orion-ctl pair-boardroom",
+        "does": "show a one-time code to pair the boardroom VM"
+      },
+      {
+        "cmd": "orion-ctl fingerprint",
+        "does": "the paired boardroom key's fingerprint"
+      },
+      {
+        "cmd": "orion-ctl unpair-boardroom",
+        "does": "forget the boardroom key"
+      },
+      {
+        "cmd": "orion-ctl pair-phone",
+        "does": "show a QR code to pair Orion Mobile (home Wi-Fi, or --tailscale)"
+      },
+      {
+        "cmd": "orion-ctl phones",
+        "does": "list paired phones"
+      },
+      {
+        "cmd": "orion-ctl rescue",
+        "does": "the Rescue panel (also Ctrl+Alt+Delete): terminal, files, browser, undo the last update"
+      },
+      {
+        "cmd": "orion-ctl setup",
+        "does": "re-check what the lab still needs (apps, repos) and ask you to approve it"
+      },
+      {
+        "cmd": "orion-ctl set-repo <url>",
+        "does": "tell Orion where your OpenWoW code lives (then approve \"Get the code\")"
+      },
+      {
+        "cmd": "orion-ctl unpair-phone <id>",
+        "does": "revoke a phone (or: all)"
+      },
+      {
+        "cmd": "orion-ctl simulate [what]",
+        "does": "make a stand-in agent propose something: random|donation|bounty|docs|faq|hosting"
+      },
+      {
+        "cmd": "orion-ctl setup voice",
+        "does": "ask again to install voice (hot mic, phone voice chat)"
+      },
+      {
+        "cmd": "orion-ctl voice enroll",
+        "does": "record your voice profile (about 2 minutes)"
+      },
+      {
+        "cmd": "orion-ctl voice calibrate",
+        "does": "set how loud speech must be (your room, your voice)"
+      },
+      {
+        "cmd": "orion-ctl mic on|off|status",
+        "does": "the hot mic (Ctrl+Alt+M toggles it); mic wake-word true|false"
+      },
+      {
+        "cmd": "orion-ctl camera on|off|toggle|status",
+        "does": "webcam presence and hand gestures (Ctrl+Alt+C toggles it, silently)"
+      },
+      {
+        "cmd": "orion-ctl say \"...\"",
+        "does": "talk to Orion by typing (quick commands or chat)"
+      },
+      {
+        "cmd": "orion-ctl quick [add ...]",
+        "does": "list quick commands, or: quick add stream app:discord wow:start"
+      },
+      {
+        "cmd": "orion-ctl telegram pair",
+        "does": "pair your Telegram chat with a one-time code (also: status, unpair)"
+      },
+      {
+        "cmd": "orion-ctl extension pair",
+        "does": "show a code to pair the Orion Bridge browser extension (also: unpair)"
+      },
+      {
+        "cmd": "orion-ctl card \"text\" [x y]",
+        "does": "send a next-step card with a screenshot to your phone"
+      },
+      {
+        "cmd": "orion-ctl login [mode]",
+        "does": "how OrionOS starts: auto (straight in) | password (starry login screen) | reduced-motion on|off (a simple fade instead of the swirl) | status"
+      },
+      {
+        "cmd": "orion-ctl logs | restart",
+        "does": "daemon log / restart"
+      },
+      {
+        "cmd": "orion-ctl hud",
+        "does": "jump back to the HUD (also Super+O or Ctrl+Alt+O)"
+      },
+      {
+        "cmd": "orion-ctl test [report]",
+        "does": "open the Test Center and run the automatic checks (also Super+T); report prints it"
+      },
+      {
+        "cmd": "orion-ctl undo [ID]",
+        "does": "go back to before the last update, or to a snapshot (asks for the orion-admin password)"
+      },
+      {
+        "cmd": "orion-ctl freeze | unfreeze",
+        "does": "kill switch: stop all self-changes, updates and agents (unfreeze asks your phone)"
+      },
+      {
+        "cmd": "orion-ctl health",
+        "does": "what Orion's health monitor sees;  orion-ctl snapshots [take]; orion-ctl changes [N]"
+      },
+      {
+        "cmd": "orion-ctl install <name>",
+        "does": "install an optional app: chromium, office (LibreOffice), firefox (repair), vscode, ..."
+      },
+      {
+        "cmd": "orion-ctl box new|list|enter|rm|run",
+        "does": "throwaway Ubuntu boxes (Clean Box): box new --folder DIR"
+      },
+      {
+        "cmd": "orion-ctl backup now|status|restore|drill|set|recovery",
+        "does": "encrypted backups with monthly restore tests"
+      }
+    ]
+  }
+}

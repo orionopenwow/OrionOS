@@ -1,0 +1,13 @@
+Device 38:18:4C:12:9A:7E (public)
+	Name: Quiet Headphones
+	Alias: Quiet Headphones
+	Class: 0x00240404
+	Icon: audio-headset
+	Paired: yes
+	Bonded: yes
+	Trusted: yes
+	Blocked: no
+	Connected: yes
+	LegacyPairing: no
+	UUID: Audio Sink                (0000110b-0000-1000-8000-00805f9b34fb)
+	Battery Percentage: 0x50 (80)

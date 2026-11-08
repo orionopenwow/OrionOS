@@ -1,0 +1,3 @@
+#!/bin/sh
+# Share files: LocalSend, with its firewall port open only while it runs (os/getapps/orion_share.py).
+exec python3 /opt/orion/getapps/orion_share.py "$@"

@@ -1,0 +1,25 @@
+// OrionOS displays & printing (os/hardware/README.md). The session user "orion", sitting at the computer, may:
+//  * add, change and remove printers and their queues (the Printers window, through cups-pk-helper) without a
+//    password. Print-server settings (sharing printers, remote admin) are NOT included: those still ask.
+//  * set the default paper size (the orion-papersize@ helper: a4, letter or auto, and nothing else).
+// Checked (H9): "local && active" does NOT keep Orion's daemon or agents out. They run as "orion" under the user's
+// systemd manager, and recent polkit (Ubuntu 24.04's included) gives a process outside any login session the user's
+// display session, which is the active local one while you're logged in (that is how desktop shells that run as
+// user services get their permissions). So these two are allowed for
+// anything running as "orion" while you're signed in at this computer. That is acceptable only because they are
+// low-risk (printer queues, paper size); anything riskier must ask for a password (AUTH_SELF) or a phone approval.
+// What "local && active" still rules out: other users (orion-agent, the guest), SSH logins, and times when nobody
+// is logged in at the computer.
+polkit.addRule(function(action, subject) {
+    if (subject.user != "orion" || !subject.local || !subject.active) {
+        return polkit.Result.NOT_HANDLED;
+    }
+    if (/^org\.opensuse\.cupspkhelper\.mechanism\.(printeraddremove|printer-local-edit|printer-remote-edit|printer-enable|printer-set-default|class-edit|devices-get|job-edit|job-not-owned-edit)$/.test(action.id)) {
+        return polkit.Result.YES;
+    }
+    if (action.id == "org.freedesktop.systemd1.manage-units" && action.lookup("verb") == "start" &&
+        /^orion-papersize@(a4|letter|auto)\.service$/.test(action.lookup("unit") || "")) {
+        return polkit.Result.YES;
+    }
+    return polkit.Result.NOT_HANDLED;
+});

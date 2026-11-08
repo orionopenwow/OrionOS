@@ -1,0 +1,53 @@
+/* Accessibility for the Orion window (lib/hudAccess.ts; Settings > Accessibility on OrionOS).
+ * Bigger text: the root font size scales every rem-based size (Tailwind uses rem). Zoom: the whole window.
+ * High contrast: black glass, white text, yellow focus ring, no see-through or glow. */
+html {
+  font-size: calc(100% * var(--orion-font-scale, 1));
+}
+html[data-zoomed] body {
+  zoom: var(--orion-zoom, 1);
+}
+
+html[data-contrast] {
+  color-scheme: dark;
+  --orion-contrast-fg: #ffffff;
+  --orion-contrast-accent: #ffd400;
+}
+html[data-contrast] body {
+  color: #ffffff;
+}
+html[data-contrast] .orion-glass,
+html[data-contrast] .orion-window,
+html[data-contrast] .orion-tile,
+html[data-contrast] [class*='glass'] {
+  background: #000000 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 2px solid #ffffff !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+}
+html[data-contrast] [class*='text-white/'],
+html[data-contrast] [class*='text-slate-'],
+html[data-contrast] [class*='text-gray-'] {
+  color: #ffffff !important;
+}
+html[data-contrast] button,
+html[data-contrast] input,
+html[data-contrast] textarea,
+html[data-contrast] select {
+  border-color: #ffffff !important;
+  color: #ffffff !important;
+}
+html[data-contrast] a {
+  color: var(--orion-contrast-accent) !important;
+  text-decoration: underline;
+}
+html[data-contrast] *:focus-visible {
+  outline: 3px solid var(--orion-contrast-accent) !important;
+  outline-offset: 2px !important;
+}
+html[data-contrast] ::selection {
+  background: var(--orion-contrast-accent);
+  color: #000000;
+}

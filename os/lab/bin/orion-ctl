@@ -1,0 +1,293 @@
+#!/bin/sh
+# OrionOS control: run as the 'orion' user (the session terminal).
+API=http://127.0.0.1:9120
+# Orion's API needs this run's key (review B1). It's read from the user's private token file and handed to curl on
+# file descriptor 3, so it never shows up in the process list.
+orion_token() {
+  for f in "${ORION_TOKEN_FILE:-}" "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/orion/daemon.token" \
+           "${ORION_DATA_DIR:-$HOME/.orion}/daemon.token"; do
+    if [ -n "$f" ] && [ -r "$f" ]; then cat "$f"; return 0; fi
+  done
+  return 0
+}
+ocurl() {
+  command curl -H @/dev/fd/3 "$@" 3<<EOF
+Authorization: Bearer $(orion_token)
+EOF
+}
+PY=/opt/orion/venv/bin/python
+admin() { ( cd /opt/orion/daemon && set -a && . /etc/orion/daemon.env && { [ -r "$HOME/.config/orion/daemon.env" ] && . "$HOME/.config/orion/daemon.env"; true; } && set +a && "$PY" boardroom.py "$@" ); }
+case "${1:-help}" in
+  status)
+    ocurl -fsS $API/health | jq '{status, version}' || echo "daemon not reachable: orion-ctl logs"
+    ocurl -fsS $API/linux/status | jq .
+    ocurl -fsS $API/boardroom/state | jq '{paired, fingerprint, pending: (.pending|length), paper_treasury: [.ledger.buckets[] | {(.label): (.balance_cents/100)}] | add, autonomy: [.autonomy[] | {(.label): "L\(.level) streak \(.streak)"}] | add}'
+    ;;
+  pair-boardroom)
+    CODE="$(admin pair-code)" || { echo "$CODE"; exit 1; }
+    echo "Pairing is open for 10 minutes. On the boardroom VM, type this code when it asks:"
+    echo
+    echo "    $CODE"
+    echo
+    echo "Waiting for the boardroom…"
+    FP=""
+    for _ in $(seq 1 300); do FP="$(admin pending)"; [ -n "$FP" ] && break; sleep 2; done
+    [ -n "$FP" ] || { echo "No boardroom key arrived. Run orion-ctl pair-boardroom again."; exit 1; }
+    echo
+    echo "The lab received a boardroom key with fingerprint:"
+    echo
+    echo "    $FP"
+    echo
+    printf "Is this EXACTLY the fingerprint shown on the boardroom screen? Type yes to accept: "
+    read -r ANS
+    if [ "$ANS" = "yes" ]; then admin confirm "$FP" && echo "Paired. Decisions can now be signed on the boardroom."
+    else admin unpair >/dev/null; echo "Not accepted. Pairing cancelled; nothing was trusted."; exit 1; fi
+    ;;
+  pair-phone)
+    # Home Wi-Fi first: "Open Phone Access.cmd" on Windows stores the PC's Wi-Fi address for the lab.
+    WIFI="$(VBoxControl --nologo guestproperty get /Orion/PhoneURL 2>/dev/null | sed -n 's/^Value: //p')"
+    if [ -z "$WIFI" ] && ! systemd-detect-virt -q 2>/dev/null; then
+      # Your own machine (laptop partition or USB stick): the phone reaches it directly on your network.
+      LAN="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i=1;i<NF;i++) if ($i=="src") print $(i+1)}')"
+      [ -n "$LAN" ] && WIFI="http://$LAN:9121"
+    fi
+    TSIP="$(tailscale ip -4 2>/dev/null | head -n1)"
+    if [ "${2:-}" = "--tailscale" ]; then WIFI=""; fi
+    if [ -n "$WIFI" ]; then
+      URL="$WIFI"; HOW="your phone must be on the same Wi-Fi as this PC"
+    elif [ -n "$TSIP" ]; then
+      URL="http://$TSIP:9121"; HOW="Tailscale must be on, on your phone"
+    else
+      echo "Your phone can't reach the lab yet. Pick one:"
+      echo "  - Same Wi-Fi at home: on Windows, double-click 'Open Phone Access.cmd', then run orion-ctl pair-phone again."
+      echo "  - Anywhere: run  sudo tailscale up --ssh  (log in with the link it prints), then orion-ctl pair-phone again."
+      exit 1
+    fi
+    CODE="$(admin phone-code)" || { echo "$CODE"; exit 1; }
+    # [H11] port 9121 is closed on the local network unless it's marked Home: open it for these 10 minutes only.
+    [ -x /opt/orion/privacy/orion-phone-port ] && [ -n "$WIFI" ] && pkexec /opt/orion/privacy/orion-phone-port open 600 2>/dev/null
+    LINK="orion://pair?u=$URL&c=$CODE"
+    echo "Scan this with your phone's camera ($HOW), then tap the link to open Orion:"
+    echo
+    qrencode -t ANSIUTF8 -m 2 "$LINK" 2>/dev/null || echo "  (qrencode missing) Enter in the app: lab $URL  code $CODE"
+    echo
+    echo "Or type it in the app:  lab  $URL   code  $CODE"
+    echo
+    echo "Waiting for the phone…"
+    FP=""
+    for _ in $(seq 1 300); do FP="$(admin phone-pending)"; [ -n "$FP" ] && break; sleep 2; done
+    [ -n "$FP" ] || { echo "No phone arrived. Run orion-ctl pair-phone again."; exit 1; }
+    echo
+    echo "The lab received a phone key with fingerprint:"
+    echo
+    echo "    $FP"
+    echo
+    printf "Is this EXACTLY the fingerprint shown on your phone? Type yes to accept: "
+    read -r ANS
+    if [ "$ANS" = "yes" ]; then
+      OUT="$(admin phone-confirm "$FP")" && echo "Phone paired. Approvals now reach it." || { echo "$OUT"; exit 1; }
+      # [H9] root keeps its own copy of the phone's approval key, so unfreezing (and installs without you at the
+      # keyboard) can check your fingerprint themselves. Asks for your password once.
+      ID="$(printf '%s' "$OUT" | jq -r '.device_id // empty' 2>/dev/null)"
+      KEY="$( [ -n "$ID" ] && admin phone-signkey "$ID")"
+      if [ -n "$KEY" ] && [ -x /opt/orion/safety/orion-freeze-helper ]; then
+        echo "To let your phone's fingerprint approve unfreezing Orion, type your password:"
+        pkexec /opt/orion/safety/orion-freeze-helper pin-phone "$ID" "$KEY" || echo "(Skipped: unfreezing will ask for your password on this computer instead.)"
+      fi
+    else echo "Not accepted. Nothing was trusted."; exit 1; fi
+    [ -x /opt/orion/privacy/orion-phone-port ] && pkexec /opt/orion/privacy/orion-phone-port sync >/dev/null 2>&1
+    ;;
+  home-network)
+    # [H11] Orion Mobile reaches this computer over Wi-Fi only on networks you mark as Home (else: Tailscale).
+    CON="$(nmcli -t -f NAME,TYPE connection show --active 2>/dev/null | grep -v ':loopback$' | grep -v ':tun$' | head -n1 | sed 's/:[^:]*$//')"
+    case "${2:-status}" in
+      on|off)
+        [ -n "$CON" ] || { echo "Not connected to a network."; exit 1; }
+        if [ "$2" = on ]; then Z=home; else Z=""; fi
+        nmcli connection modify "$CON" connection.zone "$Z" || { echo "Couldn't change \"$CON\"."; exit 1; }
+        pkexec /opt/orion/privacy/orion-phone-port sync
+        ;;
+      *)
+        if [ -n "$CON" ]; then
+          Z="$(nmcli -g connection.zone connection show "$CON" 2>/dev/null)"
+          if [ "$Z" = home ]; then echo "\"$CON\" is your Home network: your phone can reach Orion on it."
+          else echo "\"$CON\" isn't marked Home: your phone reaches Orion only through Tailscale here. (orion-ctl home-network on)"; fi
+        else echo "Not connected to a network."; fi
+        ;;
+    esac
+    ;;
+  setup)
+    [ "${2:-}" = voice ] && Q="?voice=1" || Q=""
+    ocurl -fsS -X POST "$API/setup/check$Q" | jq '{proposed, workspace: .state.workspace, installs: .state.results, repos: .state.repos}'
+    echo "Anything proposed is waiting for your approval on the boardroom or your phone."
+    ;;
+  set-repo)
+    URL="${2:?usage: orion-ctl set-repo https://github.com/you/openwow}"
+    jq -n --arg url "$URL" --arg name "${3:-openwow}" '{url: $url, name: $name}' \
+      | ocurl -sS -X POST -H 'content-type: application/json' --data-binary @- $API/setup/repo | jq .
+    ;;
+  mic)
+    case "${2:-status}" in
+      on|off|toggle|pause|resume)
+        OUT="$(ocurl -sS -X POST -H 'content-type: application/json' -d "{\"action\":\"$2\"}" $API/hotmic)"
+        if echo "$OUT" | jq -e .error >/dev/null 2>&1; then echo "$OUT" | jq -r .error; exit 1; fi
+        echo "$OUT" | jq -r 'if .listening then "Hot mic is ON: Orion answers your voice only. Ctrl+Alt+M mutes it." else "Hot mic is off." end' ;;
+      wake-word) ocurl -sS -X POST -H 'content-type: application/json' -d "{\"action\":\"resume\",\"require_wake\":${3:-true}}" $API/hotmic >/dev/null
+        echo "Saying \"Orion\" first is now $( [ "${3:-true}" = true ] && echo required || echo optional )." ;;
+      wake) # [v1gaps] openWakeWord listens for "Orion" first (wake_word.py); off by default
+        case "${3:-status}" in
+          on|off) ocurl -sS -X POST -H 'content-type: application/json' -d "{\"on\":$( [ "$3" = on ] && echo true || echo false )}" $API/wake \
+                    | jq -r 'if .on then (if .ready then "Wake word on: Orion listens for \"Orion\" first." else "Wake word on, but not ready: \(.why). Using the Whisper check meanwhile." end) else "Wake word off." end' ;;
+          *) ocurl -fsS $API/wake | jq . ;;
+        esac ;;
+      *) ocurl -fsS $API/hotmic | jq '{listening, profile, min_db, max_db, require_wake, missing, last}' ;;
+    esac ;;
+  camera)   # Phase 5: webcam presence + gestures (off by default; silent: no sound, no pop-up)
+    case "${2:-status}" in
+      on|off|toggle) OUT="$(ocurl -sS -X POST -H 'content-type: application/json' -d "{\"action\":\"$2\"}" $API/presence)"
+        echo "$OUT" | jq -r 'if .error != "" and .error != null then .error elif .on then "Camera presence is on (all on this computer). Ctrl+Alt+C turns it off." else "Camera presence is off." end' ;;
+      *) ocurl -fsS $API/presence | jq '{on, paused, error, missing, present, screen_time_today_min, last_gesture}' ;;
+    esac ;;
+  voice)
+    case "${2:-}" in
+      enroll|calibrate) cd /opt/orion/daemon && exec /opt/orion/venv/bin/python hotmic.py "$2" ;;
+      *) echo "orion-ctl voice enroll | calibrate"; exit 2 ;;
+    esac ;;
+  say)
+    shift; [ $# -gt 0 ] || { echo 'usage: orion-ctl say "start the server"'; exit 2; }
+    jq -n --arg t "$*" '{text: $t}' | ocurl -sS -X POST -H 'content-type: application/json' --data-binary @- $API/say | jq -r .reply ;;
+  card)
+    TEXT="${2:?usage: orion-ctl card \"what to do\" [x y]   (sends a next-step card with a screenshot to your phone)}"
+    if [ -n "${3:-}" ] && [ -n "${4:-}" ]; then
+      jq -n --arg t "$TEXT" --argjson x "$3" --argjson y "$4" '{text: $t, target: [$x, $y]}'
+    else jq -n --arg t "$TEXT" '{text: $t}'; fi \
+      | ocurl -sS -X POST -H 'content-type: application/json' --data-binary @- $API/guide/card \
+      | jq -r 'if .withheld then "Sent (no picture: \(.withheld))" else "Sent to your phone." end' ;;
+  alerts)
+    if [ -z "${2:-}" ]; then ocurl -fsS $API/alerts | jq -r '.policy[] | "\(.label): \(.level)\(if .locked then " (locked)" else "" end)"'
+    else
+      case "${3:-}" in
+        lock|unlock) BODY="$(jq -n --arg t "$2" --argjson l "$( [ "$3" = lock ] && echo true || echo false )" '{type: $t, locked: $l}')" ;;
+        urgent|normal|digest) BODY="$(jq -n --arg t "$2" --arg v "$3" '{type: $t, level: $v, locked: true}')" ;;
+        *) echo "orion-ctl alerts <approval|openwow|messages|life|system> <urgent|normal|digest|lock|unlock>"; exit 2 ;;
+      esac
+      echo "$BODY" | ocurl -sS -X POST -H 'content-type: application/json' --data-binary @- $API/alerts | jq -r '.error // "Saved."'
+    fi ;;
+  quick)
+    if [ "${2:-list}" = add ]; then
+      NAME="${3:?usage: orion-ctl quick add <name> app:discord wow:start ...}"; shift 3
+      jq -n --arg n "$NAME" '$ARGS.positional as $s | {name: $n, steps: $s}' --args "$@" \
+        | ocurl -sS -X POST -H 'content-type: application/json' --data-binary @- $API/quick | jq -r '.error // "Saved. Say or type it any time."'
+    else ocurl -fsS $API/quick | jq -r '.commands | to_entries[] | "\(.key): \(.value | join(", "))"'; fi ;;
+  login)
+    # auto (straight in) or password (the starry login screen); changing it needs the orion-admin password.
+    MODE=/opt/orion/greeter/orion-login-mode
+    case "${2:-status}" in
+      status) "$MODE" status ;;
+      auto|password|reduced-motion)
+        if [ "$2" = password ]; then
+          echo "The starry login screen will ask for your password each time OrionOS starts."
+          echo "If you don't have one yet, you'll choose it in a moment (the same one unlocks Super+L)."
+        fi
+        ARG=""
+        if [ "$2" = reduced-motion ]; then
+          case "${3:-}" in on|off) ARG="$3" ;; *) echo "orion-ctl login reduced-motion on|off"; exit 2 ;; esac
+        fi
+        echo "Changing how OrionOS starts needs the orion-admin password."
+        if [ "$(id -u)" -eq 0 ]; then "$MODE" "$2" $ARG
+        else su -P - orion-admin -c "sudo $MODE $2 $ARG"; fi ;;
+      *) echo "orion-ctl login auto | password | reduced-motion on|off | status"; exit 2 ;;
+    esac ;;
+  box) shift; cd /opt/orion/daemon && exec "$PY" clean_box.py "$@" ;;   # Clean Box: throwaway Ubuntu containers
+  backup) shift; cd /opt/orion/daemon && set -a && . /etc/orion/daemon.env && { [ -r "$HOME/.config/orion/daemon.env" ] && . "$HOME/.config/orion/daemon.env"; true; } && set +a && exec "$PY" backup.py "$@" ;;
+  phones) admin phone-list ;;
+  unpair-phone) admin phone-remove "${2:?usage: orion-ctl unpair-phone <device-id|all>}" ;;
+  fingerprint) admin fingerprint ;;
+  unpair-boardroom) admin unpair ;;
+  simulate) ocurl -fsS -X POST -H 'content-type: application/json' -d "{\"what\":\"${2:-random}\"}" $API/boardroom/simulate | jq . ;;
+  telegram)
+    # Review B2: Orion only obeys the Telegram chat that paired with a one-time code.
+    case "${2:-status}" in
+      pair)
+        OUT="$(ocurl -sS -X POST $API/telegram/pair)" || { echo "Orion isn't answering (orion-ctl logs)."; exit 1; }
+        if echo "$OUT" | jq -e .error >/dev/null 2>&1; then echo "$OUT" | jq -r .error; exit 1; fi
+        echo "In Telegram, send this to your Orion bot within 10 minutes:"
+        echo
+        echo "    /pair $(echo "$OUT" | jq -r .code)"
+        echo ;;
+      unpair) ocurl -fsS -X POST $API/telegram/unpair >/dev/null && echo "Forgot the paired Telegram chat." ;;
+      *) ocurl -fsS $API/telegram/pair | jq -r 'if .paired then "Telegram: paired." else "Telegram: not paired (orion-ctl telegram pair)." end' ;;
+    esac ;;
+  extension)
+    # Review B1: the browser extension pairs once with a short code.
+    case "${2:-pair}" in
+      pair) CODE="$(ocurl -fsS -X POST $API/extension/pair/start | jq -r .code)" || { echo "Orion isn't answering."; exit 1; }
+        echo "Open the Orion Bridge extension in your browser and type this code within 2 minutes:"
+        echo
+        echo "    $CODE"
+        echo ;;
+      unpair) ocurl -fsS -X POST $API/extension/unpair >/dev/null && echo "Forgot all paired browser extensions." ;;
+      *) echo "orion-ctl extension pair | unpair"; exit 2 ;;
+    esac ;;
+  logs) journalctl --user -u orion-daemon -n 200 -f ;;
+  restart) systemctl --user restart orion-daemon ;;
+  hud) swaymsg workspace number 1 ;;
+  test)   # [testcenter] Orion Test Center: open it in the HUD and run the automatic checks (test_center.py)
+    if [ "${2:-}" = report ]; then ocurl -fsS $API/tests/report | jq -r .markdown; exit; fi
+    for _ in $(seq 1 90); do ocurl -fsS $API/tests >/dev/null 2>&1 && break; sleep 2; done
+    ocurl -fsS -X POST -H 'content-type: application/json' -d '{"run":true}' $API/tests/open >/dev/null \
+      || { echo "Orion isn't answering yet. Try again in a minute (orion-ctl logs shows why)."; exit 1; }
+    swaymsg -q workspace number 1 2>/dev/null || true
+    echo "The Test Center is open in the Orion window and the automatic checks are running. Then follow Next." ;;
+  rescue) shift; exec orion-rescue "$@" ;;   # os/rescue
+  undo|freeze|unfreeze|health|snapshots|changes) exec orion-safety "$@" ;;   # safety net (os/lab/bin/orion-safety)
+  install)
+    # Optional apps through OrionOS's fixed root install recipes (/opt/orion/recipes), after you type yes.
+    R="${2:-}"
+    case "$R" in ""|*[!a-z0-9-]*) echo "usage: orion-ctl install <name>   (firefox, chromium, office, vscode, discord, ...)"; exit 2 ;; esac
+    [ -f "/opt/orion/recipes/$R.sh" ] || { echo "No install recipe called $R. Available: $(ls /opt/orion/recipes | sed -n 's/\.sh$//p' | tr '\n' ' ')"; exit 2; }
+    printf "Install %s now? It runs OrionOS's own install recipe as root. Type yes: " "$R"
+    read -r ANS
+    [ "$ANS" = "yes" ] || { echo "Nothing installed."; exit 1; }
+    echo "Installing $R (log: /var/log/orion-recipes/$R.log)..."
+    if systemctl start "orion-recipe@$R.service"; then echo "$R is installed."
+    else echo "The $R install failed. Log: /var/log/orion-recipes/$R.log"; exit 1; fi ;;
+  *)
+    cat <<'HELP'
+orion-ctl status              daemon, Linux adapters, boardroom, paper treasury, autonomy levels
+orion-ctl pair-boardroom      show a one-time code to pair the boardroom VM
+orion-ctl fingerprint         the paired boardroom key's fingerprint
+orion-ctl unpair-boardroom    forget the boardroom key
+orion-ctl pair-phone          show a QR code to pair Orion Mobile (home Wi-Fi, or --tailscale)
+orion-ctl phones              list paired phones
+orion-ctl home-network on|off mark the network you're on as Home: only there can your phone reach Orion over Wi-Fi
+orion-ctl rescue              the Rescue panel (also Ctrl+Alt+Delete): terminal, files, browser, undo the last update
+orion-ctl setup               re-check what the lab still needs (apps, repos) and ask you to approve it
+orion-ctl set-repo <url>      tell Orion where your OpenWoW code lives (then approve "Get the code")
+orion-ctl unpair-phone <id>   revoke a phone (or: all)
+orion-ctl simulate [what]     make a stand-in agent propose something: random|donation|bounty|docs|faq|hosting
+orion-ctl setup voice         ask again to install voice (hot mic, phone voice chat)
+orion-ctl voice enroll        record your voice profile (about 2 minutes)
+orion-ctl voice calibrate     set how loud speech must be (your room, your voice)
+orion-ctl mic on|off|status   the hot mic (Ctrl+Alt+M toggles it); mic wake-word true|false
+orion-ctl camera on|off|toggle|status   webcam presence and hand gestures (Ctrl+Alt+C toggles it, silently)
+orion-ctl say "..."           talk to Orion by typing (quick commands or chat)
+orion-ctl quick [add ...]     list quick commands, or: quick add stream app:discord wow:start
+orion-ctl telegram pair       pair your Telegram chat with a one-time code (also: status, unpair)
+orion-ctl extension pair      show a code to pair the Orion Bridge browser extension (also: unpair)
+orion-ctl alerts [type level] how loudly your phone tells you about things (urgent|normal|digest|lock|unlock)
+orion-ctl card "text" [x y]   send a next-step card with a screenshot to your phone
+orion-ctl login [mode]        how OrionOS starts: auto (straight in) | password (starry login screen)
+                              | reduced-motion on|off (a simple fade instead of the swirl) | status
+orion-ctl logs | restart      daemon log / restart
+orion-ctl hud                 jump back to the HUD (also Super+O or Ctrl+Alt+O)
+orion-ctl test [report]       open the Test Center and run the automatic checks (also Super+T); report prints it
+orion-ctl undo [ID]           go back to before the last update, or to a snapshot (asks for the orion-admin password)
+orion-ctl freeze | unfreeze   kill switch: stop all self-changes, updates and agents (unfreeze asks your phone)
+orion-ctl health              what Orion's health monitor sees;  orion-ctl snapshots [take]; orion-ctl changes [N]
+orion-ctl install <name>      install an optional app: chromium, office (LibreOffice), firefox (repair), vscode, ...
+orion-ctl box new|list|enter|rm|run   throwaway Ubuntu boxes (Clean Box): box new --folder DIR
+orion-ctl backup now|status|restore|drill|set|recovery   encrypted backups with monthly restore tests
+HELP
+    ;;
+esac

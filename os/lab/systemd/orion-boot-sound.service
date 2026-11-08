@@ -1,0 +1,9 @@
+# OrionOS: the boot sound, once per boot, if it's on (os/lab/bin/orion-boot-sound).
+[Unit]
+Description=Orion boot sound
+PartOf=sway-session.target
+After=sway-session.target
+
+[Service]
+Type=oneshot
+ExecStart=-/usr/local/bin/orion-boot-sound

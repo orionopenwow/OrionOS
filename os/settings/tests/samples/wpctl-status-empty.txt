@@ -1,0 +1,22 @@
+PipeWire 'pipewire-0' [1.0.5, orion@orion-lab, cookie:12]
+ └─ Clients:
+        31. WirePlumber                         [1.0.5, orion@orion-lab, pid:900]
+
+Audio
+ ├─ Devices:
+ │  
+ ├─ Sinks:
+ │  *   34. Dummy Output                        [vol: 1.00]
+ │  
+ ├─ Sink endpoints:
+ │  
+ ├─ Sources:
+ │  
+ ├─ Source endpoints:
+ │  
+ └─ Streams:
+
+Video
+ ├─ Devices:
+ │  
+ └─ Streams:

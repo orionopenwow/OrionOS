@@ -1,0 +1,21 @@
+#!/bin/sh
+# orion-polkit-agent: the window that asks for the admin password (H5). Started by the session (sway-config).
+# Without one, anything that needs admin rights from a window (pkexec, Settings, Get apps) is refused outright.
+# Uses GNOME's small polkit agent (GTK 3: it wears the Orion Glass theme) or LXDE's; restarts it if it crashes,
+# at most 5 times.
+for a in /usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1 \
+         /usr/libexec/polkit-gnome-authentication-agent-1 \
+         /usr/bin/lxpolkit \
+         /usr/libexec/polkit-mate-authentication-agent-1 \
+         /usr/lib/x86_64-linux-gnu/polkit-mate/polkit-mate-authentication-agent-1; do
+  if [ -x "$a" ]; then
+    n=0
+    while [ $n -lt 5 ]; do
+      "$a" && exit 0
+      n=$((n + 1)); sleep 2
+    done
+    exit 1
+  fi
+done
+echo "orion-polkit-agent: no polkit agent installed (os/image/os-desktop.sh installs policykit-1-gnome)" >&2
+exit 1

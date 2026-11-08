@@ -1,0 +1,81 @@
+# The website: https://orionopenwow.github.io/OrionOS/
+# On every push to main: refresh the site's command lists from the code, rebuild the OS preview (docs/app),
+# re-capture the screenshots, smoke-test every menu window in the preview, then publish docs/ to GitHub Pages.
+# docs/app and docs/screenshots are also committed, so the site works before this has ever run.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        run: |
+          npm ci
+          python -m pip install --quiet fastapi   # the daemon modules the preview's sample lists are copied from
+
+      - name: Refresh the site's commands and the preview's sample lists
+        run: node scripts/update-site.mjs --snapshot
+
+      - name: Build the OS preview into docs/app
+        run: npm run build:demo
+
+      - name: HUD checks
+        working-directory: apps/desktop
+        run: |
+          npx tsc --noEmit -p .
+          npm test
+
+      - name: Install Playwright (Chromium only)
+        run: |
+          npm i --no-save --no-package-lock playwright@1.56.0
+          npx playwright install --with-deps chromium
+
+      - name: Smoke test every menu window in the preview
+        run: node scripts/capture-screenshots.mjs --smoke
+
+      - name: Re-capture the screenshots
+        # if this fails the committed pictures are published instead
+        continue-on-error: true
+        run: node scripts/capture-screenshots.mjs
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

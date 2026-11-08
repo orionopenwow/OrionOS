@@ -1,0 +1,249 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+:root {
+  /* V2 Tactile Cosmic Emboss tokens */
+  /* Arial Rounded MT Bold ships in a single heavy face, so it is reserved for headers/display text
+     (where its weight is wanted). Body text uses Nunito's real 500-800 weights so it never gets
+     faux-bolded or turns uniformly heavy on machines that have Office fonts installed. */
+  /* Art Update type (plan §6): Figtree for reading, Unbounded for headings/wordmark/clock, Martian Mono for
+     code and numbers. Nunito (bundled) and Arial Rounded stay as fallbacks. */
+  --font-ui: 'Figtree Variable', 'Figtree', 'Nunito', 'Arial Rounded MT Bold', 'Inter', system-ui, sans-serif;
+  --font-display: 'Unbounded Variable', 'Unbounded', 'Nunito', 'Arial Rounded MT Bold', system-ui, sans-serif;
+  --font-mono: 'Martian Mono Variable', 'Martian Mono', 'JetBrains Mono', Consolas, ui-monospace, monospace;
+  --orion-font: var(--font-ui);
+  --orion-display-font: var(--font-display);
+  /* Art Update palette (theme/colors.ts `brand`) */
+  --orion-void: #05070e;
+  --orion-event: #0b0f1e;
+  --orion-edge: #262d50;
+  --orion-accretion: #7c5cff;
+  --orion-photon: #00e5ff;
+  --orion-starlight: #d8deff;
+  --orion-ember: #ffc66b;
+  --emboss-highlight: inset 0 1px 1px rgba(255, 255, 255, 0.18);
+  --emboss-inner-shadow: inset 0 -2px 3px rgba(0, 0, 0, 0.65);
+  --emboss-depth: 0 6px 16px rgba(0, 0, 0, 0.75), 0 2px 4px rgba(0, 0, 0, 0.5);
+  --text-shadow-header: 0 2px 4px rgba(0, 0, 0, 0.85), 0 1px 0 rgba(255, 255, 255, 0.12);
+  --text-shadow-body: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #05070e;
+  color: #ffffff;
+  font-family: var(--orion-font);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-shadow: var(--text-shadow-body);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+/* Headers & display text: heavier weight + crisp emboss */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.font-display,
+.panel-title {
+  font-family: var(--orion-display-font);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-shadow: var(--text-shadow-header);
+}
+
+/* Code stays un-shadowed for clarity; gradient-clipped text would turn muddy under an inherited shadow */
+pre,
+code,
+.bg-clip-text,
+.text-transparent {
+  text-shadow: none;
+}
+
+input,
+textarea,
+button,
+select {
+  font-family: inherit;
+  letter-spacing: inherit;
+}
+
+/* Subtle Cosmic Space Nebula Backdrop & Grid */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(157, 142, 199, 0.08) 0%, transparent 60%),
+    radial-gradient(circle at 80% 20%, rgba(123, 92, 255, 0.05) 0%, transparent 40%),
+    radial-gradient(circle at 20% 80%, rgba(0, 229, 255, 0.04) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(circle at 50% 50%, black 20%, transparent 80%);
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, black 20%, transparent 80%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+@layer components {
+  .glass {
+    background: linear-gradient(180deg, rgba(26, 30, 50, 0.72) 0%, rgba(14, 17, 31, 0.78) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-radius: 1rem;
+    box-shadow: var(--emboss-highlight), var(--emboss-inner-shadow), var(--emboss-depth);
+  }
+
+  /* ---- V2 Tactile Cosmic Emboss ------------------------------------------ */
+  /* Matte-embossed container: top/left highlight, bottom/right inner shadow, outer depth */
+  .emboss {
+    background: linear-gradient(180deg, rgba(30, 34, 56, 0.92) 0%, rgba(15, 18, 32, 0.94) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow: var(--emboss-highlight), var(--emboss-inner-shadow), var(--emboss-depth);
+  }
+
+  /* Action pills & tabs (Inspect Screen, Check Game Bugs, Consolidate Memories, ...) */
+  .emboss-pill {
+    background: linear-gradient(180deg, rgba(44, 48, 74, 0.95) 0%, rgba(20, 23, 40, 0.95) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    box-shadow: var(--emboss-highlight), var(--emboss-inner-shadow), 0 4px 10px rgba(0, 0, 0, 0.6),
+      0 1px 3px rgba(0, 0, 0, 0.5);
+    font-weight: 600;
+    text-shadow: var(--text-shadow-body);
+    transition: transform 120ms ease, box-shadow 160ms ease, background 160ms ease, border-color 160ms ease;
+  }
+  .emboss-pill:hover {
+    background: linear-gradient(180deg, rgba(54, 58, 88, 0.97) 0%, rgba(24, 27, 46, 0.97) 100%);
+    border-color: rgba(255, 255, 255, 0.16);
+  }
+  .emboss-pill:active,
+  .emboss-pill[data-active='true'] {
+    transform: translateY(1px);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.7), inset 0 -1px 1px rgba(255, 255, 255, 0.1),
+      0 1px 2px rgba(0, 0, 0, 0.5);
+  }
+  .emboss-pill:disabled {
+    opacity: 0.45;
+    transform: none;
+  }
+
+  /* Recessed well (inputs, message lists) */
+  .emboss-well {
+    background: rgba(4, 6, 14, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.75), inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  .text-emboss-header {
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-shadow: var(--text-shadow-header);
+  }
+  .text-emboss {
+    text-shadow: var(--text-shadow-body);
+  }
+  .glass-strong {
+    background: rgba(11, 13, 23, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  .panel-title {
+    @apply font-display text-[11px] uppercase tracking-[0.25em] text-dust;
+  }
+}
+
+.selectable {
+  user-select: text;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(157, 142, 199, 0.25);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(157, 142, 199, 0.45);
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---- Glass night-sky panel (context window) --------------------------------------------------
+   Black sky, white stars, frosted glass. Scoped to .glass-ui so the rest of the HUD keeps its look. */
+.glass-stars {
+  background-color: #000;
+  background-image:
+    radial-gradient(1px 1px at 8% 12%, rgba(255, 255, 255, 0.85) 50%, transparent 51%),
+    radial-gradient(1px 1px at 27% 68%, rgba(255, 255, 255, 0.6) 50%, transparent 51%),
+    radial-gradient(1.4px 1.4px at 46% 22%, rgba(255, 255, 255, 0.9) 50%, transparent 51%),
+    radial-gradient(1px 1px at 63% 84%, rgba(255, 255, 255, 0.55) 50%, transparent 51%),
+    radial-gradient(1px 1px at 81% 35%, rgba(255, 255, 255, 0.7) 50%, transparent 51%),
+    radial-gradient(1.2px 1.2px at 92% 72%, rgba(255, 255, 255, 0.8) 50%, transparent 51%),
+    radial-gradient(1px 1px at 15% 90%, rgba(255, 255, 255, 0.5) 50%, transparent 51%),
+    radial-gradient(1px 1px at 55% 50%, rgba(255, 255, 255, 0.45) 50%, transparent 51%);
+  background-size: 230px 230px, 310px 310px, 270px 270px, 350px 350px, 290px 290px, 410px 410px, 330px 330px, 250px 250px;
+  opacity: 0.9;
+}
+.glass-ui { font-family: var(--font-ui, Nunito), 'Arial Rounded MT Bold', system-ui, sans-serif; }
+.glass-ui .emboss,
+.glass-ui .glass {
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.glass-ui .emboss-pill {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+  text-shadow: none;
+  font-weight: 600;
+}
+.glass-ui .emboss-pill:hover { background: rgba(255, 255, 255, 0.11); border-color: rgba(255, 255, 255, 0.18); }
+.glass-ui .emboss-pill:active,
+.glass-ui .emboss-pill[data-active='true'] { transform: none; background: rgba(255, 255, 255, 0.14); box-shadow: none; }
+.glass-ui .emboss-well {
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+.glass-ui .text-emboss-header { text-shadow: none; }
+.glass-ui .font-mono { font-family: Nunito, system-ui, sans-serif; }
+.glass-ui ::-webkit-scrollbar { width: 6px; }
+.glass-ui ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.14); border-radius: 999px; }
+
+/* Phones: no rubber-band scroll or tap flash; the HUD fills the dynamic viewport. */
+html[data-device='mobile'],
+html[data-device='mobile'] body {
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}

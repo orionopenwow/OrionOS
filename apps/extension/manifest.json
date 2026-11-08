@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "Orion Bridge",
+  "version": "2.1.0",
+  "description": "Cross-Browser telemetry, DOM event bridge, Unified Comms Hub (Messenger + Discord DMs) and Skill Recorder for Orion Desktop Agent",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "tabs",
+    "debugger",
+    "alarms"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.messenger.com/*",
+        "https://www.facebook.com/messages/*",
+        "https://discord.com/channels/*"
+      ],
+      "js": [
+        "comms_observer.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "Orion Bridge \u2014 record a skill, or pin a Messenger / Discord DM tab to mirror it",
+    "default_popup": "popup.html"
+  },
+  "optional_permissions": [
+    "downloads"
+  ]
+}

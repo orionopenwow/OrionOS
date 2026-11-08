@@ -1,0 +1,9 @@
+#!/bin/sh
+# orion-tray: a small glass tray for app status icons (H13), bottom right on your app workspaces. It is waybar with
+# nothing but its tray module (os/desktop/waybar/): the Orion HUD covers it on workspace 1, apps see it elsewhere.
+# Turn it off with ORION_TRAY=0 in ~/.config/orion/session.env.
+[ "${ORION_TRAY:-1}" = 0 ] && exit 0
+command -v waybar >/dev/null 2>&1 || { echo "orion-tray: waybar isn't installed" >&2; exit 0; }
+D=/opt/orion/desktop/waybar
+[ -f "$D/config.jsonc" ] || D="$(cd "$(dirname "$0")/../../desktop/waybar" 2>/dev/null && pwd)"
+exec waybar -c "$D/config.jsonc" -s "$D/style.css"

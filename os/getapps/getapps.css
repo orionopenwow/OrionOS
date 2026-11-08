@@ -1,0 +1,109 @@
+/* Get apps: the Orion Glass look (Art Update §4) for a libadwaita window. Libadwaita ignores GTK themes, so the
+ * window loads the Orion Glass layer (orion-glass.css) and the Orion colour names first, then this file.
+ * Palette: Void #05070E, Event #0B0F1E, Edge #262D50, Accretion #7C5CFF, Photon #00E5FF, Starlight #D8DEFF,
+ * Ember #FFC66B, rose #FF5C8A, aurora #5CFFB0. Fonts: Unbounded (headings), Figtree (text). */
+
+window.ga-window {
+  background-color: rgba(11, 15, 30, 0.66);
+  background-image: radial-gradient(ellipse at 78% -10%, rgba(124, 92, 255, 0.20), transparent 55%),
+                    radial-gradient(ellipse at -10% 110%, rgba(0, 229, 255, 0.07), transparent 50%);
+  color: #D8DEFF;
+  font-family: Figtree, Nunito, "Noto Sans", sans-serif;
+}
+window.ga-window headerbar { min-height: 52px; }
+
+/* ---- sidebar ---- */
+.ga-sidebar {
+  background-color: rgba(5, 7, 14, 0.34);
+  border-right: 1px solid rgba(216, 222, 255, 0.07);
+  padding: 6px 10px 12px 10px;
+}
+.ga-wordmark { font-family: Unbounded, Figtree, sans-serif; font-weight: 600; font-size: 17px; letter-spacing: 0.5px;
+  color: #FFFFFF; margin: 6px 8px 2px 8px; }
+.ga-wordmark-sub { color: #8A90B8; font-size: 12px; margin: 0 8px 14px 8px; }
+.ga-nav { background: transparent; }
+.ga-nav row { border-radius: 12px; margin: 2px 0; padding: 9px 10px; color: #B9C0E8; }
+.ga-nav row:hover { background-color: rgba(216, 222, 255, 0.05); }
+.ga-nav row:selected { background-color: rgba(124, 92, 255, 0.22); color: #FFFFFF;
+  box-shadow: inset 3px 0 #7C5CFF, 0 0 18px rgba(124, 92, 255, 0.18); }
+.ga-nav row image { color: #9D85FF; }
+.ga-nav row:selected image { color: #00E5FF; }
+.ga-count { background-color: #7C5CFF; color: #FFFFFF; border-radius: 999px; padding: 0 7px; font-size: 11px;
+  font-weight: 700; min-width: 10px; box-shadow: 0 0 10px rgba(124, 92, 255, 0.55); }
+.ga-foot { color: #8A90B8; font-size: 11.5px; margin: 0 8px; }
+.ga-foot-dot { color: #5CFFB0; }
+.ga-foot-dot.off { color: #FFC66B; }
+
+/* ---- content ---- */
+.ga-page { padding: 18px 26px 26px 26px; }
+.ga-h1 { font-family: Unbounded, Figtree, sans-serif; font-weight: 600; font-size: 22px; color: #FFFFFF; }
+.ga-h2 { font-family: Unbounded, Figtree, sans-serif; font-weight: 500; font-size: 14px; color: #D8DEFF;
+  margin-top: 18px; margin-bottom: 8px; letter-spacing: 0.4px; }
+.ga-lead { color: #A8AFD8; font-size: 13.5px; }
+.ga-dim { color: #8A90B8; font-size: 12px; }
+.ga-mono { font-family: "Martian Mono", monospace; font-size: 11px; color: #7E86B4; }
+
+.ga-hero {
+  border-radius: 18px; padding: 20px 22px;
+  background-image: linear-gradient(115deg, rgba(124, 92, 255, 0.30), rgba(0, 229, 255, 0.10) 60%, rgba(11, 15, 30, 0.2));
+  border: 1px solid rgba(124, 92, 255, 0.35);
+  box-shadow: 0 0 30px rgba(124, 92, 255, 0.15);
+}
+.ga-hero .ga-h1 { font-size: 20px; }
+
+.ga-card {
+  border-radius: 16px; padding: 14px 14px 12px 14px;
+  background-color: rgba(216, 222, 255, 0.045);
+  border: 1px solid rgba(216, 222, 255, 0.08);
+}
+.ga-card:hover { background-color: rgba(124, 92, 255, 0.10); border-color: rgba(124, 92, 255, 0.45);
+  box-shadow: 0 0 20px rgba(124, 92, 255, 0.15); }
+.ga-card .ga-name { font-weight: 700; font-size: 14px; color: #FFFFFF; }
+.ga-card .ga-summary { color: #A8AFD8; font-size: 12.5px; }
+.ga-icon { border-radius: 12px; }
+
+.ga-row {
+  border-radius: 14px; padding: 10px 14px; margin-bottom: 8px;
+  background-color: rgba(216, 222, 255, 0.04);
+  border: 1px solid rgba(216, 222, 255, 0.07);
+}
+.ga-row .ga-name { font-weight: 700; color: #FFFFFF; }
+
+flowbox, flowboxchild { background: transparent; padding: 0; }
+flowboxchild:focus-visible > .ga-card { border-color: #00E5FF; }
+
+/* badges */
+.ga-badge { border-radius: 999px; padding: 1px 8px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.3px;
+  background-color: rgba(216, 222, 255, 0.08); color: #B9C0E8; }
+.ga-badge.open { background-color: rgba(92, 255, 176, 0.12); color: #5CFFB0; }
+.ga-badge.closed { background-color: rgba(216, 222, 255, 0.07); color: #8A90B8; }
+.ga-badge.alpha { background-color: rgba(255, 198, 107, 0.16); color: #FFC66B; box-shadow: 0 0 10px rgba(255, 198, 107, 0.18); }
+.ga-badge.soon { background-color: rgba(124, 92, 255, 0.16); color: #B7A6FF; }
+.ga-badge.installed { background-color: rgba(0, 229, 255, 0.12); color: #00E5FF; }
+.ga-badge.paused { background-color: rgba(255, 92, 138, 0.15); color: #FF8AAD; }
+
+/* buttons */
+button.ga-install { padding: 2px 16px; min-height: 28px; font-weight: 700; }
+button.ga-quiet { padding: 2px 14px; min-height: 28px; }
+button.ga-danger:hover { background-color: rgba(255, 92, 138, 0.85); border-color: transparent; color: #FFFFFF; }
+
+/* the caution and info panels */
+.ga-caution { border-radius: 14px; padding: 12px 14px; background-color: rgba(255, 198, 107, 0.09);
+  border: 1px solid rgba(255, 198, 107, 0.35); color: #F3DDB4; font-size: 12.5px; }
+.ga-caution .ga-caution-title { color: #FFC66B; font-weight: 800; font-size: 12px; letter-spacing: 0.6px; }
+.ga-safe { border-radius: 16px; padding: 14px 16px; background-color: rgba(92, 255, 176, 0.06);
+  border: 1px solid rgba(92, 255, 176, 0.22); }
+.ga-safe .ga-name { color: #FFFFFF; font-weight: 700; }
+
+.ga-history-ok { color: #5CFFB0; }
+.ga-history-bad { color: #FF8AAD; }
+
+progressbar.ga-progress trough { min-height: 6px; }
+progressbar.ga-progress progress { min-height: 6px; }
+
+entry.ga-search { min-width: 420px; min-height: 34px; border-radius: 999px; background-color: rgba(5, 7, 14, 0.55); }
+.ga-empty { color: #8A90B8; font-size: 13px; margin: 40px; }
+.ga-card button.link, .ga-page button.link { padding: 2px 0; margin: 0; border: none; background: transparent; }
+.ga-card button.link > label, .ga-page button.link > label { color: #9D85FF; }
+.ga-hero .ga-name { font-weight: 700; color: #FFFFFF; font-size: 14px; }
+.ga-window > * button.link { padding-left: 0; }

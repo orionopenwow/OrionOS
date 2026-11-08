@@ -1,0 +1,61 @@
+#!/bin/sh
+# orion-screenshot: Print = the whole screen, Shift+Print = pick an area, Ctrl+Print = an area into the markup tool
+# (swappy, in Orion's colours). Each one is saved to ~/Pictures/Screenshots/Screenshot_YYYY-MM-DD_HH-MM-SS.png,
+# copied to the clipboard, and announced with its file name.
+#   orion-screenshot full | area | markup
+#   orion-screenshot path        the file name the next screenshot gets (nothing is taken)
+# Share clean (Toolkit #23, the Share Scrubber): when `orion-share-scrub` is installed, the notification (also the
+# one after the markup tool) has a "Share clean" button that runs `orion-share-scrub FILE`: private words blurred,
+# FILE-clean.png copied. Nothing here ever uploads or sends a screenshot anywhere.
+DIR="${ORION_SCREENSHOT_DIR:-${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots}"
+
+next_path() {
+  stamp=$(date +%Y-%m-%d_%H-%M-%S)              # local time, so it follows your time zone
+  f="$DIR/Screenshot_$stamp.png"; n=2
+  while [ -e "$f" ]; do f="$DIR/Screenshot_${stamp}_$n.png"; n=$((n + 1)); done
+  printf '%s\n' "$f"
+}
+
+announce() {  # file
+  wl-copy --type image/png < "$1" 2>/dev/null
+  name=$(basename "$1")
+  if command -v orion-share-scrub >/dev/null 2>&1; then
+    act=$(notify-send -a Screenshots -i "$1" --action=share="Share clean" "Screenshot saved" \
+      "$name, copied to the clipboard" 2>/dev/null)
+    [ "$act" = share ] && orion-share-scrub "$1"
+  else
+    notify-send -a Screenshots -i "$1" "Screenshot saved" "$name, copied to the clipboard" 2>/dev/null || true
+  fi
+  printf '%s\n' "$1"
+}
+
+take() {  # mode
+  mkdir -p "$DIR" || exit 1
+  f=$(next_path)
+  case "$1" in
+    full)
+      grim "$f" || exit 1 ;;
+    area)
+      g=$(slurp -d 2>/dev/null) || exit 0               # Esc: nothing taken
+      grim -g "$g" "$f" || exit 1 ;;
+    markup)
+      g=$(slurp -d 2>/dev/null) || exit 0
+      if ! command -v swappy >/dev/null 2>&1; then
+        grim -g "$g" "$f" || exit 1
+        notify-send "Screenshots" "The markup tool isn't installed, so the area was saved as it is." 2>/dev/null
+      else
+        tmp=$(mktemp -p "${XDG_RUNTIME_DIR:-/tmp}" orion-shot.XXXXXX) || exit 1
+        grim -g "$g" -t png "$tmp" || { rm -f "$tmp"; exit 1; }
+        swappy -f "$tmp" -o "$f"                        # writes the marked-up picture when you close it
+        rm -rf "$tmp" "${XDG_RUNTIME_DIR:-/tmp}/orion-swappy"   # Ctrl+S copies (see os/basics/swappy-config)
+        [ -s "$f" ] || exit 0
+      fi ;;
+  esac
+  announce "$f"
+}
+
+case "${1:-full}" in
+  full|area|markup) take "$1" ;;
+  path) next_path ;;
+  *) sed -n '2,10p' "$0"; exit 2 ;;
+esac

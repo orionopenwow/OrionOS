@@ -1,0 +1,13 @@
+{"matches": [
+  {"vulnerability": {"id": "CVE-2024-6387", "dataSource": "https://ubuntu.com/security/CVE-2024-6387", "severity": "High",
+                     "description": "A signal handler race condition in sshd",
+                     "fix": {"versions": ["1:9.6p1-3ubuntu13.3"], "state": "fixed"}},
+   "relatedVulnerabilities": [{"id": "CVE-2024-6387"}],
+   "artifact": {"name": "openssh-server", "version": "1:9.6p1-3ubuntu13", "type": "deb"}},
+  {"vulnerability": {"id": "CVE-2023-9999", "severity": "Critical", "description": "Something with no fix yet",
+                     "fix": {"versions": [], "state": "not-fixed"}},
+   "artifact": {"name": "libfoo1", "version": "1.0-1", "type": "deb"}},
+  {"vulnerability": {"id": "CVE-2022-1111", "severity": "Low", "description": "minor",
+                     "fix": {"versions": ["2.0"], "state": "fixed"}},
+   "artifact": {"name": "bash", "version": "5.2", "type": "deb"}}
+]}

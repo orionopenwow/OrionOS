@@ -1,0 +1,22 @@
+  native-path:          BAT0
+  vendor:               SMP
+  model:                5B10W13930
+  power supply:         yes
+  updated:              Fri 16 Oct 2026 10:00:00 AM
+  has history:          yes
+  has statistics:       yes
+  battery
+    present:             yes
+    rechargeable:        yes
+    state:               discharging
+    warning-level:       none
+    energy:              30.12 Wh
+    energy-empty:        0 Wh
+    energy-full:         31.5 Wh
+    energy-full-design:  57 Wh
+    energy-rate:         8.2 W
+    voltage:             11.9 V
+    charge-cycles:       612
+    percentage:          95%
+    capacity:            55.2632%
+    technology:          lithium-polymer

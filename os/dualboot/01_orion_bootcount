@@ -1,0 +1,31 @@
+#!/bin/sh
+# OrionOS boot counting (os/dualboot/orion-bootcount), run by update-grub right after 00_header (which loaded
+# /boot/grub/grubenv). After an update the new system gets two starts to reach a healthy Orion session; the third
+# start is the snapshot from before the update ("orion-fallback", made by /etc/grub.d/42_orion_snapshots), and it
+# stays the default until you choose (Settings > Updates). Only where GRUB can write its notes: a plain /boot.
+set -e
+fs="$(grub-probe --target=fs /boot 2>/dev/null || true)"
+abstraction="$(grub-probe --target=abstraction /boot 2>/dev/null || true)"
+case "$fs" in ext2|fat) ;; *) echo "# orion boot counting: off (/boot is $fs; GRUB can't write its notes there)"; exit 0 ;; esac
+[ -z "$abstraction" ] || { echo "# orion boot counting: off (/boot is on $abstraction)"; exit 0; }
+cat <<'GRUB'
+# OrionOS boot counting
+if [ -n "${orion_trial}" ]; then
+  if [ "${orion_tries}" = "2" ]; then
+    set orion_tries=1
+    save_env orion_tries
+  elif [ "${orion_tries}" = "1" ]; then
+    set orion_tries=0
+    save_env orion_tries
+  else
+    set orion_failed="${orion_trial}"
+    set orion_trial=
+    save_env orion_failed orion_trial
+  fi
+fi
+if [ -n "${orion_failed}" ]; then
+  if [ -z "${boot_once}" ]; then
+    set default="orion-fallback"
+  fi
+fi
+GRUB

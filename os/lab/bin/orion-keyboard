@@ -1,0 +1,126 @@
+#!/usr/bin/env python3
+"""orion-keyboard: your keyboard layout (H13). No more hard-coded US keyboard.
+
+    orion-keyboard current [--json]          the layout in use
+    orion-keyboard list [--all] [--json]     layouts (common ones; --all adds every variant)
+    orion-keyboard set LAYOUT[:VARIANT]      e.g. gb, de, fr, us:intl  (kept in ~/.config/orion/sway.d/keyboard.conf)
+    orion-keyboard first-start               the first-start question (a guess from your time zone, Enter keeps it)
+
+The logic is in os/desktop/orion_keyboard.py.
+"""
+from __future__ import annotations
+
+import json
+import os
+import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve()
+
+
+def _import(name: str, sub: str):
+    for d in (os.environ.get("ORION_DESKTOP_DIR" if sub == "desktop" else "ORION_HARDWARE_DIR", ""),
+              f"/opt/orion/{sub}", str(HERE.parent.parent.parent / sub)):
+        if d and (Path(d) / f"{name}.py").is_file():
+            sys.path.insert(0, d)
+            break
+    return __import__(name)
+
+
+K = _import("orion_keyboard", "desktop")
+CONF = Path.home() / ".config" / "orion" / "sway.d" / "keyboard.conf"
+
+
+def country() -> str:
+    try:
+        hw = _import("orion_hardware", "hardware")
+        return hw.zone_country(hw.current_zone()) or ""
+    except Exception:
+        return ""
+
+
+def current() -> tuple[str, str]:
+    try:
+        got = K.parse_conf(CONF.read_text())
+    except OSError:
+        got = None
+    if got:
+        return got
+    lay = os.environ.get("XKB_DEFAULT_LAYOUT", "")
+    if not lay:
+        try:
+            for line in Path("/etc/default/keyboard").read_text().splitlines():
+                if line.startswith("XKBLAYOUT="):
+                    lay = line.split("=", 1)[1].strip('"').split(",")[0]
+        except OSError:
+            pass
+    return (lay or "us"), os.environ.get("XKB_DEFAULT_VARIANT", "")
+
+
+def apply(layout: str, variant: str) -> tuple[bool, str]:
+    data = K.load()
+    if not K.valid(data, layout, variant):
+        return False, f"Unknown keyboard layout: {layout}{':' + variant if variant else ''}. See: orion-keyboard list --all"
+    CONF.parent.mkdir(parents=True, exist_ok=True)
+    CONF.write_text(K.render_conf(layout, variant), encoding="utf-8")
+    comp = _import("orion_compositor", "desktop").detect()   # Sway, or the optional Hyprland session
+    if comp:
+        comp.set_keyboard(layout, variant)
+    return True, f"Keyboard: {K.name_of(data, layout, variant)}."
+
+
+def first_start() -> int:
+    data = K.load()
+    guess = K.suggest(country(), data)
+    cur, _ = current()
+    if CONF.exists():
+        guess = cur
+    common = K.common_choices(data)
+    print(f"   Your keyboard looks like: {K.name_of(data, guess)}. Press Enter to keep it, or pick another:")
+    for i, (code, name) in enumerate(common, 1):
+        print(f"   {i:>2}) {name}")
+    print("   Or type a layout code (like 'de' or 'us:intl'; the full list: orion-keyboard list --all).")
+    try:
+        a = input("   > ").strip()
+    except EOFError:
+        a = ""
+    if not a:
+        value = guess
+    elif a.isdigit() and 1 <= int(a) <= len(common):
+        value = common[int(a) - 1][0]
+    else:
+        value = a
+    ok, msg = apply(*K.split(value))
+    print("   " + msg)
+    return 0 if ok else 1
+
+
+def main(argv: list[str]) -> int:
+    cmd = argv[0] if argv else "current"
+    as_json = "--json" in argv
+    if cmd == "current":
+        lay, var = current()
+        name = K.name_of(K.load(), lay, var)
+        print(json.dumps({"layout": lay, "variant": var, "name": name}) if as_json else name)
+        return 0
+    if cmd == "list":
+        data = K.load()
+        items = K.choices(data, with_variants="--all" in argv) if "--all" in argv else K.choices(data, False)
+        if as_json:
+            print(json.dumps([{"value": v, "name": n} for v, n in items]))
+        else:
+            for v, n in items:
+                print(f"{v:<24} {n}")
+        return 0
+    if cmd == "set" and len(argv) > 1:
+        ok, msg = apply(*K.split(argv[1]))
+        print(msg, file=sys.stdout if ok else sys.stderr)
+        return 0 if ok else 1
+    if cmd == "first-start":
+        return first_start()
+    print(__doc__)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

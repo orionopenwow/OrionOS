@@ -1,0 +1,177 @@
+#!/usr/bin/env python3
+"""orion-printers: printers and scanners on OrionOS. Network printers are found by themselves (driverless printing).
+
+  orion-printers list [--json]        printers: added ones and ones found on your network (the JSON is what Settings reads)
+  orion-printers add                  open the add-printer window (Printers)
+  orion-printers scan                 open the scan app (Scan documents)
+  orion-printers paper                the default paper size, and what the time zone suggests
+  orion-printers paper a4|letter|auto set it (auto = from your time zone's country: Letter in the US, Canada, Mexico...)
+
+More: os/hardware/README.md.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+
+def _lib():
+    sys.dont_write_bytecode = True        # /opt/orion is read-only to the session user
+    here = Path(os.path.realpath(__file__)).parent
+    for d in (os.environ.get("ORION_HARDWARE_DIR", ""), "/opt/orion/hardware", str(here.parent.parent / "hardware")):
+        if d and (Path(d) / "orion_hardware.py").is_file():
+            sys.path.insert(0, d)
+            break
+    import orion_hardware  # noqa: E402
+    return orion_hardware
+
+
+oh = _lib()
+PAPERSIZE = Path(os.environ.get("ORION_PAPERSIZE_FILE") or "/etc/papersize")
+MANUAL = Path(os.environ.get("ORION_PAPERSIZE_MANUAL") or "/var/lib/orion/papersize-manual")
+CONFIG = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
+FIRST_RUN = CONFIG / "orion" / "paper-size-checked"
+
+
+def lpstat(*args: str) -> tuple[str, str]:
+    try:
+        r = subprocess.run(["lpstat", *args], capture_output=True, text=True, timeout=15,
+                           env={**os.environ, "LC_ALL": "C", "LANG": "C"})
+        return r.stdout, r.stderr
+    except FileNotFoundError:
+        return "", "lpstat: not installed"
+    except subprocess.TimeoutExpired:
+        return "", "lpstat: timed out"
+
+
+def current_paper() -> str:
+    try:
+        return PAPERSIZE.read_text().split()[0].lower()
+    except (OSError, IndexError):
+        return "a4"
+
+
+def first_run() -> None:
+    """Once per user: make sure the paper size has been set from the time zone (after that, a time zone change
+    updates it by itself: orion-papersize.path)."""
+    if os.geteuid() == 0 or FIRST_RUN.exists():
+        return
+    subprocess.run(["systemctl", "start", "--no-block", "orion-papersize@auto.service"],
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        FIRST_RUN.parent.mkdir(parents=True, exist_ok=True)
+        FIRST_RUN.write_text(oh.paper_for_zone(oh.current_zone()) + "\n")
+    except OSError:
+        pass
+
+
+def detach(cmd: list[str]) -> None:
+    subprocess.Popen(cmd, start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def list_cmd(as_json: bool) -> int:
+    first_run()
+    p, err = lpstat("-l", "-p")
+    v, _ = lpstat("-v")
+    d, _ = lpstat("-d")
+    e, _ = lpstat("-e")
+    info = oh.parse_lpstat(p, v, d, e)
+    running = "scheduler is not running" not in (err + d).lower() and "not installed" not in err
+    info.update({"cups_running": running, "paper": current_paper(),
+                 "paper_auto": not MANUAL.exists()})
+    if not running:
+        info["error"] = "The printing service (CUPS) isn't running."
+    if as_json:
+        print(json.dumps(info, indent=2))
+        return 0
+    if not running:
+        print(info["error"])
+    for pr in info["printers"]:
+        tags = [pr["state"]] + (["default"] if pr["default"] else []) + ([] if pr["added"] else ["found on your network"])
+        print(f"{pr['name']:<28} {', '.join(tags)}")
+    if not info["printers"]:
+        print("No printers yet. Printers on your network show up here by themselves; orion-printers add for others.")
+    print(f"Paper: {info['paper'].upper() if info['paper'] == 'a4' else info['paper'].title()}")
+    return 0
+
+
+def add() -> int:
+    if shutil.which("system-config-printer"):
+        detach(["system-config-printer"])
+        return 0
+    print("The Printers window isn't installed. CUPS's own page works too: http://localhost:631/admin")
+    return 1
+
+
+def scan() -> int:
+    if shutil.which("simple-scan"):
+        detach(["simple-scan"])
+        return 0
+    print("The scan app (Simple Scan) isn't installed.")
+    return 1
+
+
+def set_paper_system(choice: str) -> int:
+    """As root (orion-papersize@.service, provisioning): write /etc/papersize, which CUPS and the print filters
+    read. 'auto' follows the time zone unless someone picked a size by hand."""
+    if choice == "auto":
+        if MANUAL.exists() and os.environ.get("ORION_PAPER_FORCE") != "1":
+            return 0
+        size = oh.paper_for_zone(oh.current_zone())
+    else:
+        size = choice
+    old = current_paper() if PAPERSIZE.exists() else None
+    PAPERSIZE.write_text(size + "\n")
+    MANUAL.parent.mkdir(parents=True, exist_ok=True)
+    if choice == "auto":
+        MANUAL.unlink(missing_ok=True)
+    else:
+        MANUAL.write_text(size + "\n")
+    if old != size and os.path.isdir("/run/systemd/system"):
+        # CUPS reads the default paper size when it starts (it's used for printers added from now on)
+        subprocess.run(["systemctl", "try-restart", "cups.service"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    print(f"Paper size: {size}")
+    return 0
+
+
+def paper(args: list[str]) -> int:
+    choice = args[0].lower() if args else ""
+    if not choice:
+        zone = oh.current_zone()
+        print(f"Paper size: {current_paper()} ({'set by hand' if MANUAL.exists() else 'from the time zone'}); "
+              f"time zone {zone} suggests {oh.paper_for_zone(zone)}")
+        return 0
+    if choice not in ("a4", "letter", "auto"):
+        print("Pick a4, letter or auto.")
+        return 2
+    if "--system" in args or os.geteuid() == 0:
+        return set_paper_system(choice)
+    # the session user: a root helper unit polkit lets it start (50-orion-hardware.rules)
+    r = subprocess.run(["systemctl", "start", f"orion-papersize@{choice}.service"])
+    if r.returncode == 0:
+        print(f"Paper size: {current_paper()}")
+    return r.returncode
+
+
+def main(argv: list[str]) -> int:
+    cmd = argv[1] if len(argv) > 1 else "list"
+    rest = argv[2:]
+    if cmd == "list":
+        return list_cmd("--json" in rest)
+    if cmd == "add":
+        return add()
+    if cmd == "scan":
+        return scan()
+    if cmd == "paper":
+        return paper(rest)
+    print(__doc__.strip())
+    return 0 if cmd in ("help", "-h", "--help") else 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

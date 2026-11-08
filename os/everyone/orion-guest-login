@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+"""OrionOS: start the guest session through greetd (run by orion-login-next, as greetd's _greetd user).
+
+The guest has no password: /etc/pam.d/greetd lets only the guest account in without one (pam_succeed_if), so
+create_session answers "success" straight away. If greetd asks for anything at all, this gives up and the normal
+login screen runs instead. Exit 0 = greetd starts the guest session now."""
+from __future__ import annotations
+
+import os
+import sys
+
+sys.path.insert(0, "/opt/orion/greeter")
+GUEST = os.environ.get("ORION_GUEST_USER", "guest")
+SESSION = ["/usr/local/bin/orion-session"]
+
+
+def main() -> int:
+    try:
+        from greetd_ipc import GreetdClient
+    except ImportError:
+        return 1
+    try:
+        with GreetdClient(timeout=20) as g:
+            r = g.create_session(GUEST)
+            if r.get("type") != "success":
+                g.cancel_session()
+                return 1
+            r = g.start_session(SESSION, ["ORION_GUEST=1"])
+            return 0 if r.get("type") == "success" else 1
+    except Exception:  # never leave the computer without a login screen
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

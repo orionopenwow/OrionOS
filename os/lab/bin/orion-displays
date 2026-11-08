@@ -1,0 +1,331 @@
+#!/usr/bin/env python3
+"""orion-displays: several screens on OrionOS. Each set of screens you plug in gets remembered (kanshi profiles).
+
+  orion-displays list [--json]     screens, the primary one, saved layouts (the JSON is what Settings reads)
+  orion-displays apply NAME        put a saved layout on screen now
+  orion-displays save NAME         remember the layout on screen now as NAME (for this set of screens)
+  orion-displays save --current    the same, keeping the name of this set's layout (Arrange does this)
+  orion-displays arrange           open the arrange screen (wdisplays); the layout is saved when you close it
+  orion-displays primary NAME|auto the screen the Orion HUD lives on (auto: the laptop panel, else the leftmost)
+  orion-displays changed           re-check: new set of screens -> new layout, lid, workspaces (kanshi runs it)
+  orion-displays watch             keep re-checking whenever a screen comes or goes (the session starts it)
+  orion-displays lid open|close    the laptop lid (Sway's lid switch): closed with another screen on = panel off
+  orion-displays render            write ~/.config/kanshi/config from the saved layouts
+
+Layouts live in ~/.config/orion/displays.json; ~/.config/kanshi/config is written from it. More: os/hardware/README.md.
+"""
+
+from __future__ import annotations
+
+import fcntl
+import json
+import os
+import select
+import shutil
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+
+def _lib():
+    sys.dont_write_bytecode = True        # /opt/orion is read-only to the session user
+    here = Path(os.path.realpath(__file__)).parent
+    for d in (os.environ.get("ORION_HARDWARE_DIR", ""), "/opt/orion/hardware", str(here.parent.parent / "hardware")):
+        if d and (Path(d) / "orion_hardware.py").is_file():
+            sys.path.insert(0, d)
+            break
+    import orion_hardware  # noqa: E402
+    return orion_hardware
+
+
+oh = _lib()
+CONFIG = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
+STORE = Path(os.environ.get("ORION_DISPLAYS_STORE") or CONFIG / "orion" / "displays.json")
+KANSHI = Path(os.environ.get("ORION_KANSHI_CONFIG") or CONFIG / "kanshi" / "config")
+RUN = Path(os.environ.get("XDG_RUNTIME_DIR") or "/tmp")
+LID = Path(os.environ.get("ORION_LID_DIR") or "/proc/acpi/button/lid")
+DRM = Path(os.environ.get("ORION_DRM_DIR") or "/sys/class/drm")
+
+
+def say(msg: str) -> None:
+    print(msg, file=sys.stderr)
+
+
+def notify(title: str, body: str = "") -> None:
+    if shutil.which("notify-send"):
+        subprocess.Popen(["notify-send", "-a", "Displays", title, body], stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL)
+
+
+def swaymsg(*args: str, check: bool = True) -> str:
+    r = subprocess.run(["swaymsg", *args], capture_output=True, text=True, timeout=10)
+    if check and r.returncode != 0:
+        raise RuntimeError((r.stdout + r.stderr).strip() or "swaymsg failed")
+    return r.stdout
+
+
+def get_outputs() -> list[dict]:
+    try:
+        return [o for o in json.loads(swaymsg("-t", "get_outputs", "-r")) if not o.get("non_desktop")]
+    except (RuntimeError, OSError, ValueError, subprocess.TimeoutExpired) as e:
+        raise SystemExit(f"orion-displays: can't reach Sway ({e}). Run it inside the OrionOS session.")
+
+
+def run_cmds(cmds: list[str]) -> None:
+    if cmds:
+        swaymsg("; ".join(cmds))
+
+
+def render(store: dict) -> bool:
+    """Write the kanshi file; tell a running kanshi to read it again when it changed."""
+    changed = oh.write_if_changed(KANSHI, oh.render_kanshi(store))
+    if changed:
+        subprocess.run(["pkill", "-HUP", "-u", str(os.getuid()), "-x", "kanshi"],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return changed
+
+
+class Lock:
+    def __enter__(self):
+        RUN.mkdir(parents=True, exist_ok=True)
+        self.f = open(RUN / "orion-displays.lock", "w")
+        fcntl.flock(self.f, fcntl.LOCK_EX)
+        return self
+
+    def __exit__(self, *a):
+        fcntl.flock(self.f, fcntl.LOCK_UN)
+        self.f.close()
+
+
+# ---------------------------------------------------------------- workspaces
+def pin(outputs: list[dict], store: dict) -> dict[int, str]:
+    """Workspace 1 (the HUD) on the primary screen, 2-9 shared out; workspaces already open are moved over and
+    each screen keeps showing what it showed."""
+    prim = oh.primary_output(outputs, store.get("primary"))
+    plan = oh.workspace_plan(outputs, prim)
+    if not plan:
+        return plan
+    cmds = [f"workspace {n} output {out}" + (f" {prim}" if out != prim else "") for n, out in sorted(plan.items())]
+    run_cmds(cmds)
+    wss = json.loads(swaymsg("-t", "get_workspaces", "-r"))
+    focused = next((w["name"] for w in wss if w.get("focused")), None)
+    visible = [w["name"] for w in wss if w.get("visible")]
+    moves = []
+    for w in wss:
+        n = w.get("num", -1)
+        if n in plan and w.get("output") != plan[n]:
+            moves.append(f"workspace number {n}; move workspace to output {plan[n]}")
+    if moves:
+        run_cmds(moves)
+        # each screen goes back to the workspace it showed; the HUD's workspace is shown on the primary screen
+        show = [v for v in visible if v != focused] + ["1"] + ([focused] if focused else [])
+        names = {w["name"] for w in json.loads(swaymsg("-t", "get_workspaces", "-r"))}
+        run_cmds([f"workspace {v}" for v in show if v in names])
+    return plan
+
+
+def lid(outputs: list[dict], store: dict, state: str) -> list[dict]:
+    """Lid closed while another screen is on: switch the laptop panel off. Opened: back as the layout says.
+    With no other screen nothing is switched off (the system then sleeps as usual)."""
+    internal = [o for o in outputs if oh.is_internal(o)]
+    if not internal:
+        return outputs
+    others_on = [o for o in outputs if o.get("active") and not oh.is_internal(o)]
+    cmds = []
+    if state == "close" and others_on:
+        cmds = [f"output {o['name']} disable" for o in internal if o.get("active")]
+    elif state == "open":
+        prof = oh.find_profile(store, outputs)
+        keys = oh.output_keys(outputs)
+        for o in internal:
+            if o.get("active"):
+                continue
+            entry = next((e for e in (prof or {}).get("outputs", []) if e["criteria"] == keys[o["name"]]), None)
+            if entry is None or entry.get("enable", True):
+                one = {"outputs": [entry]} if entry else {"outputs": [{"criteria": keys[o["name"]], "enable": True}]}
+                cmds += oh.sway_commands(one, outputs)
+    if cmds:
+        run_cmds(cmds)
+        return get_outputs()
+    return outputs
+
+
+def changed(quiet_new: bool = False) -> None:
+    with Lock():
+        outputs = get_outputs()
+        store = oh.load_store(STORE)
+        new = None
+        if outputs and not oh.find_profile(store, outputs):
+            sizes = {o["name"]: s for o in outputs if (s := oh.sysfs_size_mm(o["name"], DRM))}
+            new = oh.auto_profile(outputs, sizes)
+            new["name"] = oh.unique_name(store, new["name"])
+            oh.add_profile(store, new)
+            oh.save_store(STORE, store)
+        render(store)
+        if new:
+            run_cmds(oh.sway_commands(new, outputs))
+            outputs = get_outputs()
+        if oh.lid_closed(LID):
+            outputs = lid(outputs, store, "close")
+        pin(outputs, store)
+    if new and len(outputs) > 1 and not quiet_new:
+        ask_arrange()
+
+
+def ask_arrange() -> None:
+    """'New screen set up — Arrange?' with an Arrange button (mako shows it; the click opens wdisplays)."""
+    if not shutil.which("notify-send"):
+        return
+    script = ('a=$(timeout 600 notify-send -a Displays -w -A arrange=Arrange "New screen set up — Arrange?" '
+              '"Orion put it to the right of your laptop. Arrange to move it." 2>/dev/null); '
+              '[ "$a" = arrange ] && exec orion-displays arrange')
+    subprocess.Popen(["sh", "-c", script], start_new_session=True, stdout=subprocess.DEVNULL,
+                     stderr=subprocess.DEVNULL)
+
+
+def watch() -> int:
+    changed(quiet_new=os.environ.get("ORION_DISPLAYS_QUIET_START") == "1")
+    p = subprocess.Popen(["swaymsg", "-t", "subscribe", "-m", '["output"]'], stdout=subprocess.PIPE, text=True)
+    pending = 0.0
+    while True:
+        r, _, _ = select.select([p.stdout], [], [], 0.5)
+        if r:
+            line = p.stdout.readline()
+            if not line:
+                return 0                      # Sway has gone: the session is over
+            pending = time.monotonic()
+        elif pending and time.monotonic() - pending >= 1.0:
+            pending = 0.0
+            try:
+                changed()
+            except (RuntimeError, SystemExit) as e:
+                say(f"orion-displays: {e}")
+
+
+def save(name: str) -> int:
+    with Lock():
+        outputs = get_outputs()
+        store = oh.load_store(STORE)
+        cur = oh.find_profile(store, outputs)
+        if name == "--current":
+            name = cur["name"] if cur else oh.profile_name_for(outputs)
+        prof = oh.layout_from_outputs(outputs, name)
+        if oh.lid_closed(LID):
+            # the panel is only off because the lid is shut: remember it as it was, not as switched off
+            keys = oh.output_keys(outputs)
+            for i, e in enumerate(prof["outputs"]):
+                o = next(o for o in outputs if keys[o["name"]] == e["criteria"])
+                if oh.is_internal(o) and not e["enable"]:
+                    old = next((x for x in (cur or {}).get("outputs", []) if x["criteria"] == e["criteria"]), None)
+                    prof["outputs"][i] = old or {"criteria": e["criteria"], "enable": True}
+        if cur and cur["name"] == prof["name"] and cur["outputs"] == prof["outputs"] and not cur.get("auto"):
+            print(f"Layout '{prof['name']}' is already saved.")
+            return 0
+        oh.add_profile(store, prof)
+        oh.save_store(STORE, store)
+        render(store)
+        pin(outputs, store)
+    notify("Screen layout saved", f"Orion will use it whenever these screens are plugged in ({prof['name']}).")
+    print(f"Saved layout '{prof['name']}'.")
+    return 0
+
+
+def apply(name: str) -> int:
+    with Lock():
+        outputs = get_outputs()
+        store = oh.load_store(STORE)
+        prof = next((p for p in store["profiles"] if p["name"] == name), None)
+        if not prof:
+            say(f"No saved layout called '{name}'. orion-displays list shows them.")
+            return 1
+        try:
+            cmds = oh.sway_commands(prof, outputs)
+        except KeyError as e:
+            say(f"Layout '{name}' needs a screen that isn't plugged in: {e.args[0]}")
+            return 1
+        run_cmds(cmds)
+        pin(get_outputs(), store)
+    print(f"Layout '{name}' is on screen.")
+    return 0
+
+
+def arrange() -> int:
+    if not shutil.which("wdisplays"):
+        say("The arrange screen (wdisplays) isn't installed.")
+        return 1
+    # Saved when the window closes, so the next time these screens are plugged in they come back this way.
+    subprocess.Popen(["sh", "-c", "wdisplays; exec orion-displays save --current >/dev/null"],
+                     start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return 0
+
+
+def list_cmd(as_json: bool) -> int:
+    outputs = get_outputs()
+    info = oh.outputs_summary(outputs, oh.load_store(STORE))
+    if as_json:
+        print(json.dumps(info, indent=2))
+        return 0
+    for o in info["outputs"]:
+        state = f"{o['mode']} at {o['position'][0]},{o['position'][1]} scale {o['scale']}" if o["active"] else "off"
+        tag = "  (primary: the Orion HUD)" if o["primary"] else ""
+        print(f"{o['name']:<12} {o['key']:<40} {state}{tag}")
+        if o["workspaces"]:
+            print(f"{'':<12} workspaces {', '.join(map(str, o['workspaces']))}")
+    print("Layouts: " + (", ".join(p["name"] + (" (now)" if p["current"] else "") + (" (automatic)" if p["auto"] else "")
+                                   for p in info["profiles"]) or "none yet"))
+    return 0
+
+
+def primary(arg: str) -> int:
+    with Lock():
+        outputs = get_outputs()
+        store = oh.load_store(STORE)
+        if arg == "auto":
+            store["primary"] = None
+        else:
+            keys = oh.output_keys(outputs)
+            match = [k for n, k in keys.items() if arg in (n, k)]
+            if not match:
+                say(f"No screen called '{arg}' is plugged in.")
+                return 1
+            store["primary"] = match[0]
+        oh.save_store(STORE, store)
+        pin(outputs, store)
+    print(f"Primary screen: {oh.primary_output(outputs, store.get('primary'))}")
+    return 0
+
+
+def main(argv: list[str]) -> int:
+    cmd = argv[1] if len(argv) > 1 else "list"
+    arg = argv[2] if len(argv) > 2 else ""
+    if cmd == "list":
+        return list_cmd(arg == "--json")
+    if cmd == "apply" and arg:
+        return apply(arg)
+    if cmd == "save" and arg:
+        return save(arg)
+    if cmd == "arrange":
+        return arrange()
+    if cmd == "primary" and arg:
+        return primary(arg)
+    if cmd == "changed":
+        changed()
+        return 0
+    if cmd == "watch":
+        return watch()
+    if cmd == "render":
+        render(oh.load_store(STORE))
+        return 0
+    if cmd == "lid" and arg in ("open", "close"):
+        with Lock():
+            store = oh.load_store(STORE)
+            outputs = lid(get_outputs(), store, arg)
+            pin(outputs, store)
+        return 0
+    print(__doc__.strip())
+    return 0 if cmd in ("help", "-h", "--help") else 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

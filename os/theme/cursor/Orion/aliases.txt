@@ -1,0 +1,9 @@
+# alias target
+default left_ptr
+arrow left_ptr
+top_left_arrow left_ptr
+wait watch
+progress left_ptr_watch
+half-busy left_ptr_watch
+08e8e1c95fe2fc01f976f1e063a24ccd left_ptr_watch
+3ecb610c1bf2410f44200f48c40d3599 left_ptr_watch

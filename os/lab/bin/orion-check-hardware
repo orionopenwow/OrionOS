@@ -1,0 +1,71 @@
+#!/usr/bin/env python3
+"""orion-check-hardware: the hardware report card. Will this PC be happy with OrionOS?
+
+    orion-check-hardware            a plain report: green "Safe to install on this PC", or what to fix first
+    orion-check-hardware --json     the same for Settings, the HUD and Orion's brain
+    orion-check-hardware --phone    also send it to your paired phone as a card (through Orion's brain)
+
+Run it from the USB stick ("Try Orion") before installing. Checks: graphics card and driver, NVIDIA, Wi-Fi,
+Bluetooth (and Bluetooth audio), speakers, microphone, camera, sleep, battery health, screen size, touchpad.
+The logic is in os/hardware/orion_hwcheck.py.
+"""
+from __future__ import annotations
+
+import json
+import os
+import sys
+import urllib.request
+from pathlib import Path
+
+HERE = Path(__file__).resolve()
+for _d in (os.environ.get("ORION_HARDWARE_DIR", ""), "/opt/orion/hardware", str(HERE.parent.parent.parent / "hardware")):
+    if _d and (Path(_d) / "orion_hwcheck.py").is_file():
+        sys.path.insert(0, _d)
+        break
+import orion_hwcheck as H  # noqa: E402
+
+API = os.environ.get("ORION_API", f"http://127.0.0.1:{os.environ.get('ORION_PORT', '9120')}")
+MARK = {"ok": "\033[1;32m  ok \033[0m", "warn": "\033[1;33mnote \033[0m", "fail": "\033[1;31m fix \033[0m",
+        "na": "\033[2m  -  \033[0m"}
+
+
+def send_to_phone() -> bool:
+    req = urllib.request.Request(f"{API}/hardware/report/send", data=b"{}", method="POST",
+                                 headers={"content-type": "application/json"})
+    token = os.environ.get("ORION_TOKEN_FILE") or os.path.join(os.environ.get("XDG_RUNTIME_DIR", ""), "orion", "daemon.token")  # review B1 (api_token.py)
+    try:
+        req.add_header("authorization", "Bearer " + Path(token).read_text().strip())
+    except OSError:
+        pass
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:  # noqa: S310 (local daemon only)
+            return bool(json.loads(r.read() or b"{}").get("sent"))
+    except Exception:
+        return False
+
+
+def main(argv: list[str]) -> int:
+    if not sys.stdout.isatty() or os.environ.get("NO_COLOR"):
+        for k in MARK:
+            MARK[k] = {"ok": "  ok ", "warn": "note ", "fail": " fix ", "na": "  -  "}[k]
+    rep = H.report(H.Probe(), H.default_suggest())
+    if "--json" in argv:
+        print(json.dumps(rep))
+    else:
+        plain = not sys.stdout.isatty() or bool(os.environ.get("NO_COLOR"))
+        color = "" if plain else ("\033[1;32m" if rep["safe"] else "\033[1;31m")
+        print(f"\n  {color}{rep['headline']}{'' if plain else chr(27) + '[0m'}\n")
+        for r in rep["rows"]:
+            print(f"  {MARK.get(r['status'], '')} {r['label']:<12} {r['text']}")
+            if r["fix"] and r["status"] in ("fail", "warn"):
+                print(f"  {'':5} {'':<12} Fix: {r['fix']}")
+        print()
+    if "--phone" in argv:
+        ok = send_to_phone()
+        print("Sent to your phone." if ok else "Couldn't send it to your phone (is one paired, and is Orion running?).",
+              file=sys.stderr)
+    return 0 if rep["safe"] or "--json" in argv else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

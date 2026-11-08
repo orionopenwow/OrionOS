@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{name}}</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #05070e; color: #d8deff; font: 14px/1.4 system-ui, sans-serif; }
+    body { display: grid; place-items: center; }
+    canvas { background: #0b0f1e; border-radius: 12px; box-shadow: 0 0 40px rgba(124, 92, 255, 0.25); touch-action: none; max-width: 100vw; }
+    p { text-align: center; opacity: 0.7; margin: 8px 0 0; }
+  </style>
+</head>
+<body>
+  <main>
+    <canvas id="game" width="480" height="640" aria-label="{{name}}: the game"></canvas>
+    <p>Arrow keys or A / D to move. On a phone, drag. Catch the stars, dodge the rocks. Space or tap to start again.</p>
+  </main>
+  <script src="game.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+#!/bin/sh
+# orion-share-scrub: "Share clean" (Toolkit #23, the Share Scrubber). Takes keys, tokens, email addresses, home
+# folders, IP addresses and your server names (from ~/.ssh/config) out of what you are about to share. Pictures
+# are read with OCR and those words are blurred. Nothing is uploaded or sent anywhere: the clean copy just goes
+# to the clipboard.
+#   orion-share-scrub          clean whatever is on the clipboard, text or picture (Super+Shift+C)
+#   orion-share-scrub FILE     clean a screenshot or a text/log file: FILE-clean.png (or .txt) next to it, copied
+# The screenshot notification's "Share clean" button (orion-screenshot, also after the markup tool) runs this.
+PY=/opt/orion/venv/bin/python
+[ -x "$PY" ] || PY=python3
+LIB="${ORION_SCRUB_LIB:-/opt/orion/daemon/share_scrubber.py}"
+[ -f "$LIB" ] || LIB="$(dirname "$(readlink -f "$0")")/../../../apps/daemon/share_scrubber.py"
+if [ -n "${1:-}" ]; then
+  [ -f "$1" ] || { echo "No such file: $1"; exit 1; }
+  exec "$PY" "$LIB" file "$1"
+fi
+exec "$PY" "$LIB" clipboard

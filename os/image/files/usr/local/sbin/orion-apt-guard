@@ -1,0 +1,18 @@
+#!/bin/sh
+# Refuses package changes on OrionOS's USB stick (01orion-slot-guard; review H1). Installed systems: does nothing.
+grep -q 'orion\.slot=' "${ORION_APT_GUARD_CMDLINE:-/proc/cmdline}" 2>/dev/null || exit 0
+[ "${ORION_INSTALLING:-}" = 1 ] && exit 0            # orion-install-disk, working on the new drive's copy
+if [ "${ORION_APT_ON_STICK:-}" = 1 ]; then
+  echo "orion-apt-guard: ORION_APT_ON_STICK=1, so changing packages on the stick anyway. The next system version may not start cleanly; the vault's overlay keeps these files." >&2
+  exit 0
+fi
+cat >&2 <<'MSG'
+
+OrionOS on the USB stick doesn't install or change system packages: they come with whole-system updates
+(Settings > Updates, or: sudo orion-slot update), security fixes included. Packages changed here would get in the
+way of the next version.
+  - Apps: use Get apps (Flatpak), which works on the stick.
+  - Need a system package anyway? Install OrionOS on this computer's drive (Settings > Updates > Install OrionOS),
+    where apt works as usual.
+MSG
+exit 1

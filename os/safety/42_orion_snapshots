@@ -1,0 +1,6 @@
+#!/bin/sh
+# OrionOS: boot menu entries for system snapshots (start one read-only). The entries come from orion-snapshot;
+# grub-btrfs isn't packaged for Ubuntu 24.04, so this small generator does the same job. Runs during update-grub.
+set -e
+[ -x /usr/local/bin/orion-snapshot ] || exit 0
+/usr/local/bin/orion-snapshot grub-entries 2>/dev/null || true

@@ -1,0 +1,11 @@
+# OrionOS: night light at login, if it's on (os/lab/bin/orion-nightlight; Super+N toggles it).
+[Unit]
+Description=Night light
+PartOf=sway-session.target
+After=sway-session.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=-/usr/local/bin/orion-nightlight start
+ExecStop=-/usr/local/bin/orion-nightlight stop

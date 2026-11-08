@@ -1,0 +1,221 @@
+:root {
+  --void: #05070E;
+  --panel: #0B0F1E;
+  --edge: #262D50;
+  --violet: #7C5CFF;
+  --cyan: #00E5FF;
+  --ink: #D8DEFF;
+  --rose: #FF8FB0;
+  --amber: #FFCB6B;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  color: var(--ink);
+  font-family: "Figtree", "Nunito", "Noto Sans", "DejaVu Sans", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+
+#hole, #veil { position: fixed; inset: 0; width: 100vw; height: 100vh; display: none; }
+body.has-hole #hole, body.has-hole #veil { display: block; }
+body.has-hole #sky { display: none; }
+#veil { pointer-events: none; }
+
+#sky {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+}
+
+#ui {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 0 16px;
+  opacity: 0;
+  animation: arrive 1.2s .15s cubic-bezier(.2,.7,.2,1) forwards;
+}
+
+@keyframes arrive {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.clock { text-align: center; margin-bottom: 9vh; }
+.time { font-family: "Unbounded", "Nunito", "Noto Sans", sans-serif; }
+.time {
+  display: block;
+  font-size: clamp(64px, 10vw, 132px);
+  font-weight: 200;
+  letter-spacing: .02em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: #EEF1FF;
+  text-shadow: 0 0 40px rgba(124, 92, 255, .25);
+}
+.date {
+  margin-top: 14px;
+  font-size: clamp(13px, 1.25vw, 16px);
+  letter-spacing: .28em;
+  text-transform: uppercase;
+  color: rgba(216, 222, 255, .55);
+}
+
+.who { display: flex; flex-direction: column; align-items: center; margin-bottom: 26px; }
+.avatar {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  padding: 2px;
+  background: conic-gradient(from 210deg, var(--violet), var(--cyan), var(--violet));
+  box-shadow: 0 0 34px rgba(124, 92, 255, .35);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+.avatar > span, .avatar > img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #1A1F3D, var(--panel) 70%);
+  display: grid;
+  place-items: center;
+  font-size: 36px;
+  font-weight: 300;
+  color: var(--ink);
+  object-fit: cover;
+}
+.name {
+  margin-top: 14px;
+  font-size: 19px;
+  font-weight: 400;
+  letter-spacing: .04em;
+  color: var(--ink);
+}
+
+.field {
+  position: relative;
+  width: min(320px, 100%);
+}
+.field input {
+  width: 100%;
+  height: 48px;
+  padding: 0 52px 0 22px;
+  border-radius: 24px;
+  border: 1px solid var(--edge);
+  background: rgba(11, 15, 30, .72);
+  color: #fff;
+  font: inherit;
+  font-size: 16px;
+  letter-spacing: .12em;
+  outline: none;
+  caret-color: var(--cyan);
+  transition: border-color .25s, box-shadow .25s, background .25s;
+}
+.field input::placeholder { color: rgba(216, 222, 255, .38); letter-spacing: .04em; }
+.field input:focus {
+  border-color: rgba(124, 92, 255, .85);
+  box-shadow: 0 0 0 4px rgba(124, 92, 255, .14), 0 0 30px rgba(124, 92, 255, .22);
+  background: rgba(11, 15, 30, .9);
+}
+.field input:disabled { opacity: .75; }
+.field button {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 0;
+  background: transparent;
+  color: rgba(216, 222, 255, .55);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: color .2s, background .2s;
+}
+.field input:not(:placeholder-shown) + button { color: var(--cyan); background: rgba(0, 229, 255, .08); }
+
+body.checking .field input {
+  border-color: rgba(0, 229, 255, .55);
+  animation: pulse 1.1s ease-in-out infinite;
+}
+@keyframes pulse {
+  50% { box-shadow: 0 0 0 4px rgba(0, 229, 255, .10), 0 0 34px rgba(0, 229, 255, .25); }
+}
+
+.field.shake { animation: shake .42s cubic-bezier(.36,.07,.19,.97); }
+@keyframes shake {
+  15% { transform: translateX(-9px); }
+  30% { transform: translateX(8px); }
+  45% { transform: translateX(-6px); }
+  60% { transform: translateX(4px); }
+  75% { transform: translateX(-2px); }
+}
+
+.status, .caps {
+  min-height: 22px;
+  margin-top: 14px;
+  font-size: 14px;
+  letter-spacing: .03em;
+  text-align: center;
+  max-width: 420px;
+}
+.status { color: rgba(216, 222, 255, .7); transition: opacity .3s; }
+.status.bad { color: var(--rose); }
+.caps { margin-top: 4px; color: var(--amber); }
+.caps[hidden] { display: block; visibility: hidden; }
+
+/* The two ways in: "Start Orion again" and "Rescue desktop" (greeter_logic.py). */
+.choices { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; justify-content: center; }
+.choices[hidden], .choice[hidden], .field[hidden] { display: none; }
+.choice {
+  font: inherit; font-size: 14px; letter-spacing: .02em; padding: 9px 18px; border-radius: 999px; cursor: pointer;
+  color: rgba(216, 222, 255, .85); background: rgba(11, 15, 30, .55); border: 1px solid rgba(124, 92, 255, .35);
+  transition: color .2s, background .2s, border-color .2s;
+}
+.choice:hover, .choice:focus-visible { color: #fff; border-color: rgba(0, 229, 255, .7); outline: none;
+  background: rgba(0, 229, 255, .08); }
+.choice.main { border-color: rgba(124, 92, 255, .7); }
+body.auto .choice { font-size: 16px; padding: 12px 24px; }
+body.checking .choice { opacity: .5; pointer-events: none; }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* While the black hole is being born nothing should catch the pointer. */
+body.leaving #ui { pointer-events: none; }
+body.leaving { cursor: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  #ui { animation-duration: .01s; }
+}
+body.reduced #ui { animation: arrive .4s forwards; }
+body.reduced .field.shake { animation: none; }
+body.reduced.checking .field input { animation: none; }
+
+/* With the live black hole in the middle: the clock at the top, you and the field at the bottom. */
+body.has-hole #ui { justify-content: flex-start; padding: 7vh 16px 5vh; }
+body.has-hole .clock { margin-bottom: auto; }
+body.has-hole .time { font-size: clamp(48px, 7vw, 96px); font-weight: 300; }
+body.has-hole .who { flex-direction: row; gap: 14px; margin-bottom: 18px; }
+body.has-hole .avatar { width: 52px; height: 52px; }
+body.has-hole .avatar > span { font-size: 22px; }
+body.has-hole .name { margin-top: 0; }
+body.has-hole #ui { animation-delay: .7s; }

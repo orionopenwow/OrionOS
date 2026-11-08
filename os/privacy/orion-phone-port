@@ -1,0 +1,139 @@
+#!/usr/bin/python3
+"""orion-phone-port: when Orion Mobile may reach this computer on port 9121 over the local network.
+
+The port is closed on networks this computer doesn't know (a cafe's Wi-Fi). It opens only:
+  - for 10 minutes while you pair a phone (`orion-ctl pair-phone` runs `orion-phone-port open`), and
+  - on networks you marked as Home (`orion-ctl home-network on` sets the NetworkManager connection's zone to
+    "home"; the NetworkManager hook runs `orion-phone-port sync` whenever a network comes or goes).
+Every request on 9121 must still be signed by a paired phone; this only decides who can knock at all.
+Tailscale, the boardroom VM and the VM lab's port-forward have their own fixed rules (os/lab/provision.sh).
+
+    orion-phone-port open [SECONDS]   allow local-network phones for SECONDS (default 600, at most 900)
+    orion-phone-port close            remove the pairing rule now
+    orion-phone-port sync             allow 9121 on the networks marked Home, and on no other
+    orion-phone-port status
+
+Run as root (the session user may run open/close/sync/status through pkexec: ai.orion.privacy.policy).
+Tests swap the outside programs with ORION_UFW, ORION_NMCLI and ORION_SYSTEMD_RUN.
+"""
+from __future__ import annotations
+
+import os
+import re
+import subprocess
+import sys
+
+PORT = "9121"
+PAIR = "orion-phone-pairing"
+HOME = "orion-phone-home"
+PRIVATE_NETS = ("192.168.0.0/16", "10.0.0.0/8", "172.16.0.0/12")
+SELF = "/opt/orion/privacy/orion-phone-port"
+UFW = os.environ.get("ORION_UFW", "ufw")
+NMCLI = os.environ.get("ORION_NMCLI", "nmcli")
+SYSTEMD_RUN = os.environ.get("ORION_SYSTEMD_RUN", "systemd-run")
+DEV_RE = re.compile(r"^[A-Za-z0-9_.:-]{1,15}$")
+
+
+def run(argv: list[str], check: bool = False) -> str:
+    r = subprocess.run(argv, capture_output=True, text=True, timeout=30)
+    if check and r.returncode != 0:
+        raise RuntimeError((r.stderr or r.stdout or "failed").strip()[-200:])
+    return r.stdout or ""
+
+
+def numbered_with(status: str, comment: str) -> list[int]:
+    """Rule numbers in `ufw status numbered` output whose comment is exactly `comment`, highest first (so
+    deleting them one by one doesn't shift the rest)."""
+    nums = []
+    for line in status.splitlines():
+        m = re.match(r"^\[\s*(\d+)\]\s.*#\s*(\S+)\s*$", line)
+        if m and m.group(2) == comment:
+            nums.append(int(m.group(1)))
+    return sorted(set(nums), reverse=True)
+
+
+def home_devices(nm_terse: str) -> list[str]:
+    """Devices whose active connection is in the "home" zone. Input: lines of
+    `nmcli -t -f DEVICE,ZONE connection show --active`-style output, "device:zone"."""
+    out = []
+    for line in nm_terse.splitlines():
+        if ":" not in line:
+            continue
+        dev, zone = line.rsplit(":", 1)
+        dev = dev.replace("\\:", ":").strip()
+        if zone.strip().lower() == "home" and DEV_RE.match(dev) and dev != "lo":
+            out.append(dev)
+    return sorted(set(out))
+
+
+def delete(comment: str) -> int:
+    n = 0
+    for num in numbered_with(run([UFW, "status", "numbered"]), comment):
+        run([UFW, "--force", "delete", str(num)])
+        n += 1
+    return n
+
+
+def active_zones() -> str:
+    lines = []
+    for line in run([NMCLI, "-t", "-f", "UUID,DEVICE", "connection", "show", "--active"]).splitlines():
+        if ":" not in line:
+            continue
+        uuid, dev = line.split(":", 1)
+        if not re.match(r"^[0-9a-fA-F-]{8,64}$", uuid) or not dev:
+            continue
+        zone = run([NMCLI, "-g", "connection.zone", "connection", "show", "uuid", uuid]).strip()
+        lines.append(f"{dev}:{zone}")
+    return "\n".join(lines)
+
+
+def cmd_open(seconds: int) -> str:
+    seconds = max(60, min(900, seconds))
+    delete(PAIR)
+    for net in PRIVATE_NETS:
+        run([UFW, "allow", "in", "from", net, "to", "any", "port", PORT, "proto", "tcp", "comment", PAIR], check=True)
+    # Close again by itself, even if the pairing command is interrupted.
+    subprocess.run([SYSTEMD_RUN, "--quiet", "--collect", f"--on-active={seconds}s",
+                    "--unit=orion-phone-port-close", SELF, "close"], capture_output=True, timeout=30)
+    return f"Your phone can reach this computer on the local network for the next {seconds // 60} minutes."
+
+
+def cmd_sync() -> str:
+    delete(HOME)
+    devs = home_devices(active_zones())
+    for dev in devs:
+        run([UFW, "allow", "in", "on", dev, "to", "any", "port", PORT, "proto", "tcp", "comment", HOME], check=True)
+    return ("Your phone can reach this computer on your Home network (" + ", ".join(devs) + ")." if devs else
+            "This network isn't marked as Home, so your phone can't reach this computer on it (Tailscale still works).")
+
+
+def main(argv: list[str]) -> int:
+    cmd = argv[0] if argv else "status"
+    if cmd != "status" and os.geteuid() != 0 and not os.environ.get("ORION_PHONE_PORT_TEST"):
+        print("This needs admin rights (pkexec orion-phone-port ...).", file=sys.stderr)
+        return 1
+    try:
+        if cmd == "open":
+            secs = int(argv[1]) if len(argv) > 1 and argv[1].isdigit() else 600
+            print(cmd_open(secs))
+        elif cmd == "close":
+            n = delete(PAIR)
+            print("Pairing access closed." if n else "Pairing access was already closed.")
+        elif cmd == "sync":
+            print(cmd_sync())
+        elif cmd == "status":
+            st = run([UFW, "status", "numbered"])
+            pair, home = numbered_with(st, PAIR), numbered_with(st, HOME)
+            print("Pairing: open." if pair else "Pairing: closed.")
+            print("Home network: phone allowed." if home else "Home network: none marked, or not connected to it.")
+        else:
+            print(__doc__.strip(), file=sys.stderr)
+            return 2
+    except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
+        print(f"That didn't work: {exc}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

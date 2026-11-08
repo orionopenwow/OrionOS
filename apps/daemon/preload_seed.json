@@ -1,0 +1,69 @@
+{
+  "user_profile": {
+    "alias": "",
+    "default_mode": "concise",
+    "voice_engine": "kokoro_tts",
+    "communication_style": "Direct, grounded, casual, zero corporate fluff. Prefer concrete action over long explanations.",
+    "focus_block_minutes": 90
+  },
+  "workspaces": [
+    {
+      "id": "orion-hub",
+      "name": "Orion Desktop Agent",
+      "path": "./",
+      "start_cmd": "npm run dev",
+      "ports": [1420, 9120],
+      "tags": ["ai", "tauri", "python", "hud"]
+    },
+    {
+      "id": "openwow",
+      "name": "OpenWoW Engine & Realms",
+      "path": "../openwow",
+      "start_cmd": "npm run dev",
+      "tags": ["mmorpg", "benilla", "threejs", "exp-bar"]
+    }
+  ],
+  "grimoire_commands": [
+    {
+      "id": "kill_stuck_ports",
+      "voice_triggers": ["clear stuck ports", "free up daemon port"],
+      "description": "Kills any orphaned processes holding port 1420 or 9120 on Windows",
+      "command": "npx kill-port 1420 9120",
+      "requires_approval": false
+    },
+    {
+      "id": "git_quick_checkpoint",
+      "voice_triggers": ["save checkpoint", "commit work in progress"],
+      "description": "Stages all current repo changes and creates a timestamped WIP commit",
+      "command": "git add -A && git commit -m \"chore: orion voice checkpoint\"",
+      "requires_approval": true
+    },
+    {
+      "id": "consolidate_and_export",
+      "voice_triggers": ["consolidate memories", "export training data"],
+      "description": "Compacts LanceDB memory graph and exports approved pairs to OpenAI JSONL",
+      "internal_action": "memory_core.consolidate_and_export_jsonl",
+      "requires_approval": false
+    }
+  ],
+  "conditioning_routines": [
+    {
+      "id": "calisthenics_upper",
+      "category": "calisthenics",
+      "duration_min": 5,
+      "voice_prompt": "90 minutes locked in. Let's knock out 25 push-ups and a 60-second plank to reset your posture."
+    },
+    {
+      "id": "spine_wrist_mobility",
+      "category": "yoga",
+      "duration_min": 5,
+      "voice_prompt": "Heavy coding block finished. Time for 5 minutes of wrist decompression, cat-cows, and thoracic openers."
+    },
+    {
+      "id": "box_breathing_reset",
+      "category": "breathwork",
+      "duration_min": 3,
+      "voice_prompt": "Queue is clear. Follow the purple vortex for 3 minutes of 4-4-4-4 box breathing."
+    }
+  ]
+}

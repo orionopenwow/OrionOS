@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# Open Windows files (os/dualboot): look at the Windows drive from OrionOS, read-only.
+#   orion-windows-files          find the Windows drive, unlock it if BitLocker locks it (you type the recovery key),
+#                                mount it read-only and open it in Files
+#   orion-windows-files close    unmount it and lock it again
+#   orion-windows-files mount    the same as the first, without opening Files (prints where it is; used by
+#                                orion-move-in and orion-games to look for a move kit and games)   [move-kit]
+# Read-only on purpose: Windows (fast startup, BitLocker) is never changed from OrionOS. udisks2 does the unlocking
+# and mounting, so it asks for the orion-admin password the first time (internal drives are admin-only).
+set -uo pipefail
+PY=/opt/orion/dualboot/orion_dualboot.py
+[ -r "$PY" ] || PY="$(dirname "$(readlink -f "$0")")/orion_dualboot.py"
+C='\033[1;36m'; W='\033[1;37m'; D='\033[2m'; N='\033[0m'
+say() { printf "${C}%s${N}\n" "$*"; }
+bye() { printf '%s\n' "$*"; read -rp "Press Enter to close." _ </dev/tty 2>/dev/null || true; exit "${2:-1}"; }
+cleartext_of() { lsblk -lnpo NAME,TYPE "$1" 2>/dev/null | awk '$2=="crypt" {print $1; exit}'; }
+mountpoint_of() { lsblk -lnpo MOUNTPOINT "$1" 2>/dev/null | awk 'NF {print; exit}'; }
+MODE="${1:-open}"   # [move-kit]
+open_files() { [ "$MODE" = mount ] && return 0; (command -v orion-files >/dev/null && orion-files "$1" || thunar "$1") >/dev/null 2>&1 & disown; }
+
+mapfile -t PARTS < <(python3 "$PY" windows-parts --json 2>/dev/null | python3 -c '
+import json, sys
+for p in json.load(sys.stdin): print(p["path"], "bitlocker" if p["bitlocker"] else "ntfs", p["size"] // 1024**3)' 2>/dev/null)
+
+if [ "${1:-}" = close ]; then
+  for line in "${PARTS[@]}"; do
+    read -r dev kind _ <<<"$line"
+    t="$dev"; [ "$kind" = bitlocker ] && t="$(cleartext_of "$dev")"
+    [ -n "$t" ] && [ -n "$(mountpoint_of "$t")" ] && udisksctl unmount -b "$t" && echo "Closed $dev."
+    [ "$kind" = bitlocker ] && [ -n "$(cleartext_of "$dev")" ] && udisksctl lock -b "$dev" && echo "Locked $dev again."
+  done
+  exit 0
+fi
+
+printf "\n   ${W}Open Windows files${N} ${D}(read-only: nothing on Windows changes)${N}\n\n"
+[ ${#PARTS[@]} -gt 0 ] || bye "No Windows drive was found on this computer."
+SEL="${PARTS[0]}"
+if [ ${#PARTS[@]} -gt 1 ]; then
+  i=1; for p in "${PARTS[@]}"; do read -r dev kind gb <<<"$p"; printf "  %d) %s  %s GB%s\n" $i "$dev" "$gb" "$([ "$kind" = bitlocker ] && echo ', BitLocker')"; i=$((i+1)); done
+  read -rp "Which one? " n; SEL="${PARTS[$((n-1))]:-}"; [ -n "$SEL" ] || bye "Nothing chosen."
+fi
+read -r DEV KIND GB <<<"$SEL"
+TARGET="$DEV"
+if [ "$KIND" = bitlocker ]; then
+  TARGET="$(cleartext_of "$DEV")"
+  if [ -z "$TARGET" ]; then
+    say "This Windows drive ($DEV, $GB GB) is locked with BitLocker."
+    echo "   Type its recovery key: 48 digits in 8 groups of 6. Where to find it:"
+    echo "   - on another device: aka.ms/myrecoverykey (sign in with the Microsoft account used on this PC)"
+    echo "   - or the printout / USB stick / file you saved when BitLocker was turned on"
+    echo "   OrionOS uses it only to read the drive now; it isn't saved anywhere."
+    echo
+    read -rsp "   Recovery key: " KEY </dev/tty; echo
+    KEY="$(printf '%s' "$KEY" | tr -cd '0-9')"
+    [ ${#KEY} -eq 48 ] || bye "That's not 48 digits, so it can't be a recovery key. Nothing was changed."
+    KEY="$(printf '%s' "$KEY" | sed 's/.\{6\}/&-/g; s/-$//')"
+    KF="$(mktemp "${XDG_RUNTIME_DIR:-/tmp}/orion-bitlocker.XXXXXX")"; chmod 600 "$KF"
+    printf '%s' "$KEY" > "$KF"; KEY=""
+    out="$(udisksctl unlock -b "$DEV" --key-file "$KF" 2>&1)"; rc=$?
+    rm -f "$KF"
+    [ $rc -eq 0 ] || bye "Couldn't unlock it: ${out##*: }. Check the key and try again. Nothing was changed."
+    TARGET="$(printf '%s' "$out" | sed -n 's/.* as \(\/dev\/[^ .]*\).*/\1/p')"
+    [ -n "$TARGET" ] || TARGET="$(cleartext_of "$DEV")"
+  fi
+fi
+MP="$(mountpoint_of "$TARGET")"
+if [ -z "$MP" ]; then
+  out="$(udisksctl mount -b "$TARGET" -o ro 2>&1)" || bye "Couldn't open it: ${out##*: }"
+  MP="$(printf '%s' "$out" | sed -n 's/^Mounted [^ ]* at \(.*\)$/\1/p' | sed 's/\.$//')"
+  [ -n "$MP" ] || MP="$(mountpoint_of "$TARGET")"
+fi
+say "Your Windows files are open (read-only) at $MP"
+[ -d "$MP/Users" ] && echo "   Your Windows user folders are in $MP/Users."
+echo "   When you're done: orion-windows-files close"
+[ "$MODE" = mount ] && { printf '%s\n' "$MP"; exit 0; }   # [move-kit]
+open_files "$MP"
+sleep 2

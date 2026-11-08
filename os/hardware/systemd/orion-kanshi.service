@@ -1,0 +1,15 @@
+# OrionOS: kanshi puts each remembered set of screens back the way you arranged it (os/hardware/README.md).
+# A user service the Sway session starts (os/lab/sway-config, "Displays & printing"); its profiles are written by
+# orion-displays from ~/.config/orion/displays.json.
+[Unit]
+Description=Screen layouts for each set of monitors (kanshi)
+Documentation=man:kanshi(1) man:kanshi(5)
+StartLimitIntervalSec=30
+StartLimitBurst=5
+
+[Service]
+ExecStartPre=-/usr/local/bin/orion-displays render
+ExecStart=/usr/bin/kanshi
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=2

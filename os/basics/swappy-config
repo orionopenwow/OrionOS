@@ -1,0 +1,17 @@
+# OrionOS: the screenshot markup tool (Ctrl+Print). Installed as ~/.config/swappy/config by os/image/os-basics.sh.
+# Its window uses the Orion Glass GTK theme; the three colour buttons are Orion's (alert pink #FF5C8A,
+# Photon #00E5FF, Accretion #7C5CFF) and the custom colour starts on Ember #FFC66B (patched in at build time:
+# swappy 1.5.1 has no colour settings).
+# orion-screenshot opens it with "-o FILE", which writes the finished picture to ~/Pictures/Screenshots when the
+# window closes. Ctrl+S inside swappy would save a second copy, so its own save folder is a scratch folder in RAM
+# that orion-screenshot empties afterwards.
+[Default]
+save_dir=$XDG_RUNTIME_DIR/orion-swappy
+save_filename_format=Screenshot_%Y-%m-%d_%H-%M-%S.png
+show_panel=true
+line_size=5
+text_size=20
+text_font=Figtree
+paint_mode=arrow
+early_exit=true
+fill_shape=false

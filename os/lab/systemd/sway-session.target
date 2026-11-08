@@ -1,0 +1,16 @@
+# OrionOS: everything the Orion desktop starts at login, as supervised user services (instead of ~13 bare `exec`
+# lines in the Sway config). Sway's config only runs orion-session-start, which hands the session's Wayland/Sway
+# sockets to systemd and starts this target; orion-session stops it again when Sway exits.
+# The Rescue desktop (os/rescue) never starts it, so none of this runs there.
+[Unit]
+Description=OrionOS Sway session (Orion screen, notifications, idle lock, clipboard, night light, ...)
+Documentation=file:///opt/orion-src/os/lab/sway-config
+BindsTo=graphical-session.target
+Wants=graphical-session-pre.target
+After=graphical-session-pre.target
+Wants=orion-mako.service orion-hud.service orion-idle.service orion-clipboard.service orion-nightlight.service
+Wants=orion-boot-sound.service orion-access.service orion-power.service orion-wallpaper.service orion-firstrun.service
+# Desktop (os/desktop): Alt+Tab window list, admin password window, app tray
+Wants=orion-windows.service orion-polkit-agent.service orion-tray.service
+# Displays & printing (os/hardware/systemd): screen layouts and the screen watcher
+Wants=orion-kanshi.service orion-displays.service

@@ -1,0 +1,198 @@
+#!/usr/bin/env python3
+"""orion-gravity: Gravity mode and the optional Hyprland session (after-1.0 plan §3).
+
+    orion-gravity status [--json]          what is on, and why (battery, reduced motion, which session)
+    orion-gravity on | off | toggle        Gravity mode: the desktop bends around the black hole (off by default)
+    orion-gravity session [sway|hyprland]  which desktop the next login starts (Sway is the default)
+    orion-gravity prepare                  (orion-session, before Hyprland starts) keyboard + Gravity files
+    orion-gravity watch                    (the Hyprland session) pauses Gravity mode on battery / reduced motion
+
+Gravity mode needs the Hyprland session (install it with ORION_WITH_HYPRLAND=1 at provisioning, os/image/os-hyprland.sh).
+The logic is in os/desktop/orion_gravity.py; the compositor is reached through os/desktop/orion_compositor.py.
+"""
+from __future__ import annotations
+
+import json
+import os
+import shutil
+import subprocess
+import sys
+import time
+from pathlib import Path
+from typing import Optional
+
+HERE = Path(__file__).resolve()
+for _d in (os.environ.get("ORION_DESKTOP_DIR", ""), "/opt/orion/desktop", str(HERE.parent.parent.parent / "desktop")):
+    if _d and (Path(_d) / "orion_gravity.py").is_file():
+        sys.path.insert(0, _d)
+        break
+import orion_compositor as C  # noqa: E402
+import orion_gravity as G  # noqa: E402
+
+HOME = Path.home()
+CONF = HOME / ".config" / "orion"
+STATE = CONF / "gravity"
+SESSION_ENV = CONF / "session.env"
+HYPR_D = CONF / "hypr.d"
+CACHE = Path(os.environ.get("XDG_CACHE_HOME") or HOME / ".cache") / "orion"
+WATCH_S = 20
+
+
+def _read(p) -> Optional[str]:
+    try:
+        return Path(p).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+
+
+def _write(p: Path, text: str) -> None:
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_name(p.name + ".tmp")
+    tmp.write_text(text, encoding="utf-8")
+    tmp.replace(p)
+
+
+def _shader_template() -> Optional[str]:
+    for p in (os.environ.get("ORION_GRAVITY_SHADER", ""), G.SHADER_SRC, str(HERE.parent.parent.parent / "desktop" / "hyprland" / "gravity.frag")):
+        if p and Path(p).is_file():
+            return _read(p)
+    return None
+
+
+def hyprland_installed() -> bool:
+    return shutil.which("Hyprland") is not None or shutil.which("hyprland") is not None
+
+
+def situation(comp) -> dict:
+    gs = None
+    if shutil.which("gsettings"):
+        try:
+            gs = subprocess.run(["gsettings", "get", "org.gnome.desktop.interface", "enable-animations"],
+                                capture_output=True, text=True, timeout=3).stdout
+        except (OSError, subprocess.SubprocessError):
+            gs = None
+    reduced = G.reduced_motion(gs, _read(HOME / ".config/gtk-3.0/settings.ini"), _read("/etc/orion/login.conf"))
+    try:
+        supplies = G.read_supplies(os.listdir, _read)
+    except OSError:
+        supplies = []
+    battery = G.on_battery(supplies)
+    want = G.wanted(_read(STATE))
+    name = comp.name if comp else "none"
+    active, reason = G.effective(want, name, battery, reduced)
+    return {"wanted": want, "active": active, "reason": reason, "compositor": name, "battery": battery,
+            "reduced_motion": reduced, "session": G.session_choice(_read(SESSION_ENV)),
+            "hyprland_installed": hyprland_installed()}
+
+
+def shader_path(comp) -> Optional[str]:
+    tpl = _shader_template()
+    if tpl is None:
+        return None
+    outs = [o for o in (comp.outputs() if comp else []) if o.get("active")]
+    outs.sort(key=lambda o: not o.get("focused"))          # the focused screen first
+    rect = (outs[0].get("rect") or {}) if outs else {}
+    w, h = rect.get("width") or 16, rect.get("height") or 9
+    out = CACHE / "gravity.frag"
+    _write(out, G.shader_for(tpl, int(w), int(h)))
+    return str(out)
+
+
+def apply(comp, active: bool) -> None:
+    path = shader_path(comp) if active else None
+    _write(HYPR_D / "gravity.conf", G.gravity_conf(path))
+    if comp and comp.name == "hyprland":
+        comp.set_screen_shader(path)
+
+
+def cmd_status(args) -> int:
+    s = situation(C.detect())
+    if "--json" in args:
+        print(json.dumps(s))
+    else:
+        print(s["reason"])
+        print(f"Next login starts: {'Hyprland' if s['session'] == 'hyprland' else 'Sway'}"
+              + ("" if s["hyprland_installed"] else " (Hyprland isn't installed)"))
+    return 0
+
+
+def cmd_set(on: Optional[bool]) -> int:
+    comp = C.detect()
+    if on is None:
+        on = not G.wanted(_read(STATE))
+    _write(STATE, "on\n" if on else "off\n")
+    s = situation(comp)
+    apply(comp, s["active"])
+    print(s["reason"])
+    return 0
+
+
+def cmd_session(arg: str) -> int:
+    if arg in ("", "status"):
+        print(G.session_choice(_read(SESSION_ENV)))
+        return 0
+    if arg not in ("sway", "hyprland"):
+        print("orion-gravity session sway|hyprland", file=sys.stderr)
+        return 2
+    if arg == "hyprland" and not hyprland_installed():
+        print("Hyprland isn't installed on this computer. It is optional: provisioning installs it with "
+              "ORION_WITH_HYPRLAND=1 (os/image/os-hyprland.sh).", file=sys.stderr)
+        return 1
+    _write(SESSION_ENV, G.set_session(_read(SESSION_ENV), arg))
+    print("The next login starts " + ("the Hyprland session (Gravity mode can bend windows there)." if arg == "hyprland"
+                                      else "the normal Sway session."))
+    return 0
+
+
+def cmd_prepare() -> int:
+    """Before Hyprland starts: the keyboard layout and Gravity mode as Hyprland config, and your own file."""
+    lay, var = os.environ.get("XKB_DEFAULT_LAYOUT", "us"), os.environ.get("XKB_DEFAULT_VARIANT", "")
+    try:
+        import orion_keyboard as K
+        got = K.parse_conf(_read(CONF / "sway.d" / "keyboard.conf"))
+        if got:
+            lay, var = got
+    except ImportError:
+        pass
+    _write(HYPR_D / "keyboard.conf", G.keyboard_conf(lay, var))
+    user = HYPR_D / "user.conf"
+    if not user.exists():
+        _write(user, "# Your own Hyprland settings for the Orion session (kept across updates).\n")
+    s = situation(None)
+    active, _ = G.effective(s["wanted"], "hyprland", s["battery"], s["reduced_motion"])
+    apply(None, active)
+    return 0
+
+
+def cmd_watch() -> int:
+    comp = C.detect()
+    if not comp or comp.name != "hyprland":
+        return 0
+    last = None
+    while True:
+        s = situation(comp)
+        if s["active"] != last:
+            apply(comp, s["active"])
+            last = s["active"]
+        time.sleep(WATCH_S)
+
+
+def main(argv: list[str]) -> int:
+    cmd = argv[0] if argv else "status"
+    rest = argv[1:]
+    if cmd == "status":
+        return cmd_status(rest)
+    if cmd in ("on", "off", "toggle"):
+        return cmd_set({"on": True, "off": False, "toggle": None}[cmd])
+    if cmd == "session":
+        return cmd_session(rest[0] if rest else "")
+    if cmd == "prepare":
+        return cmd_prepare()
+    if cmd == "watch":
+        return cmd_watch()
+    print(__doc__)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

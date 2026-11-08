@@ -1,0 +1,23 @@
+// OrionOS privacy basics (os/privacy). What the session user "orion" may do without the admin password:
+//  - set a FIRST password for their own account (the helper refuses when one exists; it only ever touches the
+//    account of whoever ran it). Only from the active local session: first-run runs it in a terminal there.
+//  - open the phone port for pairing (at most 15 minutes) and re-apply the Home-network rule. Every request on the
+//    port is still signed by a paired phone, so opening it for a few minutes grants nothing by itself.
+// Note: polkit counts the user's own background services (the Orion daemon, agents running as "orion") as part of
+// the active session, so "local && active" means "this user, logged in here", not "a person at the keyboard".
+polkit.addRule(function(action, subject) {
+    if (subject.user != "orion") return polkit.Result.NOT_HANDLED;
+    if (action.id == "ai.orion.privacy.first-password") {
+        var c = action.lookup("command_line") || "";
+        if (c == "/opt/orion/privacy/orion-first-password" && subject.local && subject.active) return polkit.Result.YES;
+        return polkit.Result.NOT_HANDLED;
+    }
+    if (action.id == "ai.orion.privacy.phone-port") {
+        var c2 = action.lookup("command_line") || "";
+        if (/^\/opt\/orion\/privacy\/orion-phone-port (open( [0-9]{1,3})?|close|sync|status)$/.test(c2)) {
+            return polkit.Result.YES;
+        }
+        return polkit.Result.NOT_HANDLED;
+    }
+    return polkit.Result.NOT_HANDLED;
+});

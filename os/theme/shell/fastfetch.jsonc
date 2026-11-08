@@ -1,0 +1,24 @@
+// `orion` uses this when fastfetch is installed (it isn't in Ubuntu 24.04's archive; without it `orion` draws the
+// same thing itself). The logo is os/theme/shell/orion-logo.ansi, passed on the command line.
+{
+  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
+  "logo": { "padding": { "left": 2, "right": 3, "top": 1 } },
+  "display": {
+    "separator": "   ",
+    "color": { "keys": "38;2;157;133;255", "title": "38;2;216;222;255" },
+    "key": { "width": 9 }
+  },
+  "modules": [
+    "break",
+    { "type": "os", "key": "system" },
+    { "type": "kernel", "key": "kernel" },
+    { "type": "uptime", "key": "up" },
+    { "type": "memory", "key": "memory" },
+    { "type": "disk", "key": "vault", "folders": "/" },
+    { "type": "cpu", "key": "cpu" },
+    { "type": "gpu", "key": "gpu" },
+    { "type": "shell", "key": "shell" },
+    "break",
+    "colors"
+  ]
+}

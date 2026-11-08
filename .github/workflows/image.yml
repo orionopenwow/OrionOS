@@ -1,0 +1,91 @@
+# Builds the OrionOS USB images (Standard and NVIDIA) and Orion's signed bundle for installed systems
+# (orion-update), and publishes them as a GitHub release.
+# Trigger: push a tag like os-v1.0.0, or run it by hand (Actions > OrionOS image > Run workflow).
+#
+# One-time setup, so sticks only accept updates you signed (Settings > Secrets and variables > Actions):
+#   ORION_RELEASE_KEY           contents of a minisign secret key   (make one: minisign -G -p orion.pub -s orion.key)
+#   ORION_RELEASE_KEY_PASSWORD  its password
+# and commit the public key as os/image/release.pub.
+name: OrionOS image
+
+on:
+  push:
+    tags: ['os-v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version (e.g. 1.0.0)
+        default: 1.0.0-dev
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        flavour: [standard, nvidia]
+    steps:
+      - name: Make room (the build needs ~25 GB)
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          sudo docker image prune -af || true
+          df -h /
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Tools
+        run: sudo apt-get update -q && sudo apt-get install -y -q debootstrap squashfs-tools mtools dosfstools grub-common minisign xz-utils
+      - name: Version
+        id: v
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          V="${GITHUB_REF_NAME#os-v}"
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then V="$INPUT_VERSION"; fi
+          # only plain version numbers (1.0.0, 1.0.0-dev): the value is used in file names and commands below
+          if ! printf '%s' "$V" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$'; then
+            echo "::error::Version must look like 1.0.0 or 1.0.0-dev"; exit 1
+          fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+      - name: Release key
+        env:
+          KEY: ${{ secrets.ORION_RELEASE_KEY }}
+        run: |
+          if [ -n "$KEY" ] && [ -f os/image/release.pub ]; then
+            printf '%s\n' "$KEY" > "$RUNNER_TEMP/orion.key"; chmod 600 "$RUNNER_TEMP/orion.key"
+            cp os/image/release.pub "$RUNNER_TEMP/orion.key.pub"
+            echo "ORION_RELEASE_KEY=$RUNNER_TEMP/orion.key" >> "$GITHUB_ENV"
+          else
+            echo "::warning::No ORION_RELEASE_KEY secret or os/image/release.pub: sticks from this build can't take signed updates."
+          fi
+      - name: Build
+        env:
+          ORION_RELEASE_REPO: ${{ github.repository }}
+        run: sudo -E os/image/build.sh --flavour ${{ matrix.flavour }} --version ${{ steps.v.outputs.version }} --out "$PWD/out"
+      - name: Package
+        env:
+          ORION_RELEASE_KEY_PASSWORD: ${{ secrets.ORION_RELEASE_KEY_PASSWORD }}
+        run: sudo -E os/image/package-release.sh "$PWD/out" ${{ matrix.flavour }}
+      - name: Orion bundle for installed systems (orion-update; same release key)
+        if: matrix.flavour == 'standard'
+        env:
+          ORION_RELEASE_KEY_PASSWORD: ${{ secrets.ORION_RELEASE_KEY_PASSWORD }}
+        run: sudo -E os/image/make-bundle.sh "$PWD/out" ${{ steps.v.outputs.version }}
+      - name: Publish
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+        with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('os-v{0}', steps.v.outputs.version) }}
+          name: OrionOS ${{ steps.v.outputs.version }}
+          prerelease: ${{ contains(steps.v.outputs.version, '-') }}
+          files: |
+            out/*.part-*
+            out/*.parts
+            out/*.minisig
+            out/SHA256SUMS-*
+            out/*.version
+            out/orion-bundle.tar.gz
+            os/image/release.pub

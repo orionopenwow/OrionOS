@@ -1,0 +1,200 @@
+# OrionOS — Sway config. Orion is the shell: the HUD fills workspace 1; your apps live on 2-9.
+set $mod Mod4
+set $term foot
+set $menu wofi --show drun
+
+font pango:Noto Sans 10
+output * bg #05070E solid_color
+# ---- Orion theme: soft gaps, thin glowing borders (rounded corners, blur and shadows: SwayFX block at the end)
+# Window buttons (H13, on by default): a glass title bar on every app window; right-click it (or Super+W) for Close,
+# Maximise, Minimise and Float; Alt+F4 closes. Settings > Keyboard & windows turns it off (sway.d/windows.conf).
+default_border normal 2
+default_floating_border normal 2
+titlebar_padding 10 5
+titlebar_border_thickness 1
+title_align left
+gaps inner 10
+gaps outer 6
+smart_borders off
+#                       border   background text     indicator child_border
+client.focused          #7C5CFF  #0B0F1E    #FFFFFF  #00E5FF   #7C5CFF
+client.focused_inactive #1E2440  #0B0F1E    #8888AA  #1E2440   #1E2440
+client.unfocused        #141932  #05070E    #6B7090  #141932   #141932
+client.urgent           #FF5C8A  #0B0F1E    #FFFFFF  #FF5C8A   #FF5C8A
+seat * xcursor_theme Adwaita 24
+exec_always gsettings set org.gnome.desktop.interface color-scheme prefer-dark
+exec_always gsettings set org.gnome.desktop.interface icon-theme Orion
+exec_always gsettings set org.gnome.desktop.interface font-name 'Figtree 10'
+# "Orion Glass" is see-through for SwayFX's blur; under plain Sway the opaque "Orion Glass Solid" twin is used.
+exec_always sh -c 'if [ -f ~/.config/orion/high-contrast ]; then t=Orion-Glass-HighContrast; elif ls "$XDG_RUNTIME_DIR"/orion-sway-fx/*.conf >/dev/null 2>&1; then t=Orion-Glass; else t=Orion-Glass-Solid; fi; gsettings set org.gnome.desktop.interface gtk-theme $t'
+for_window [title="^orion-tool$"] floating enable, resize set 900 560, move position center
+for_window [app_id="pavucontrol|wdisplays"] floating enable, resize set 860 560, move position center
+# Keyboard layout: chosen at first start or in Settings (~/.config/orion/sway.d/keyboard.conf, read below); until
+# then the computer's own layout (orion-session passes /etc/default/keyboard to Sway). No hard-coded US layout.
+for_window [app_id="^(polkit-gnome-authentication-agent-1|lxpolkit)$"] floating enable, move position center
+
+# ---- Orion
+# Everything that runs at login is a supervised user service in sway-session.target (os/lab/systemd): the Orion
+# screen (HUD), notifications, idle lock (lock before sleep, after 5 minutes; screen off after 10), clipboard
+# history, night light, battery watcher, accessibility, boot sound, wallpaper, first-run, screen layouts.
+# orion-session-start hands this session's Wayland/Sway sockets to systemd, restarts the daemon and starts it.
+exec orion-session-start
+for_window [app_id="(?i)orion"] move container to workspace number 1, fullscreen enable
+for_window [title="(?i)^orion$"] move container to workspace number 1, fullscreen enable
+# Workspace 1 belongs to the HUD: any other window opened there moves to workspace 2 and takes focus.
+for_window [workspace="^1$" app_id="^(?!orion$)"] move container to workspace number 2, workspace number 2, focus
+for_window [workspace="^1$" shell="xwayland"] move container to workspace number 2, workspace number 2, focus
+workspace number 1
+# Rescue (os/rescue): the Rescue panel floats above everything, on every workspace. It opens by itself when the
+# Orion screen keeps crashing; Ctrl+Alt+Delete or Super+Escape opens it any time.
+for_window [app_id="^ai\.orion\.Rescue$"] fullscreen disable, floating enable, sticky enable, resize set 760 600, move position center, focus
+bindsym Ctrl+Alt+Delete exec orion-rescue
+bindsym $mod+Escape exec orion-rescue
+
+# ---- keys (Super, plus Ctrl+Alt twins because VirtualBox may keep the Windows key for itself)
+bindsym $mod+o workspace number 1
+bindsym Ctrl+Alt+o workspace number 1
+bindsym $mod+Return exec $term
+bindsym Ctrl+Alt+t exec $term
+bindsym $mod+d exec $menu
+bindsym Ctrl+Alt+space exec $menu
+bindsym $mod+e exec orion-files
+bindsym Ctrl+Alt+e exec orion-files
+bindsym $mod+comma exec orion-settings
+bindsym Ctrl+Alt+s exec orion-settings
+bindsym Ctrl+Alt+m exec orion-ctl mic toggle | xargs -0 notify-send Orion
+bindsym Ctrl+Alt+c exec orion-ctl camera toggle >/dev/null
+bindsym $mod+l exec orion-lock
+bindsym Ctrl+Alt+l exec orion-lock
+# laptop keys
+bindsym XF86MonBrightnessUp exec brightnessctl set +10%
+bindsym XF86MonBrightnessDown exec brightnessctl set 10%-
+bindsym XF86AudioRaiseVolume exec wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 5%+
+bindsym XF86AudioLowerVolume exec wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
+bindsym XF86AudioMute exec wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+bindsym XF86AudioMicMute exec orion-ctl mic toggle | xargs -0 notify-send Orion
+bindsym $mod+Shift+q kill
+bindsym $mod+f fullscreen toggle
+bindsym $mod+Shift+r reload
+# Share clean (Toolkit #23): clean the clipboard (text or picture) before you paste it anywhere
+bindsym $mod+Shift+c exec orion-share-scrub
+bindsym $mod+Shift+e exec swaynag -t warning -m 'Leave the OrionOS session?' -B 'Log out' 'swaymsg exit'
+bindsym $mod+Left focus left
+bindsym $mod+Right focus right
+bindsym $mod+Up focus up
+bindsym $mod+Down focus down
+bindsym $mod+2 workspace number 2
+bindsym $mod+3 workspace number 3
+bindsym $mod+4 workspace number 4
+bindsym $mod+5 workspace number 5
+bindsym Ctrl+Alt+2 workspace number 2
+bindsym Ctrl+Alt+3 workspace number 3
+bindsym Ctrl+Alt+4 workspace number 4
+bindsym $mod+Shift+2 move container to workspace number 2
+bindsym $mod+Shift+3 move container to workspace number 3
+bindsym $mod+Shift+4 move container to workspace number 4
+bindsym $mod+Shift+5 move container to workspace number 5
+floating_modifier $mod normal
+
+# ---- Windows-style windows and keys (H13; os/image/os-desktop.sh). Alt+Tab switches windows (the one you used
+# before is first: Tab moves down, Enter picks), Alt+F4 closes, Super+W or a right click on a title bar is the
+# window menu, Super+H minimises. Hold Super (or press Super+/) to see every shortcut. Admin password prompts come
+# from a graphical window (the polkit agent); app icons that want a tray get one (bottom right, outside Orion).
+bindsym Mod1+Tab exec orion-windows switch
+bindsym Mod1+F4 kill
+bindsym $mod+w exec orion-windows menu
+bindsym button3 exec orion-windows menu
+bindsym $mod+h move scratchpad
+bindsym $mod+Shift+h scratchpad show
+bindsym $mod+slash exec orion-shortcuts toggle
+bindsym Ctrl+Alt+slash exec orion-shortcuts toggle
+bindsym --no-repeat Super_L exec orion-shortcuts hold
+bindsym --release Super_L exec orion-shortcuts release
+# (the shortcut panel is a layer above everything; where that isn't available it is this floating window)
+for_window [app_id="^keys-overlay$"] floating enable, sticky enable, border none, move position center
+
+bar {
+    id orion-bar
+    position top
+    mode hide
+    modifier $mod
+    # Clock, and "Orion is reading the screen" whenever screen reading is on: then the bar stays visible
+    # (os/lab/bin/orion-statusbar; screen reading is off unless you turn it on).
+    status_command orion-statusbar
+    # app tray icons live in Orion's small tray (orion-tray), not here
+    tray_output none
+    colors {
+        background #05070E
+        statusline #A5B4FC
+        focused_workspace #7C5CFF #7C5CFF #FFFFFF
+        inactive_workspace #05070E #05070E #8888AA
+    }
+}
+
+# ---- Art Update (art-boot): boot hand-off, cursor, boot sound
+# Black until the HUD is on screen, so nothing flashes between the boot splash / login screen and Orion; then the
+# wallpaper: the 4K black-hole still (/usr/share/backgrounds/orion/desktop.*), else ~/.config/sway/wallpaper.png. The HUD starts on the splash's last frame (ORION_LOGIN_HANDOFF=blackhole).
+output * bg #000000 solid_color
+# (orion-wallpaper.service in sway-session.target; a config reload resets the background, so it runs again then)
+exec_always sh -c 'systemctl --user is-active -q sway-session.target && systemctl --user start orion-wallpaper.service'
+seat * xcursor_theme Orion 24
+exec_always gsettings set org.gnome.desktop.interface cursor-theme Orion
+# (the boot sound: orion-boot-sound.service in sway-session.target)
+# ---- end art-boot
+
+# ---- OS basics: screenshots, clipboard, night light (os/image/os-basics.sh; os/basics/README.md)
+# Print = whole screen, Shift+Print = pick an area, Ctrl+Print = an area into the markup tool; all saved to
+# ~/Pictures/Screenshots and copied. Ctrl+Alt+P is the area shot for keyboards (and VMs) where Print doesn't reach.
+# Super+V (or Ctrl+Alt+V) = clipboard history, passwords and keys left out. Super+N (or Ctrl+Alt+N) = night light.
+# (clipboard history and night light: orion-clipboard.service and orion-nightlight.service in sway-session.target)
+bindsym Print exec orion-screenshot full
+bindsym Shift+Print exec orion-screenshot area
+bindsym Ctrl+Print exec orion-screenshot markup
+bindsym Ctrl+Alt+p exec orion-screenshot area
+bindsym $mod+v exec orion-clipboard pick
+bindsym Ctrl+Alt+v exec orion-clipboard pick
+bindsym $mod+n exec orion-nightlight toggle
+bindsym Ctrl+Alt+n exec orion-nightlight toggle
+for_window [app_id="(?i)swappy"] floating enable, move position center
+# ---- end OS basics
+
+# ---- os-settings: the Settings window (os/settings; os/image/os-settings.sh). Ctrl+Alt+S and Super+, above run
+# orion-settings, which opens it (orion-settings --text is the old menu). It floats, centred, like a dialog, on
+# workspace 2 like other apps: its app id contains "orion", so this undoes the HUD's fullscreen rule above.
+# Screen sizes chosen in Settings > Displays are kept in ~/.config/orion/sway.d/ and read at every start.
+for_window [app_id="^ai\.orion\.Settings$"] fullscreen disable, move container to workspace number 2, workspace number 2, floating enable, resize set 1040 700, move position center, focus
+include ~/.config/orion/sway.d/*.conf
+# ---- end os-settings
+
+# ---- Displays & printing (os/image/os-hardware.sh; os/hardware/README.md)
+# Each set of screens is remembered (kanshi profiles written by orion-displays). A new set gets a layout of its own
+# (laptop panel left, the other screen right) and an "Arrange?" notification. Workspace 1 (the HUD) stays on the
+# primary screen and follows it when screens come and go; 2-9 are shared out. Super+P (or the Display key) = Arrange.
+# (orion-kanshi.service and orion-displays.service are started by sway-session.target)
+# Lid shut while another screen is on: the laptop panel goes off (logind's HandleLidSwitchDocked=ignore: no sleep).
+bindswitch --reload --locked lid:on exec orion-displays lid close
+bindswitch --reload --locked lid:off exec orion-displays lid open
+bindsym $mod+p exec orion-displays arrange
+bindsym XF86Display exec orion-displays arrange
+for_window [app_id="(?i)system-config-printer"] floating enable, resize set 860 560, move position center
+# ---- end Displays & printing
+
+# ---- Everyone can use it (os/image/os-everyone.sh; os/everyone/README.md). Super+Alt+S screen reader, Super+Alt+K
+# on-screen keyboard, Super+Alt+C high contrast, Super+Alt+= / - / 0 zoom the screen, Super+. emoji. Your choices
+# (Settings > Accessibility) are put back at log-in; the battery watcher warns at 15% and 7% and sleeps at 4%.
+bindsym $mod+Mod1+s exec orion-access screen-reader toggle
+bindsym $mod+Mod1+k exec orion-access keyboard toggle
+bindsym $mod+Mod1+c exec orion-access contrast toggle
+bindsym $mod+Mod1+equal exec orion-access zoom in
+bindsym $mod+Mod1+minus exec orion-access zoom out
+bindsym $mod+Mod1+0 exec orion-access zoom reset
+bindsym $mod+period exec orion-typing emoji
+# (orion-access.service and orion-power.service in sway-session.target)
+# ---- end Everyone can use it
+
+# ---- Art Update: SwayFX glass (blur, 16 px corners, shadows, dimmer background windows, opacity rules).
+# The commands live in /etc/sway/orion-fx.conf (os/lab/sway-fx.conf). orion-session links it into this folder only
+# when it starts SwayFX, so plain Sway (the fallback) never reads SwayFX-only options. Remove the line to turn it off.
+include $XDG_RUNTIME_DIR/orion-sway-fx/*.conf
+
+include /etc/sway/config.d/*

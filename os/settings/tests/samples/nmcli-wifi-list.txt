@@ -1,0 +1,7 @@
+*:Starlight Home:82:WPA2
+:Starlight Home:41:WPA2
+:Cafe\:Guest:57:
+:Library 5G:66:WPA3
+:Office:48:WPA2 802.1X
+::30:WPA2
+:Neighbour Net:22:WPA1 WPA2

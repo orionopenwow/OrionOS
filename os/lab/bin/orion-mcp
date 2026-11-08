@@ -1,0 +1,25 @@
+#!/bin/sh
+# orion-mcp: Orion's tools (Grimoire, runner, git, cargo, MySQL, Blender) for coding agents, over MCP (stdio).
+#   claude mcp add orion -- orion-mcp
+# Codex and Gemini CLI: see apps/daemon/MCP.md. Only protocol messages go to stdout; keep this script quiet.
+HERE="$(cd "$(dirname "$0")" && pwd)"
+if [ -f /opt/orion/daemon/mcp_server.py ]; then
+  DIR=/opt/orion/daemon
+else
+  DIR="$(cd "$HERE/../../../apps/daemon" 2>/dev/null && pwd)"   # running from a checkout
+fi
+if [ -z "$DIR" ] || [ ! -f "$DIR/mcp_server.py" ]; then
+  echo "orion-mcp: Orion's daemon code wasn't found" >&2
+  exit 1
+fi
+PY="${ORION_PY:-}"
+for p in /opt/orion/venv/bin/python "$DIR/.venv/bin/python"; do
+  if [ -z "$PY" ] && [ -x "$p" ]; then PY="$p"; fi
+done
+[ -n "$PY" ] || PY="$(command -v python3 || command -v python)"
+# Same settings as the daemon (repo root, port, Ollama...). Your own file wins.
+set -a
+[ -r /etc/orion/daemon.env ] && . /etc/orion/daemon.env
+[ -r "$HOME/.config/orion/daemon.env" ] && . "$HOME/.config/orion/daemon.env"
+set +a
+exec "$PY" "$DIR/mcp_server.py" "$@"

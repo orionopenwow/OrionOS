@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!-- OrionOS admin jobs started from Settings with pkexec (H5). Each one asks for the admin (orion-admin) password in
+     the graphical password window (orion-polkit-agent); nothing here is allowed without it. Settings falls back to
+     the old terminal + orion-admin way when there's no password window. -->
+<policyconfig>
+  <vendor>OrionOS</vendor>
+  <action id="ai.orion.settings.admin">
+    <description>Change your password or how OrionOS starts</description>
+    <message>Changing your password or how OrionOS starts needs the admin password.</message>
+    <defaults><allow_any>no</allow_any><allow_inactive>no</allow_inactive><allow_active>auth_admin</allow_active></defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/opt/orion/settings/helpers/orion-settings-admin</annotate>
+  </action>
+  <action id="ai.orion.admin.update">
+    <description>Update OrionOS</description>
+    <message>Updating OrionOS needs the admin password.</message>
+    <defaults><allow_any>no</allow_any><allow_inactive>no</allow_inactive><allow_active>auth_admin</allow_active></defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/opt/orion/bin/orion-update</annotate>
+  </action>
+  <action id="ai.orion.admin.slot">
+    <description>Install a new OrionOS version on the USB stick</description>
+    <message>Installing a new OrionOS version needs the admin password.</message>
+    <defaults><allow_any>no</allow_any><allow_inactive>no</allow_inactive><allow_active>auth_admin</allow_active></defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/local/bin/orion-slot</annotate>
+  </action>
+  <action id="ai.orion.admin.install">
+    <description>Install OrionOS on this computer's disk</description>
+    <message>Installing OrionOS on this computer's disk needs the admin password.</message>
+    <defaults><allow_any>no</allow_any><allow_inactive>no</allow_inactive><allow_active>auth_admin</allow_active></defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/local/bin/orion-install-disk</annotate>
+  </action>
+  <action id="ai.orion.admin.vault">
+    <description>Make the encrypted vault on the USB stick</description>
+    <message>Making the vault needs the admin password.</message>
+    <defaults><allow_any>no</allow_any><allow_inactive>no</allow_inactive><allow_active>auth_admin</allow_active></defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/local/bin/orion-vault</annotate>
+  </action>
+</policyconfig>

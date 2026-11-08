@@ -1,0 +1,224 @@
+#!/usr/bin/env bash
+# orion-slot: whole-system updates with automatic rollback, for OrionOS running from its USB stick.
+#
+# The stick holds two copies of the system, slot a and slot b. You run one; an update is written to the other.
+# On the next start GRUB tries the new slot once. If it reaches the Orion screen, it becomes the default
+# ("mark-good", done automatically ~2 minutes after the desktop starts). If it doesn't, the next start goes
+# back to the slot that worked, by itself. Updates must be signed with OrionOS's release key.
+#
+#   orion-slot status            which slot is running, what's in the other one
+#   orion-slot check             is there a newer release?
+#   orion-slot update            download, verify and stage the newest release (then restart)
+#   orion-slot apply <dir|tar>   stage a release you already have (must include its .minisig)
+#   orion-slot mark-good [--wait S]  (automatic) keep the slot that just started, once Orion is healthy
+#   --allow-downgrade            (update, apply) also install a version that isn't newer than the running one
+#   orion-slot latest --json     {"channel", "current", "latest"} for Orion (apps/daemon/update_channels.py)
+#   orion-slot fetch-image DIR [--expect V]   download + verify the newest full image, for the VM self-test
+#   orion-slot update --expect V only install V (the version that passed Orion's self-test)
+#
+# Channel (/etc/orion/channel, set with: sudo orion-self-helper channel stable|beta|mine):
+#   stable  the newest release            beta  the rolling pre-release tagged $BETA_TAG ("beta")
+#   mine    your own builds in $MY_BUILDS (/var/lib/orion/my-builds, made by os/image/package-release.sh)
+# Every channel is signed with the same release key; nothing unsigned is ever installed.
+#
+# Safety rules (review H2/H3):
+#   - no update while one is still waiting to be tried, or while the running slot isn't the confirmed one: the other
+#     slot then holds the last version that worked, and writing over it would leave nothing to go back to
+#   - no version that isn't newer than the running one, unless --allow-downgrade (the version comes from inside the
+#     signed release, so an old signed release can't be passed off as new)
+#   - a slot is only confirmed once Orion's brain answers and the Orion screen is up (orion-healthy)
+set -euo pipefail
+CONF="${ORION_SLOT_CONF:-/etc/orion/release.conf}"   # REPO=owner/name  FLAVOUR=standard|nvidia  BETA_TAG  MY_BUILDS
+PUB="${ORION_SLOT_PUB:-/etc/orion/release.pub}"
+CMDLINE="${ORION_SLOT_CMDLINE:-/proc/cmdline}"
+ALLOW_DOWNGRADE=0
+[ -f "$CONF" ] && . "$CONF"
+REPO="${REPO:-orionopenwow/OrionOS}"; FLAVOUR="${FLAVOUR:-standard}"
+CHANNEL="$(tr -cd 'a-z' < "${ORION_CHANNEL_FILE:-/etc/orion/channel}" 2>/dev/null || true)"
+case "$CHANNEL" in stable|beta|mine) ;; *) CHANNEL=stable ;; esac
+base() {
+  case "$CHANNEL" in
+    beta) echo "https://github.com/$REPO/releases/download/${BETA_TAG:-beta}" ;;
+    mine) echo "file://${MY_BUILDS:-/var/lib/orion/my-builds}" ;;
+    *) echo "https://github.com/$REPO/releases/latest/download" ;;
+  esac
+}
+clean_v() { tr -cd 'A-Za-z0-9._+-' | head -c 64; }
+newest() { { curl -fsSL "$(base)/orionos-$FLAVOUR.version" 2>/dev/null || true; } | head -n1 | clean_v; }
+say() { printf '\033[1;36m%s\033[0m\n' "$*"; }
+die() { printf '\033[1;31m%s\033[0m\n' "$*" >&2; exit 1; }
+
+current() { sed -n 's/.*orion\.slot=\([ab]\).*/\1/p' "$CMDLINE"; }
+other() { [ "$(current)" = a ] && echo b || echo a; }
+sysmnt() { [ -n "${ORION_SLOT_SYS:-}" ] && { echo "$ORION_SLOT_SYS"; return; }; findmnt -no TARGET -S LABEL=ORIONSYS 2>/dev/null | head -n1; }
+efimnt() {
+  [ -n "${ORION_SLOT_EFI:-}" ] && { echo "$ORION_SLOT_EFI"; return; }
+  local m; m="$(findmnt -no TARGET -S LABEL=ORIONEFI 2>/dev/null | head -n1)"
+  if [ -z "$m" ]; then m=/run/orion-efi; mkdir -p "$m"; mount -L ORIONEFI "$m"; fi
+  echo "$m"
+}
+env_get() { grub-editenv "$(efimnt)/EFI/orion/grubenv" list | sed -n "s/^$1=//p"; }
+env_set() { grub-editenv "$(efimnt)/EFI/orion/grubenv" set "$@"; }
+
+need_live() { [ -n "$(current)" ] || die "This OrionOS isn't running from its USB stick (installed systems update with: sudo orion-update)."; }
+need_root() { [ "$(id -u)" -eq 0 ] || [ "${ORION_SLOT_TEST:-}" = 1 ] || die "Run as root (sudo orion-slot $*)."; }
+remount() { [ -n "${ORION_SLOT_SYS:-}" ] || mount -o "remount,$2" "$1"; }
+running_version() { { cat "$(sysmnt)/slots/$(current)/VERSION" 2>/dev/null || true; } | clean_v; }
+newer() {  # is $1 a newer version than $2?
+  [ "$1" != "$2" ] && [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | tail -n1)" = "$1" ]
+}
+safe_to_write_other() {  # H2: never write over the only slot that's known to work
+  local n s; n="$(env_get next || true)"; s="$(env_get slot || true)"; s="${s:-a}"
+  [ -z "$n" ] || die "An update is already waiting to be tried (slot $n). Restart first; once that version is confirmed (a few minutes after Orion starts), you can update again. Nothing was changed."
+  [ "$s" = "$(current)" ] || die "This system (slot $(current)) hasn't been confirmed yet, so slot $(other) still holds the last version that worked. Wait until Orion has been up for a few minutes (it's confirmed by itself), then try again. Nothing was changed."
+}
+
+status() {
+  need_live
+  local s m; s="$(current)"; m="$(sysmnt)"
+  echo "Running: slot $s, version $(cat "$m/slots/$s/VERSION" 2>/dev/null || echo ?)"
+  echo "Other:   slot $(other), version $(cat "$m/slots/$(other)/VERSION" 2>/dev/null || echo empty)"
+  local n f; n="$(env_get next || true)"; f="$(env_get failed || true)"
+  [ -n "$n" ] && echo "Waiting to try slot $n at the next start."
+  [ -n "$f" ] && echo "Slot $f failed to start last time, so OrionOS went back to slot $(env_get slot)."
+  return 0
+}
+
+verify() {  # $1 = file; signature at $1.minisig
+  [ -s "$PUB" ] || die "No release key in this image ($PUB), so updates can't be verified."
+  minisign -Vm "$1" -p "$PUB" -q || die "Signature check FAILED for $(basename "$1"). Nothing was changed."
+}
+
+apply() {
+  need_root; need_live
+  ! command -v orion-frozen >/dev/null || ! orion-frozen || die "Orion is frozen (kill switch), so no updates now. Unfreeze it from your phone first."
+  safe_to_write_other
+  local src="$1" tmp="" m dst new cur
+  if [ -f "$src" ]; then
+    verify "$src"
+    tmp="$(mktemp -d "${TMPDIR:-/var/tmp}/orion-slot.XXXX")"; tar -xf "$src" -C "$tmp"; src="$tmp"
+  else
+    # every file that matters is signed, VERSION too (it decides "newer")
+    for f in vmlinuz initrd filesystem.squashfs VERSION; do [ -s "$src/$f.minisig" ] || die "Release is missing $f.minisig."; verify "$src/$f"; done
+  fi
+  for f in vmlinuz initrd filesystem.squashfs VERSION; do [ -s "$src/$f" ] || die "Release is missing $f."; done
+  new="$(head -n1 "$src/VERSION" | clean_v)"; cur="$(running_version)"
+  if [ -n "$cur" ] && ! newer "$new" "$cur" && [ "$ALLOW_DOWNGRADE" != 1 ]; then
+    [ -n "$tmp" ] && rm -rf "$tmp"
+    die "Version $new isn't newer than the running $cur, so it wasn't installed. (To go back on purpose: sudo orion-slot update --allow-downgrade)"
+  fi
+  command -v orion-snapshot >/dev/null && orion-snapshot take --kind pre-update --why "before a whole-system update" --quiet || true   # vault copy first (os/safety)
+  m="$(sysmnt)"; [ -n "$m" ] || die "Couldn't find the OrionOS system partition."
+  dst="$m/slots/$(other)"
+  remount "$m" rw
+  # expanded now: the trap runs after this function's locals are gone
+  trap "[ -n '${ORION_SLOT_SYS:-}' ] || mount -o remount,ro '$m' 2>/dev/null || true; [ -n '$tmp' ] && rm -rf '$tmp'; true" EXIT
+  say "Writing version $(cat "$src/VERSION") to slot $(other)…"
+  rm -rf "$dst.new"; mkdir -p "$dst.new"
+  cp "$src/vmlinuz" "$src/initrd" "$src/filesystem.squashfs" "$src/VERSION" "$dst.new/"
+  [ -f "$src/filesystem.size" ] && cp "$src/filesystem.size" "$dst.new/"
+  sync
+  rm -rf "$dst"; mv "$dst.new" "$dst"; sync
+  env_set next="$(other)" tries=1
+  env_unset_failed
+  say "Ready. Restart to switch to version $(cat "$dst/VERSION"). If it doesn't start, OrionOS comes back to this version by itself."
+}
+env_unset_failed() { grub-editenv "$(efimnt)/EFI/orion/grubenv" unset failed 2>/dev/null || true; }
+
+check() {
+  local latest; latest="$(newest)"
+  [ -n "$latest" ] || { echo "Couldn't reach the release server ($CHANNEL channel)."; return 1; }
+  local mine; mine="$(running_version)"; mine="${mine:-0}"
+  if newer "$latest" "$mine"; then echo "New version available: $latest (you have $mine). Run: sudo orion-slot update"
+  else echo "Up to date ($mine)."; fi
+}
+
+latest_json() {
+  local l m; l="$(newest)"; m="$({ cat "$(sysmnt)/slots/$(current)/VERSION" 2>/dev/null || echo 0; } | clean_v)"
+  printf '{"channel": "%s", "current": "%s", "latest": "%s", "slot": true}\n' "$CHANNEL" "$m" "$l"
+  [ -n "$l" ]
+}
+
+expect_newest() {  # $1 = the version Orion tested; refuse anything else
+  [ -n "${1:-}" ] || return 0
+  local l; l="$(newest)"
+  [ "$l" = "$1" ] || die "The newest version is now ${l:-unknown}, not the tested $1. Orion tests the new one first."
+}
+
+fetch_image() {  # $1 = folder; downloads, verifies and unpacks the full image for the VM self-test (no root)
+  local d="$1" expect="${2:-}" base v first f
+  expect_newest "$expect"
+  base="$(base)"; v="$(newest)"; mkdir -p "$d"; rm -f "$d"/*.img "$d/image.tar.xz" "$d/image.tar.xz.minisig"
+  curl -fsSL --retry 3 -o "$d/img.parts" "$base/orionos-$FLAVOUR-img.parts" || die "No image in this release."
+  first=""
+  : > "$d/image.tar.xz"
+  while read -r f; do
+    case "$f" in orionos-*-"$FLAVOUR".img.tar.xz.part-[a-z][a-z]) ;; *) die "Bad part name in the image index: $f" ;; esac
+    [ -n "$first" ] || first="$f"
+    curl -fsSL --retry 3 "$base/$f" >> "$d/image.tar.xz"
+  done < "$d/img.parts"
+  [ -n "$first" ] || die "The image index is empty."
+  curl -fsSL --retry 3 -o "$d/image.tar.xz.minisig" "$base/${first%.part-aa}.minisig"
+  verify "$d/image.tar.xz"
+  tar -xJf "$d/image.tar.xz" -C "$d" && rm -f "$d/image.tar.xz"
+  f="$(ls -t "$d"/*.img 2>/dev/null | head -n1)"
+  [ -n "$f" ] || die "The image archive had no .img inside."
+  printf '{"ok": true, "image": "%s", "version": "%s"}\n' "$f" "$v"
+}
+
+update() {
+  need_root; need_live
+  safe_to_write_other
+  expect_newest "${1:-}"
+  local d; d="$(mktemp -d /var/tmp/orion-dl.XXXX)"
+  trap 'rm -rf "$d"' RETURN
+  local base; base="$(base)"
+  say "Downloading the newest OrionOS ($FLAVOUR, $CHANNEL channel, about 2.5 GB)…"
+  # GitHub keeps release files under 2 GB, so the update comes in parts listed in a small index file.
+  curl -fsSL --retry 3 -o "$d/parts" "$base/orionos-$FLAVOUR-slot.parts"
+  : > "$d/slot.tar"
+  while read -r part; do
+    case "$part" in orionos-*-slot.tar.part-[a-z][a-z]) ;; *) die "Bad part name in the release index: $part" ;; esac
+    curl -fL --retry 3 "$base/$part" >> "$d/slot.tar"
+  done < "$d/parts"
+  curl -fL --retry 3 -o "$d/slot.tar.minisig" "$base/orionos-$FLAVOUR-slot.tar.minisig"
+  apply "$d/slot.tar"
+}
+
+mark_good() {  # $1 = how long to wait for a healthy session (seconds)
+  need_root
+  local s; s="$(current)"; [ -n "$s" ] || exit 0
+  local n; n="$(env_get next || true)"
+  if [ "$n" = "$s" ] || [ "$(env_get slot)" != "$s" ]; then
+    # H2: only a slot that really works becomes the default: Orion's brain answers and the Orion screen is up
+    if command -v orion-healthy >/dev/null; then
+      orion-healthy --wait "${1:-0}" --stable 60 || die "Not keeping slot $s yet: Orion isn't healthy. If it never gets there, the next start goes back to slot $(other) by itself."
+    else
+      systemctl is-active --quiet greetd.service || die "Not keeping slot $s: the login screen isn't running."
+    fi
+    env_set slot="$s"
+    grub-editenv "$(efimnt)/EFI/orion/grubenv" unset next tries 2>/dev/null || true
+    logger -t orion-slot "slot $s started fine; it's the default now"
+  fi
+}
+
+CMD="${1:-status}"; [ $# -gt 0 ] && shift
+ARGS=(); EXPECT=""; WAIT=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --allow-downgrade) ALLOW_DOWNGRADE=1; shift ;;
+    --expect) EXPECT="${2:-}"; shift 2 || shift ;;
+    --wait) WAIT="${2:-0}"; shift 2 || shift ;;
+    *) ARGS+=("$1"); shift ;;
+  esac
+done
+case "$CMD" in
+  status) status ;;
+  check) check ;;
+  latest) latest_json ;;
+  fetch-image) d="${ARGS[0]:?usage: orion-slot fetch-image DIR [--expect VERSION]}"; fetch_image "$d" "$EXPECT" ;;
+  update) update "$EXPECT" ;;
+  apply) apply "${ARGS[0]:?usage: orion-slot apply <release.tar | dir> [--allow-downgrade]}" ;;
+  mark-good) mark_good "$WAIT" ;;
+  *) sed -n '9,18p' "$0"; exit 2 ;;
+esac

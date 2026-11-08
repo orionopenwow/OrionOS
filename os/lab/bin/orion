@@ -1,0 +1,127 @@
+#!/bin/bash
+# orion: with no arguments, a small black hole, a hello, what's waiting for you, and this machine at a glance.
+#   orion                 the hello (fastfetch draws the system part when it's installed)
+#   orion sound on|off    the boot sound (also in Settings)
+#   orion <anything>      the same as orion-ctl <anything> (orion status, orion say "...", orion hud, ...)
+# The greeting uses a name only if you set one in Settings ("Your name"), kept in ~/.config/orion/profile.conf.
+set -u
+# Started without a terminal (a launcher, a .desktop file that says Exec=orion): that means the HUD app itself.
+if [ $# -eq 0 ] && [ ! -t 1 ]; then
+  for b in /usr/bin/orion /usr/bin/Orion; do [ -x "$b" ] && [ "$b" != "$0" ] && exec "$b"; done
+fi
+case "${1:-}" in
+  "") ;;
+  sound) shift; exec orion-boot-sound "${@:-status}" ;;
+  name)
+    shift
+    mkdir -p "$HOME/.config/orion"
+    f="$HOME/.config/orion/profile.conf"
+    touch "$f"; sed -i '/^NAME=/d' "$f"
+    if [ $# -gt 0 ] && [ -n "$*" ]; then printf 'NAME=%s\n' "$(printf '%s' "$*" | tr -d '\n\r' | cut -c1-40)" >> "$f"; echo "Orion will greet you as $*."
+    else echo "Orion will just say hello (no name)."; fi
+    exit 0 ;;
+  -h|--help|help) sed -n '2,6p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  *) exec orion-ctl "$@" ;;
+esac
+
+SHARE="${ORION_SHELL_SHARE:-/usr/share/orion/shell}"
+API="${ORION_API:-http://127.0.0.1:9120}"
+# Orion's API needs this run's key (review B1). It's read from the user's private token file and handed to curl on
+# file descriptor 3, so it never shows up in the process list.
+orion_token() {
+  for f in "${ORION_TOKEN_FILE:-}" "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/orion/daemon.token" \
+           "${ORION_DATA_DIR:-$HOME/.orion}/daemon.token"; do
+    if [ -n "$f" ] && [ -r "$f" ]; then cat "$f"; return 0; fi
+  done
+  return 0
+}
+ocurl() {
+  command curl -H @/dev/fd/3 "$@" 3<<EOF
+Authorization: Bearer $(orion_token)
+EOF
+}
+c() { printf '\033[38;2;%sm' "$1"; }
+R=$'\033[0m'; B=$'\033[1m'
+STAR="$(c '216;222;255')"; DIM="$(c '122;130;176')"; VIO="$(c '157;133;255')"; CYAN="$(c '0;229;255')"
+EMBER="$(c '255;198;107')"
+
+# ---- hello
+h=$(date +%H); h=$((10#$h))
+if [ $h -ge 5 ] && [ $h -lt 12 ]; then hello="Morning"
+elif [ $h -ge 12 ] && [ $h -lt 18 ]; then hello="Afternoon"
+else hello="Evening"; fi
+name="$(sed -n 's/^NAME=//p' "$HOME/.config/orion/profile.conf" 2>/dev/null | tail -n1 | tr -d '\033')"
+[ -n "$name" ] && hello="$hello, $name"
+
+# ---- what's waiting (only if Orion's daemon is up; otherwise nothing is said about it)
+waiting=""
+if command -v curl >/dev/null && command -v jq >/dev/null && ocurl -fsS -m 0.6 "$API/health" >/dev/null 2>&1; then
+  n_apr="$(ocurl -fsS -m 1 "$API/approvals" 2>/dev/null | jq 'length' 2>/dev/null || echo 0)"
+  n_msg="$(ocurl -fsS -m 1 "$API/comms" 2>/dev/null | jq '[.[].unread // 0] | add // 0' 2>/dev/null || echo 0)"
+  n_brd="$(ocurl -fsS -m 1 "$API/boardroom/state" 2>/dev/null | jq '(.pending // []) | length' 2>/dev/null || echo 0)"
+  parts=()
+  n=$(( ${n_apr:-0} + ${n_brd:-0} ))
+  [ "$n" -eq 1 ] && parts+=("1 decision waiting")
+  [ "$n" -gt 1 ] && parts+=("$n decisions waiting")
+  [ "${n_msg:-0}" -eq 1 ] && parts+=("1 new message")
+  [ "${n_msg:-0}" -gt 1 ] && parts+=("$n_msg new messages")
+  if [ ${#parts[@]} -gt 0 ]; then
+    waiting="${EMBER}$(IFS='|'; echo "${parts[*]}" | sed 's/|/ · /g')${R}"
+  else
+    waiting="${DIM}Nothing waiting.${R}"
+  fi
+fi
+
+# ---- with fastfetch: our logo and a short config
+if command -v fastfetch >/dev/null 2>&1 && [ -r "$SHARE/fastfetch.jsonc" ]; then
+  printf '\n  %s%s%s%s\n' "$B" "$STAR" "$hello" "$R"
+  [ -n "$waiting" ] && printf '  %s\n' "$waiting"
+  exec fastfetch -c "$SHARE/fastfetch.jsonc" --logo-type file-raw --logo "$SHARE/orion-logo.ansi"
+fi
+
+# ---- without: the same, by hand
+os="$(. /etc/os-release 2>/dev/null; echo "${PRETTY_NAME:-Linux}")"
+ver="$(cat /opt/orion-src/BUNDLE_VERSION 2>/dev/null || true)"
+[ -n "$ver" ] && os="OrionOS $ver ($os)" || os="OrionOS ($os)"
+up="$(awk '{s=int($1); d=int(s/86400); h=int(s%86400/3600); m=int(s%3600/60);
+  if (d) printf "%dd %dh", d, h; else if (h) printf "%dh %dm", h, m; else printf "%dm", m}' /proc/uptime 2>/dev/null)"
+mem="$(awk '/^MemTotal:/{t=$2} /^MemAvailable:/{a=$2} END{printf "%.1f / %.1f GB", (t-a)/1048576, t/1048576}' /proc/meminfo 2>/dev/null)"
+if [ -e /dev/mapper/orionvault ]; then
+  vault="unlocked, $(df -h --output=avail / 2>/dev/null | tail -n1 | tr -d ' ') free"
+else
+  vault="$(df -h --output=avail "$HOME" 2>/dev/null | tail -n1 | tr -d ' ') free in your home"
+fi
+cpu="$(sed -n 's/^model name[[:space:]]*: //p' /proc/cpuinfo 2>/dev/null | head -n1 | sed 's/([^)]*)//g; s/ CPU//; s/  */ /g')"
+gpu="$( (lspci 2>/dev/null | sed -n 's/.*\(VGA\|3D\)[^:]*: //p' | head -n1 | cut -c1-48) || true)"
+pal=""
+for i in 0 1 2 3 4 5 6 7; do pal+=$'\033'"[4${i}m   "; done; pal+="$R"
+pal2=""
+for i in 0 1 2 3 4 5 6 7; do pal2+=$'\033'"[10${i}m   "; done; pal2+="$R"
+
+info=(
+  "${B}${STAR}${hello}${R}"
+  "${waiting}"
+  ""
+  "${VIO}system${R}   ${os}"
+  "${VIO}kernel${R}   $(uname -r)"
+  "${VIO}up${R}       ${up}"
+  "${VIO}memory${R}   ${mem}"
+  "${VIO}vault${R}    ${vault}"
+  "${VIO}cpu${R}      ${cpu:-?}${gpu:+  ${DIM}·${R} ${gpu}}"
+  "${VIO}shell${R}    bash ${BASH_VERSION%%(*}${TERM_PROGRAM:+ · $TERM_PROGRAM}  ${DIM}·${R} ${CYAN}${TERM:-}${R}"
+  ""
+  "${pal}"
+  "${pal2}"
+)
+[ -z "$waiting" ] && info=("${info[0]}" "" "${info[@]:3}")
+mapfile -t logo < "$SHARE/orion-logo.ansi" 2>/dev/null || logo=()
+rows=${#info[@]}; [ ${#logo[@]} -gt $rows ] && rows=${#logo[@]}
+pad="$(printf '%*s' 22 '')"
+echo
+for ((i = 0; i < rows; i++)); do
+  l="${logo[$((i - 2))]:-}"
+  [ $i -lt 2 ] && l=""
+  [ -z "$l" ] && l="$pad"
+  printf '  %s%s   %s%s\n' "$l" "$R" "${info[$i]:-}" "$R"
+done
+echo

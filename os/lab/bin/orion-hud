@@ -1,0 +1,44 @@
+#!/bin/sh
+# Starts the Orion HUD against the systemd-managed daemon and restarts it if it crashes (run by orion-hud.service,
+# part of the Sway session's sway-session.target). Repeated quick crashes open the Rescue panel (os/rescue).
+export ORION_EXTERNAL_DAEMON=1
+export WEBKIT_DISABLE_DMABUF_RENDERER=1
+unset NO_AT_BRIDGE GTK_A11Y   # [v1gaps] the screen reader (Orca) reads the HUD through AT-SPI: never switch the bridge off
+if systemd-detect-virt -q; then export LIBGL_ALWAYS_SOFTWARE=1; fi
+# orion.hud_nojit on the kernel command line: for emulated CPUs (QEMU without KVM) where the JS JIT crashes.
+if grep -qw orion.hud_nojit /proc/cmdline 2>/dev/null; then export JSC_useJIT=false; fi
+# The HUD's own binary (the .deb puts it in /usr/bin). Not /usr/local/bin/orion: that's the `orion` terminal command.
+BIN=""
+for b in /usr/bin/orion /usr/bin/Orion /opt/orion/hud/orion; do [ -x "$b" ] && { BIN="$b"; break; }; done
+[ -n "$BIN" ] || { notify-send "Orion" "The HUD isn't installed (no orion binary)."; exit 0; }
+# orion.hud_nojit (QEMU without KVM): Mesa's llvmpipe JIT also crashes there, so use the plain softpipe rasteriser.
+if grep -qw orion.hud_nojit /proc/cmdline 2>/dev/null; then export GALLIUM_DRIVER=softpipe; fi
+fails=0
+orion-rescue reset-crashes >/dev/null 2>&1 || true
+while true; do
+  t0=$(date +%s)
+  "$BIN"
+  ran=$(( $(date +%s) - t0 ))
+  # Self-healing: if the HUD keeps dying within seconds on software rendering (a crash in the GL rasteriser),
+  # switch to the slower but simpler softpipe rasteriser instead of looping on a black screen.
+  if [ "$ran" -lt 60 ]; then fails=$((fails + 1)); else fails=0; fi
+  if [ "$fails" -ge 2 ] && [ -n "${LIBGL_ALWAYS_SOFTWARE:-}" ] && [ "${GALLIUM_DRIVER:-}" != softpipe ]; then
+    export GALLIUM_DRIVER=softpipe
+    notify-send "Orion" "The screen effects kept crashing, so Orion switched to safe software drawing." 2>/dev/null || true
+    sleep 2; continue
+  fi
+  # Rescue (os/rescue): after a few quick crashes in a row (any computer, VM or real), stop restarting blindly and
+  # open the Rescue panel: Terminal, Files, Browser, Undo the last update, Restart into Windows, Send a report,
+  # Try Orion again. "Try Orion again" closes it and this loop starts the HUD once more.
+  orion-rescue record-crash "$ran" >/dev/null 2>&1
+  if [ $? -eq 10 ] || { ! command -v orion-rescue >/dev/null 2>&1 && [ "$fails" -ge 4 ]; }; then
+    if command -v orion-rescue >/dev/null 2>&1; then
+      orion-rescue --after-crash
+    else
+      notify-send -u critical "Orion" "The Orion screen keeps stopping. Press Super+Return for a terminal." 2>/dev/null
+      sleep 60
+    fi
+    fails=0
+  fi
+  sleep 2
+done

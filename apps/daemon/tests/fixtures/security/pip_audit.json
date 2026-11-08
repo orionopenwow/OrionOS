@@ -1,0 +1,6 @@
+{"dependencies": [
+  {"name": "requests", "version": "2.25.0", "vulns": [
+    {"id": "PYSEC-2023-74", "fix_versions": ["2.31.0"], "aliases": ["CVE-2023-32681", "GHSA-j8r2-6x86-q33q"],
+     "description": "Requests is a HTTP library. Since Requests 2.3.0, Requests has been leaking Proxy-Authorization headers to destination servers."}]},
+  {"name": "flask", "version": "3.0.0", "vulns": []}
+], "fixes": []}

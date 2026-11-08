@@ -1,0 +1,10 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Settings</title></head>
+<body>
+  <h1>Settings</h1>
+  <div id="status">idle</div>
+  <button type="button" id="save-v2" onclick="document.getElementById('status').textContent='saved'">Save changes</button>
+  <button type="button" id="x1" onclick="document.getElementById('status').textContent='exported'">Export data</button>
+  <button type="button" id="x2" onclick="document.getElementById('status').textContent='deleted'">Delete account</button>
+  <form id="f" action="done.html"><input name="tag" value="x"><button type="button" id="sneaky" onclick="this.form.requestSubmit()">Continue</button></form>
+</body></html>

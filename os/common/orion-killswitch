@@ -1,0 +1,24 @@
+#!/bin/sh
+# orion-killswitch enable <vpn-endpoint-ip> [udp-port]   WireGuard (wg0): only the tunnel may carry traffic
+# orion-killswitch enable-tailscale                       Tailscale exit node: only tailscale0 may carry traffic
+# orion-killswitch disable | status
+set -eu
+T=/etc/orion/killswitch.nft.tmpl
+TOR=""
+id debian-tor >/dev/null 2>&1 && TOR='meta skuid "debian-tor" accept    # Tor daemon'
+case "${1:-status}" in
+  enable)
+    IP="${2:?usage: orion-killswitch enable <vpn-endpoint-ip> [udp-port]}"; PORT="${3:-51820}"
+    case "$IP" in *[!0-9.:a-fA-F]*) echo "not an IP address: $IP"; exit 1;; esac
+    FAM=ip; case "$IP" in *:*) FAM=ip6;; esac
+    sed "s|__HANDSHAKE__|$FAM daddr $IP udp dport $PORT accept    # the VPN handshake, pinned|; s|__TOR__|$TOR|" "$T" | nft -f -
+    echo "Killswitch ON: only wg0 (endpoint $IP:$PORT) may carry traffic. Set DNS= in your wg0 config."
+    ;;
+  enable-tailscale)
+    sed "s|__HANDSHAKE__||; s|__TOR__|$TOR|" "$T" | nft -f -
+    echo "Killswitch ON: traffic must go through Tailscale. Pick an exit node: tailscale set --exit-node=<node>"
+    ;;
+  disable) nft delete table inet orion_killswitch 2>/dev/null || true; echo "Killswitch OFF" ;;
+  status) if nft list table inet orion_killswitch >/dev/null 2>&1; then echo "Killswitch ON"; else echo "Killswitch OFF"; fi ;;
+  *) sed -n '2,5p' "$0" ;;
+esac

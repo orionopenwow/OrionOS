@@ -1,0 +1,11 @@
+// OrionOS: the session user "orion" (Orion's daemon) may start the root install recipes, and nothing else.
+// The runner only executes root-owned scripts shipped in /opt/orion/recipes, so this can't run arbitrary commands.
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.freedesktop.systemd1.manage-units" && subject.user == "orion") {
+        var unit = action.lookup("unit");
+        var verb = action.lookup("verb");
+        if (unit && verb == "start" && /^orion-recipe@[a-z0-9-]+\.service$/.test(unit)) {
+            return polkit.Result.YES;
+        }
+    }
+});

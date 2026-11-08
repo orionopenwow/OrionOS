@@ -1,0 +1,10 @@
+[Unit]
+Description=OrionOS nightly snapshot
+
+[Timer]
+OnCalendar=*-*-* 03:30
+RandomizedDelaySec=30min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

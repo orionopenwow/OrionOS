@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+# orion-wow-client: play WoW 1.12 on OrionOS against your own server, using your own client folder.
+#
+#   orion-wow-client setup [CLIENT_FOLDER] [--realm ADDRESS]   one-time: bottle, launcher, realmlist.wtf
+#   orion-wow-client start [--opengl]                          play
+#   orion-wow-client realm ADDRESS                             point the client at another server
+#   orion-wow-client status
+#
+# Orion never ships or downloads game files. Bring your own client folder from Windows with
+# "Move my stuff to Orion.cmd" (add the folder as an extra folder; it lands in ~/Games/<name>), or copy it by hand.
+# The client runs in Bottles (Windows programs on Linux, from Flathub) in its own bottle "wow-112". Bottles may
+# only see this one folder (a Flatpak permission for that folder, nothing else).
+set -euo pipefail
+CONF="${XDG_CONFIG_HOME:-$HOME/.config}/orion/wow-client.conf"
+BOTTLES=com.usebottles.bottles
+BOTTLE=wow-112
+PROGRAM="WoW 1.12"
+DIR=""
+REALM=""
+# shellcheck disable=SC1090
+[ -f "$CONF" ] && . "$CONF"
+say() { printf '%s\n' "$*"; }
+die() { printf '%s\n' "$*" >&2; exit 1; }
+cli() { flatpak run --command=bottles-cli "$BOTTLES" "$@"; }
+
+save() {
+  mkdir -p "$(dirname "$CONF")"
+  printf 'DIR=%q\nREALM=%q\n' "$DIR" "$REALM" > "$CONF"
+}
+
+need_bottles() {
+  flatpak info "$BOTTLES" >/dev/null 2>&1 && return 0
+  say "Bottles isn't installed yet. It comes with Get apps > Run Windows apps."
+  read -rp "Install Bottles and Steam now? [Y/n] " a
+  case "$a" in n|N|no) die "Nothing changed." ;; esac
+  systemctl start orion-recipe@windows-apps.service || die "That didn't work; see /var/log/orion-recipes/windows-apps.log"
+}
+
+find_client() {
+  local d
+  for d in "$HOME"/Games/*/ "$HOME"/*/; do
+    [ -f "$d/WoW.exe" ] || [ -f "$d/Wow.exe" ] || continue
+    printf '%s\n' "${d%/}"; return 0
+  done
+  return 1
+}
+
+exe_of() { if [ -f "$1/WoW.exe" ]; then echo "$1/WoW.exe"; else echo "$1/Wow.exe"; fi; }
+
+set_realm() {
+  local host="$1"
+  case "$host" in ""|*[!A-Za-z0-9.:-]*) die "That doesn't look like a server address: $host" ;; esac
+  [ -f "$DIR/realmlist.wtf" ] && [ ! -f "$DIR/realmlist.wtf.orion-backup" ] && cp -p "$DIR/realmlist.wtf" "$DIR/realmlist.wtf.orion-backup"
+  printf 'set realmlist %s\r\n' "$host" > "$DIR/realmlist.wtf"
+  # Some clients also remember the realm in WTF/Config.wtf; keep the two the same.
+  if [ -f "$DIR/WTF/Config.wtf" ] && grep -qi '^SET realmlist ' "$DIR/WTF/Config.wtf"; then
+    sed -i "s/^SET realmlist .*/SET realmlist \"$host\"\r/I" "$DIR/WTF/Config.wtf"
+  fi
+  REALM="$host"; save
+  say "realmlist.wtf now points at $host (the old one is saved as realmlist.wtf.orion-backup)."
+}
+
+setup() {
+  local folder="" realm=""
+  while [ $# -gt 0 ]; do
+    case "$1" in --realm) realm="${2:-}"; shift 2 ;; *) folder="$1"; shift ;; esac
+  done
+  [ -n "$folder" ] || folder="$(find_client || true)"
+  [ -n "$folder" ] || die "No WoW client folder found in ~/Games. Bring yours from Windows with 'Move my stuff to Orion.cmd' (as an extra folder), then run: orion-wow-client setup ~/Games/<folder>"
+  folder="$(cd "$folder" && pwd)"
+  [ -f "$(exe_of "$folder")" ] || die "There's no WoW.exe in $folder."
+  DIR="$folder"
+  say "Client: $DIR"
+  need_bottles
+  # Bottles sees only this folder.
+  flatpak override --user --filesystem="$DIR" "$BOTTLES"
+  if ! cli list bottles 2>/dev/null | grep -qw "$BOTTLE"; then
+    say "Making the bottle '$BOTTLE' (a few minutes the first time: Bottles downloads its Wine runner)..."
+    cli new --bottle-name "$BOTTLE" --environment gaming
+  fi
+  cli add -b "$BOTTLE" -n "$PROGRAM" -p "$(exe_of "$DIR")" >/dev/null 2>&1 || true
+  if [ -z "$realm" ]; then
+    read -rp "Address of your server (press Enter for this computer, 127.0.0.1): " realm
+    realm="${realm:-127.0.0.1}"
+  fi
+  set_realm "$realm"
+  local apps="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+  mkdir -p "$apps"
+  cat > "$apps/wow-112.desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Name=WoW 1.12
+Comment=Your WoW 1.12 client, on your own server ($realm)
+Exec=orion-wow-client start
+Icon=applications-games
+Categories=Game;
+EOF
+  save
+  say "Ready. Start it from the app launcher (WoW 1.12) or with: orion-wow-client start"
+  say "If the screen stays black, try: orion-wow-client start --opengl"
+}
+
+start() {
+  [ -n "$DIR" ] && [ -d "$DIR" ] || die "Not set up yet. Run: orion-wow-client setup"
+  local args=()
+  [ "${1:-}" = --opengl ] && args=(--args "-opengl")
+  cli run -b "$BOTTLE" -e "$(exe_of "$DIR")" "${args[@]}"
+}
+
+status() {
+  if [ -z "$DIR" ]; then say "Not set up yet. Run: orion-wow-client setup"; return 0; fi
+  say "Client folder: $DIR"
+  say "Server: ${REALM:-not set} ($(head -n1 "$DIR/realmlist.wtf" 2>/dev/null | tr -d '\r' || echo 'no realmlist.wtf'))"
+  if flatpak info "$BOTTLES" >/dev/null 2>&1; then
+    cli list bottles 2>/dev/null | grep -qw "$BOTTLE" && say "Bottle: $BOTTLE (ready)" || say "Bottle: missing (run setup again)"
+  else say "Bottles: not installed"; fi
+}
+
+case "${1:-help}" in
+  setup) shift; setup "$@" ;;
+  start) shift; start "$@" ;;
+  realm) [ -n "$DIR" ] || die "Not set up yet. Run: orion-wow-client setup"; set_realm "${2:-}" ;;
+  status) status ;;
+  *) sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//' ;;
+esac

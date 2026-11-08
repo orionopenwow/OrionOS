@@ -1,0 +1,11 @@
+# OrionOS: notices screens coming and going: a new set gets a layout of its own (and an "Arrange?" notification),
+# workspace 1 (the Orion HUD) follows the primary screen, the lid switches the laptop panel off when docked.
+[Unit]
+Description=Orion screen watcher (orion-displays watch)
+StartLimitIntervalSec=30
+StartLimitBurst=5
+
+[Service]
+ExecStart=/usr/local/bin/orion-displays watch
+Restart=on-failure
+RestartSec=2

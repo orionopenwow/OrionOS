@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Send work to the PC (Missions.kt) and Pocket Orion (PocketFallback.kt). Plain, short words. -->
+<resources>
+    <string name="launcher_send_work">Send work to the PC</string>
+    <string name="launcher_missions">Missions</string>
+    <string name="launcher_pocket_on">PC is off — using Orion on this phone</string>
+    <string name="missions_share_label">Send work to PC</string>
+</resources>

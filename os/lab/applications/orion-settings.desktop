@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Orion Settings
+Comment=Pairing, display, sound, power
+Exec=orion-settings
+Icon=preferences-system
+Categories=Settings;
+# Hidden: the Settings window has its own entry (ai.orion.Settings.desktop); this opens the same window.
+NoDisplay=true

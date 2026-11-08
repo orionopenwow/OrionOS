@@ -1,0 +1,4 @@
+#!/bin/sh
+# Orion Files: Thunar with the Orion theme, opened on your projects.
+mkdir -p "$HOME/projects" "$HOME/Captures"
+exec thunar "${1:-$HOME/projects}"

@@ -1,0 +1,11 @@
+[Desktop Entry]
+# OrionOS: LocalSend's own launcher, routed through Share files so the firewall port opens while it runs.
+# Installed to the session user's ~/.local/share/applications (which comes before Flatpak's exports). Hidden:
+# "Share files" is the one entry in the launcher.
+Type=Application
+Name=LocalSend
+Exec=orion-share open
+Icon=org.localsend.localsend_app
+Terminal=false
+NoDisplay=true
+StartupWMClass=localsend_app

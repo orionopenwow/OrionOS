@@ -1,0 +1,56 @@
+"""Orion skill: Publish release (version 1).
+Exported from Orion. Steps that send, buy, delete, post or submit stop and ask you first.
+"""
+import sys
+
+from playwright.sync_api import sync_playwright
+
+# Values that change each time (pass new ones as NAME=value arguments)
+VERSION = "v2.4.1"  # Tag name
+DATE = "2026-10-15"  # Release date
+FILE = "app-2.4.1.zip"  # Attach binaries
+for _arg in sys.argv[1:]:
+    _k, _, _v = _arg.partition("=")
+    if _k.upper() in globals():
+        globals()[_k.upper()] = _v
+
+
+def confirm(what):
+    if input(f"Orion: about to {what}. Type yes to go ahead: ").strip().lower() != "yes":
+        sys.exit("Stopped before: " + what)
+
+
+def run(page):
+    # 1. Go to github.com/acme/app/releases
+    page.goto("https://github.com/acme/app/releases")
+    # 2. Click the “Draft a new release” link
+    page.get_by_role("link", name="Draft a new release", exact=True).click()
+    # 3. Wait until the page has loaded
+    page.wait_for_load_state()
+    # 4. Type {{version}} into “Tag name”
+    page.get_by_role("textbox", name="Tag name", exact=True).fill(VERSION)
+    # 5. Type {{date}} into “Release date”
+    page.get_by_role("textbox", name="Release date", exact=True).fill(DATE)
+    # 6. Choose “Stable” in “Channel”
+    page.get_by_role("combobox", name="Channel", exact=True).select_option("Stable")
+    # 7. Untick “Pre-release”
+    page.get_by_role("checkbox", name="Pre-release", exact=True).uncheck()
+    # 8. Pick the file {{file}} for “Attach binaries” (you do this one)
+    page.get_by_label("Attach binaries", exact=True).set_input_files(FILE)
+    # 9. Click the “Publish release” button
+    confirm("Click the “Publish release” button (submits a form)")
+    page.get_by_role("button", name="Publish release", exact=True).click()
+    # 10. Wait until the page has loaded
+    page.wait_for_load_state()
+    # 11. Wait until “Release {{version}} published” appears
+    page.get_by_text("Release " + VERSION + " published").first.wait_for()
+    # 12. Wait for the download notes-{{version}}.txt to start
+    # The download notes-{{version}}.txt starts here (wrap the step above in page.expect_download() to save it).
+
+
+if __name__ == "__main__":
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False)
+        page = browser.new_page()
+        run(page)
+        browser.close()

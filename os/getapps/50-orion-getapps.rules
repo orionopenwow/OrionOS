@@ -1,0 +1,52 @@
+// OrionOS Get apps (os/getapps/README.md): what the session user "orion" may do with Flatpak apps.
+//  * Updates (apps, runtimes, app lists) run without a password: the weekly update timer runs outside the desktop.
+//    Shared runtimes may also be installed without one (updates need new ones; a runtime alone runs nothing).
+//  * Installing a NEW APP needs someone to confirm it (H9): either the install gate is open (orion-install-gate,
+//    opened for 10 minutes by your password, or by a fresh approval from your paired phone's fingerprint), or
+//    polkit asks for your password right then (AUTH_SELF). An agent or any other program running as "orion" can
+//    only *ask* (an "Install X?" card in Orion's queue).
+//  * Removing apps and installing a downloaded bundle: also your password.
+//  * Adding or changing remotes is never allowed here (configure-remote, override-parental-controls stay admin-only).
+// Note: polkit counts the user's own background services (Orion's daemon, agents running as "orion") as part of
+// the active local session, so "local && active" alone never meant "a person at the keyboard"; a password does.
+polkit.addRule(function(action, subject) {
+    if (subject.user != "orion") return polkit.Result.NOT_HANDLED;
+    var always = ["org.freedesktop.Flatpak.runtime-install",
+                  "org.freedesktop.Flatpak.app-update", "org.freedesktop.Flatpak.runtime-update",
+                  "org.freedesktop.Flatpak.appstream-update", "org.freedesktop.Flatpak.metadata-update",
+                  "org.freedesktop.Flatpak.update-remote",
+                  // `flatpak mask` (pausing an app after a bad update) is a configure call
+                  "org.freedesktop.Flatpak.configure"];
+    var confirmed = ["org.freedesktop.Flatpak.app-install", "org.freedesktop.Flatpak.app-uninstall",
+                     "org.freedesktop.Flatpak.runtime-uninstall", "org.freedesktop.Flatpak.install-bundle"];
+    if (always.indexOf(action.id) >= 0) return polkit.Result.YES;
+    if (action.id == "org.freedesktop.Flatpak.app-install") {
+        try {
+            if (polkit.spawn(["/opt/orion/getapps/orion-install-gate", "check"]).trim() == "open") {
+                return polkit.Result.YES;
+            }
+        } catch (e) { /* gate closed: ask */ }
+    }
+    if (confirmed.indexOf(action.id) >= 0 && subject.local && subject.active) return polkit.Result.AUTH_SELF_KEEP;
+    if (action.id == "ai.orion.getapps.gate") {
+        var c = action.lookup("command_line") || "";
+        var g = "/opt/orion/getapps/orion-install-gate ";
+        if (c == g + "check" || c == g + "close") return polkit.Result.YES;
+        if (/^\/opt\/orion\/getapps\/orion-install-gate open --approval \/[A-Za-z0-9._\/-]{1,200}$/.test(c) &&
+            c.indexOf("..") < 0) return polkit.Result.YES;   // the gate checks the phone approval itself
+        if (c == g + "open" && subject.local && subject.active) return polkit.Result.AUTH_SELF;
+    }
+    return polkit.Result.NOT_HANDLED;
+});
+
+// Share files: "orion" may open and close LocalSend's firewall port (orion-share-firewall.service), and nothing
+// else. The unit only runs orion_share_firewall.py, which takes no input.
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.freedesktop.systemd1.manage-units" && subject.user == "orion") {
+        var unit = action.lookup("unit");
+        var verb = action.lookup("verb");
+        if (unit == "orion-share-firewall.service" && (verb == "start" || verb == "stop")) {
+            return polkit.Result.YES;
+        }
+    }
+});

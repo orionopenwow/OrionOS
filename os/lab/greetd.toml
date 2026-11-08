@@ -1,0 +1,13 @@
+# OrionOS: straight into Orion at power-on; after logging out (or if the session stops) the graphical login screen
+# offers "Start Orion again" and "Rescue desktop". orion-greeter-start falls back to the text login (agreety) only
+# if the graphical one can't run. The installed copy is written by os/greeter/greetd_config.py (same content).
+[terminal]
+vt = 1
+
+[default_session]
+command = "/opt/orion/greeter/orion-greeter-start"
+user = "_greetd"
+
+[initial_session]
+command = "env ORION_LOGIN_HANDOFF=blackhole /usr/local/bin/orion-session"
+user = "orion"

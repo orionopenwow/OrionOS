@@ -2,6 +2,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 // V2 typography: rounded neo-grotesque stack. 'Arial Rounded MT Bold' is used when installed
 // (ships with Windows Office); Nunito is the bundled rounded fallback, Inter the last resort.
+import '@fontsource/arimo/400.css';
+import '@fontsource/arimo/700.css'; // Arial look everywhere: Arial where installed, Arimo (same letter widths, OFL) otherwise
 import '@fontsource/nunito/500.css';
 import '@fontsource/nunito/600.css';
 import '@fontsource/nunito/700.css';

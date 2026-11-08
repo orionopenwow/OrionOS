@@ -13,8 +13,8 @@
      faux-bolded or turns uniformly heavy on machines that have Office fonts installed. */
   /* Art Update type (plan §6): Figtree for reading, Unbounded for headings/wordmark/clock, Martian Mono for
      code and numbers. Nunito (bundled) and Arial Rounded stay as fallbacks. */
-  --font-ui: 'Figtree Variable', 'Figtree', 'Nunito', 'Arial Rounded MT Bold', 'Inter', system-ui, sans-serif;
-  --font-display: 'Unbounded Variable', 'Unbounded', 'Nunito', 'Arial Rounded MT Bold', system-ui, sans-serif;
+  --font-ui: Arial, 'Arimo', 'Liberation Sans', Helvetica, sans-serif;
+  --font-display: Arial, 'Arimo', 'Liberation Sans', Helvetica, sans-serif;
   --font-mono: 'Martian Mono Variable', 'Martian Mono', 'JetBrains Mono', Consolas, ui-monospace, monospace;
   --orion-font: var(--font-ui);
   --orion-display-font: var(--font-display);
@@ -223,7 +223,7 @@ body::after {
   background-size: 230px 230px, 310px 310px, 270px 270px, 350px 350px, 290px 290px, 410px 410px, 330px 330px, 250px 250px;
   opacity: 0.9;
 }
-.glass-ui { font-family: var(--font-ui, Nunito), 'Arial Rounded MT Bold', system-ui, sans-serif; }
+.glass-ui { font-family: var(--font-ui); }
 .glass-ui .emboss,
 .glass-ui .glass {
   background: var(--orion-grain), rgba(42, 49, 59, 0.55);

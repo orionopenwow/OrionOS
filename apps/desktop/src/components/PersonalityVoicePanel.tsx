@@ -254,8 +254,8 @@ export default function PersonalityVoicePanel({
                 <Music size={16} />
               </span>
               <div>
-                <div className="font-display text-sm font-bold tracking-wider text-white">COSMIC SOUND EFFECTS</div>
-                <div className="text-[11px] font-mono text-white/76">Celestial chimes for cues & events</div>
+                <div className="font-display text-sm font-bold tracking-wider text-white">SOUND EFFECTS</div>
+                <div className="text-[11px] font-mono text-white/76">Chimes for cues & events</div>
               </div>
             </div>
             <button
@@ -265,7 +265,7 @@ export default function PersonalityVoicePanel({
                   ? 'bg-red-500/20 text-red-400 border-red-500/30'
                   : 'bg-[#3DFFA8]/20 text-[#3DFFA8] border-[#3DFFA8]/30'
               }`}
-              title={audioMuted ? 'Unmute Cosmic Chimes' : 'Mute Cosmic Chimes'}
+              title={audioMuted ? 'Unmute chimes' : 'Mute chimes'}
             >
               {audioMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
             </button>

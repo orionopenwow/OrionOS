@@ -95,7 +95,7 @@ const TOOLS_CATALOG: ToolItem[] = [
   {
     id: 'personality',
     label: 'Personality & Voice',
-    tagline: 'Neural Tone & Kokoro TTS',
+    tagline: 'Tone & Kokoro TTS',
     description: 'Toggle between Concise Companion and Deep Researcher modes, and customize neural voices.',
     icon: Bot,
     color: '#FFB74D',
@@ -114,7 +114,7 @@ const TOOLS_CATALOG: ToolItem[] = [
   },
   {
     id: 'analytics',
-    label: 'Cosmic Telemetry',
+    label: 'System Stats',
     tagline: 'System Load & Vector Rows',
     description: 'Monitor token savings, OCR pipeline latency, memory vector growth, and daemon health.',
     icon: Activity,
@@ -164,7 +164,7 @@ const TOOLS_CATALOG: ToolItem[] = [
   },
   {
     id: 'dialogue',
-    label: 'Neural Dialogue Stream',
+    label: 'Chat',
     tagline: 'Full Conversational Mode',
     description: 'Primary interactive discussion channel with context-aware memory recall and code drafting.',
     icon: MessageSquare,

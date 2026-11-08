@@ -16,7 +16,7 @@ interface Props {
 const PRESET_WORKFLOWS: { name: string; desc: string; steps: any[] }[] = [
   {
     name: 'Open Notepad & Type Greeting',
-    desc: 'Automates Win+R -> notepad -> Enter -> types Orion cosmic greeting',
+    desc: 'Automates Win+R -> notepad -> Enter -> types an Orion greeting',
     steps: [
       { action: 'hotkey', keys: ['win', 'r'], delay_after: 0.5 },
       { action: 'type', text: 'notepad', delay_after: 0.3 },

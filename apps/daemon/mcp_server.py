@@ -25,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 SUPPORTED_VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")   # newest first
 SERVER_INFO = {"name": "orion", "title": "Orion", "version": os.getenv("ORION_APP_VERSION") or "1.0.0"}
 INSTRUCTIONS = (
-    "Orion's tools for this computer: saved macros (Grimoire), the self-healing runner for project commands, "
+    "Orion's tools for this computer: saved macros (Scripts), the self-healing runner for project commands, "
     "git, cargo, a read-only MySQL view of staging databases, and Blender scripts. Read-only tools run "
     "straight away. Commits, database changes and unfamiliar commands are sent to the user for approval: "
     "the tool answers 'waiting for approval' with a decision id; check it later with approval_status. "

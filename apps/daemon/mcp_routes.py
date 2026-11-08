@@ -216,7 +216,7 @@ async def run(request: Request) -> Any:
             command = grimoire_command(entry, args)
             if grimoire_needs_approval(entry, command):
                 return _err("This macro needs your approval.", 403, needs_approval=True)
-            label = f"Grimoire: {entry['description'][:50]}"
+            label = f"Script: {entry['description'][:50]}"
             kind = "task"
         else:
             command = str(body.get("command") or "").strip()

@@ -109,7 +109,7 @@ export default function LeftDialogueConsole({
     },
     {
       id: 'session-vector-memory',
-      title: 'Neural Vector Memory Consolidation',
+      title: 'Memory Cleanup',
       preview: 'Synthesized 35 knowledge vectors into crystallized skills.',
       timestamp: 'Oct 12',
       messageCount: 22,
@@ -213,7 +213,7 @@ export default function LeftDialogueConsole({
                   ORION ARCHITECTURAL CONSOLE
                 </span>
                 <span className="font-mono text-[11.5px] text-white/80 tracking-wider">
-                  Neural Companion · Workspace & Vector Engine
+                  Chat · Workspace & Memory
                 </span>
               </div>
             </div>
@@ -308,7 +308,7 @@ export default function LeftDialogueConsole({
                       <Sparkles size={24} className="text-[#DCE7FF] animate-pulse" />
                     </div>
                     <h3 className="font-display text-sm font-bold tracking-wider text-starlight">
-                      Orion Neural Stream Online
+                      Chat ready
                     </h3>
                     <p className="font-sans text-xs text-white/80 leading-relaxed max-w-sm mx-auto">
                       Ask anything, execute autonomous desktop screen tasks, triage game bugs, or drop files directly onto the display.

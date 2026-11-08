@@ -104,7 +104,7 @@ def test_grimoire_harvest_fills_gaps_but_never_destructive(tmp_path):
     ]
     cmds = rb.detect_commands(p, entries)
     assert cmds["deploy"] == {"command": "./scripts/deploy.sh staging",
-                              "source": "your most-used commands (Grimoire)"}
+                              "source": "your most-used commands (Scripts)"}
     assert cmds["run"]["source"] == "package.json"      # Grimoire only fills gaps
 
 

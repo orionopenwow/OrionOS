@@ -31,7 +31,7 @@ const STEPS: Step[] = [
   },
   {
     title: 'The black hole',
-    text: 'This black hole is my core. It is calm when all is well, brighter while we talk and warmer when it is time to rest. Things waiting for your OK orbit it.',
+    text: 'This black hole is my core. It is calm when all is well, brighter while we talk and warmer when it is time to rest. Things waiting for your OK circle around it.',
     ui: { open: false },
   },
   {

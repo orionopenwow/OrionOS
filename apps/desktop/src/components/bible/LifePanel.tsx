@@ -216,7 +216,7 @@ function SoundscapeCard() {
   const [vol, setVol] = useState(soundscape.volume);
   const options: Array<[SoundscapeKind, string]> = [
     ['off', 'Off'],
-    ['drone', 'Cosmic drone'],
+    ['drone', 'Low hum'],
     ['rain', 'Rain'],
     ['campfire', 'Campfire'],
   ];

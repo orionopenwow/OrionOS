@@ -38,8 +38,8 @@ export const text = {
 
 /** Brand type. Unbounded: wordmark, clock, headings. Figtree: reading text. Martian Mono: terminal, code, numbers. */
 export const fonts = {
-  display: "'Unbounded Variable', 'Unbounded', 'Nunito', system-ui, sans-serif",
-  ui: "'Figtree Variable', 'Figtree', 'Nunito', 'Inter', system-ui, sans-serif",
+  display: "Arial, 'Arimo', 'Liberation Sans', Helvetica, sans-serif",
+  ui: "Arial, 'Arimo', 'Liberation Sans', Helvetica, sans-serif",
   mono: "'Martian Mono Variable', 'Martian Mono', 'JetBrains Mono', Consolas, ui-monospace, monospace",
 } as const;
 

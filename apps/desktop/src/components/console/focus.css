@@ -32,7 +32,7 @@
   align-items: center;
   gap: 12px;
   padding: 18px 20px;
-  border-radius: 18px;
+  border-radius: 6px;
   border: 1.5px solid var(--matte-edge, rgba(255, 255, 255, 0.16));
   background: rgba(255, 255, 255, 0.03);
   font-size: 14.5px;
@@ -55,9 +55,12 @@
   flex-direction: column;
   min-width: 0;
   padding: 12px 14px 12px 18px;
-  border-radius: 18px;
-  border: 1.5px solid var(--matte-edge, rgba(255, 255, 255, 0.16));
-  background: #1d222a;
+  border-radius: 6px;
+  border: 1.5px solid color-mix(in srgb, var(--k) 26%, rgba(255, 255, 255, 0.12));
+  /* each kind has its own colour: a subtle see-through tint of it over dark glass */
+  background: color-mix(in srgb, var(--k-solid) 14%, rgba(24, 28, 35, 0.78));
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
 }
 /* the kind's left bar: a short rounded stripe inside the edge, so the colour marks the card without filling it */
@@ -71,7 +74,11 @@
   border-radius: 4px;
   background: var(--k);
 }
-.focus-card:hover { transform: translateY(-2px); border-color: rgba(255, 255, 255, 0.26); background: #212731; }
+.focus-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--k) 45%, rgba(255, 255, 255, 0.16));
+  background: color-mix(in srgb, var(--k-solid) 20%, rgba(28, 33, 41, 0.82));
+}
 .focus-card:focus-within { border-color: rgba(255, 255, 255, 0.3); }
 .focus-card[data-pinned] { border-color: color-mix(in srgb, var(--k) 55%, transparent); }
 
@@ -83,7 +90,7 @@
   place-items: center;
   width: 36px;
   height: 36px;
-  border-radius: 12px;
+  border-radius: 4px;
   color: var(--k);
   background: color-mix(in srgb, var(--k-solid) 18%, transparent);
   border: 1.5px solid color-mix(in srgb, var(--k) 38%, transparent);
@@ -113,7 +120,7 @@
 .focus-eyebrow__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--k); }
 .focus-eyebrow__step {
   padding: 1px 8px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-weight: 650;
   color: var(--ink-2);
   background: rgba(255, 255, 255, 0.07);
@@ -163,7 +170,7 @@
   gap: 6px;
   height: 34px;
   padding: 0 14px;
-  border-radius: 12px;
+  border-radius: 4px;
   border: 1.5px solid color-mix(in srgb, var(--k) 45%, transparent);
   background: color-mix(in srgb, var(--k-solid) 22%, transparent);
   font-size: 14px;
@@ -181,13 +188,13 @@
 /* ---- the hero (Now) */
 .focus-card--hero {
   padding: 18px 20px 18px 26px;
-  border-radius: 22px;
+  border-radius: 6px;
   background: #1a2233;
   border-color: color-mix(in srgb, var(--role-now) 34%, transparent);
 }
 .focus-card--hero:hover { background: #1d2638; border-color: color-mix(in srgb, var(--role-now) 50%, transparent); }
 .focus-card--hero::before { left: 9px; top: 18px; bottom: 18px; width: 5px; }
-.focus-card--hero .focus-chip { width: 46px; height: 46px; border-radius: 15px; }
+.focus-card--hero .focus-chip { width: 46px; height: 46px; border-radius: 5px; }
 .focus-card--hero .focus-eyebrow { font-size: 14px; }
 .focus-card--hero .focus-card__title {
   margin-top: 12px;
@@ -203,7 +210,7 @@
 .focus-card--hero .focus-btn {
   height: 42px;
   padding: 0 22px;
-  border-radius: 14px;
+  border-radius: 5px;
   font-size: 15px;
   background: var(--role-now-solid);
   border-color: var(--role-now-solid);
@@ -213,7 +220,7 @@
 .focus-progress__bar {
   flex: 1;
   height: 12px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: rgba(255, 255, 255, 0.08);
   border: 1.5px solid rgba(255, 255, 255, 0.1);
   overflow: hidden;
@@ -242,7 +249,7 @@
   place-items: center;
   width: 32px;
   height: 32px;
-  border-radius: 10px;
+  border-radius: 4px;
   color: var(--ink-3);
   border: 1.5px solid transparent;
   transition: color 0.15s ease, background-color 0.15s ease;
@@ -256,7 +263,7 @@
   z-index: 10;
   min-width: 190px;
   padding: 5px;
-  border-radius: 14px;
+  border-radius: 5px;
   background: #262c36;
   border: 1.5px solid var(--matte-edge-strong, rgba(255, 255, 255, 0.28));
   box-shadow: var(--matte-depth);
@@ -267,7 +274,7 @@
   gap: 10px;
   width: 100%;
   padding: 8px 10px;
-  border-radius: 10px;
+  border-radius: 4px;
   text-align: left;
   font-size: 14px;
   font-weight: 650;
@@ -285,7 +292,7 @@
   align-items: center;
   text-align: center;
   padding: 34px 20px 28px;
-  border-radius: 22px;
+  border-radius: 6px;
   border: 1.5px dashed rgba(255, 255, 255, 0.16);
   background: rgba(255, 255, 255, 0.02);
 }
@@ -326,3 +333,7 @@ html[data-calm-motion] .focus-card:hover { transform: none; }
 /* the console colours every icon white by default; icons on the focus cards follow their card's colour */
 .orion-console .focus svg.lucide { color: inherit; }
 .orion-console .focus-more__item svg.lucide { color: var(--ink-3); }
+
+/* matte emoji in the chip (Fluent Emoji, Flat style) */
+.focus-chip__emoji { width: 24px; height: 24px; display: block; user-select: none; }
+.focus-card--hero .focus-chip__emoji { width: 30px; height: 30px; }

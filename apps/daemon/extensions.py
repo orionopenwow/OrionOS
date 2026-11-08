@@ -540,7 +540,7 @@ class Extensions:
             return
         needs = entry.get("requires_approval") or is_destructive(entry.get("command", ""))
         if needs and not approved:
-            item = self.d.approvals.add("grimoire_run", platform="orion", category="grimoire", author="Grimoire",
+            item = self.d.approvals.add("grimoire_run", platform="orion", category="grimoire", author="Scripts",
                                         entry_id=entry["id"], original=entry["description"],
                                         draft=entry.get("command") or describe(entry.get("steps") or []),
                                         destructive=is_destructive(entry.get("command", "")))
@@ -600,7 +600,7 @@ class Extensions:
         if ws:
             bits.append(f"opened {ws['name']}")
         if report.get("skipped"):
-            bits.append(f"skipped {len(report['skipped'])} destructive command(s) — run those from the Grimoire")
+            bits.append(f"skipped {len(report['skipped'])} destructive command(s) — run those from Scripts")
         await self._ack(f"{station['name']} mode engaged" + (": " + ", ".join(bits) if bits else "") + ".", source)
 
     # ---------------------------------------------------------------- clipboard
@@ -619,7 +619,7 @@ class Extensions:
             entry = self.grimoire.save_snippet(item["text"], description or f"{item['kind']} snippet "
                                                f"{datetime.now():%b %d %H:%M}", lang)
             await self.d.bus.publish({"event": "GRIMOIRE", "grimoire": self._grimoire_view()})
-            await self._ack(f"Saved snippet “{entry['description']}” to the Grimoire.", "user")
+            await self._ack(f"Saved snippet “{entry['description']}” to Scripts.", "user")
             return
         instruction = INSTRUCTIONS.get(action)
         if instruction:
@@ -811,7 +811,7 @@ class Extensions:
         if item["kind"] == "grimoire_run":
             entry = self.grimoire.get(item.get("entry_id", ""))
             if entry is None:
-                item = self.d.approvals.update(item["id"], status="pending", error="That Grimoire entry no longer exists.")
+                item = self.d.approvals.update(item["id"], status="pending", error="That saved script no longer exists.")
             else:
                 if decision == "edit" and text.strip() and entry["kind"] not in ("workflow", "internal"):
                     entry = {**entry, "command": text.strip()}

@@ -190,7 +190,7 @@ READY_CAMPAIGN_POSTS: list[dict[str, Any]] = [
             "costs about 3 cents of stardust compute. link in bio if you want the adapter."
         ),
         "script_beats": [
-            "0-3s: Split screen WoW 1.12 on left, Orion cosmic orb on right.",
+            "0-3s: Split screen WoW 1.12 on left, Orion's black hole on right.",
             "3-9s: Speak into mic: 'make a small bar that tracks my five-second mana rule and flashes purple'.",
             "9-14s: Floating kinetic text appears over Orion, commits OrionForge_ManaTick.lua, type /reload.",
             "14-18s: Bar works live in-game; click Revert button to show 1-second undo.",

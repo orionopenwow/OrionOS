@@ -53,7 +53,7 @@ export const MENU: MenuItem[] = [
   { id: 'messages', label: 'Messages', icon: 'Inbox', section: 'connect', group: 'more', description: 'Every chat from your phone and socials in one place.', keywords: 'comms inbox discord telegram' },
   { id: 'queue', label: 'Waiting for your OK', icon: 'ShieldCheck', section: 'connect', group: 'more', description: 'Things Orion will only do after you say yes.', keywords: 'approvals queue' },
   { id: 'missions', label: 'Mission Control', icon: 'Rocket', section: 'work', group: 'more', description: 'Every agent job: its live log, changes and cost.', keywords: 'agents claude codex' },
-  { id: 'agents', label: 'Agents', icon: 'Bot', section: 'work', group: 'more', description: 'Turn helper agents on or off. Coding agents also orbit the black hole.', keywords: 'swarm crew robots' },
+  { id: 'agents', label: 'Agents', icon: 'Bot', section: 'work', group: 'more', description: 'Turn helper agents on or off. Coding agents also circle the black hole.', keywords: 'swarm crew robots' },
   { id: 'scout', label: 'Video Scout', icon: 'Clapperboard', section: 'work', group: 'more', description: 'Paste video links; Orion watches them and pulls out what matters.', keywords: 'tiktok youtube reels' },
   { id: 'tools', label: 'Toolkit tools', icon: 'Wrench', section: 'work', group: 'more', description: 'Collision Guard, Proof Gate, package checks and the other tools.', keywords: 'toolkit' },
   { id: 'life', label: 'Life', icon: 'HeartPulse', section: 'life', group: 'more', description: 'Routines, breaks, sleep and the day ahead.', keywords: 'wellness routines' },

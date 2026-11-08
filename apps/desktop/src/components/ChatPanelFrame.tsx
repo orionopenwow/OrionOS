@@ -104,7 +104,7 @@ export default function ChatPanelFrame({
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center text-dust">
               <Sparkles size={26} className="text-[#00E5FF] mb-2 animate-pulse" />
-              <p className="text-xs text-starlight/90 font-medium">Orion Neural Thread Active</p>
+              <p className="text-xs text-starlight/90 font-medium">Chat ready</p>
               <p className="text-[11.5px] text-dust/85 max-w-sm mt-1">
                 Ask Orion to orchestrate tasks, analyze code, inspect the screen, or import data.
               </p>

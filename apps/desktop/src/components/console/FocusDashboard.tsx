@@ -12,23 +12,16 @@
  * sending stays your tap there. Opening the approvals card goes to the queue; this card never approves anything.
  * When the daemon can't be reached, `fallback` shows instead.
  */
+import { emojiUrl, pickEmoji } from '../../lib/emoji';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
-  AlertTriangle, Clock, EyeOff, Loader2, MessageCircle, MoreHorizontal, PenLine, Pin, PinOff, Rocket, ShieldCheck, type LucideIcon,
+  EyeOff, Loader2, MoreHorizontal, PenLine, Pin, PinOff, type LucideIcon,
 } from 'lucide-react';
-import { focusApi, greeting, KIND_LABEL, PRIMARY_LABEL, summaryLine, topCards, type FocusCard, type FocusKind, type FocusView } from '../../lib/focus';
+import { focusApi, greeting, KIND_LABEL, PRIMARY_LABEL, summaryLine, topCards, type FocusCard, type FocusView } from '../../lib/focus';
 import { useCalmMotion } from '../../lib/hudPrefs';
 import OrionMark from '../glass/OrionMark';
 import './focus.css';
-
-const KIND_ICON: Record<FocusKind, LucideIcon> = {
-  now: Rocket,
-  message: MessageCircle,
-  approval: ShieldCheck,
-  needs_you: AlertTriangle,
-  next_up: Clock,
-};
 
 /** The small brand dot on message cards (the app's own colour). */
 const APP_DOT: Record<string, string> = {
@@ -167,7 +160,6 @@ function Card({
   onPin: () => void;
   onDismiss: () => void;
 }) {
-  const Icon = KIND_ICON[card.kind] ?? Rocket;
   const hero = card.kind === 'now';
   const label = card.kind === 'message' && card.meta.app_label ? `Message on ${card.meta.app_label}` : KIND_LABEL[card.kind];
   const progress = hero && typeof card.meta.progress === 'number' ? Math.max(0, Math.min(1, card.meta.progress)) : null;
@@ -190,7 +182,7 @@ function Card({
     >
       <div className="focus-card__top">
         <span className="focus-chip" aria-hidden>
-          <Icon size={hero ? 24 : 19} />
+          <img className="focus-chip__emoji" src={emojiUrl(pickEmoji(card.kind, card.title, card.detail ?? ''))} alt="" draggable={false} />
           {dot && <span className="focus-chip__dot" style={{ background: dot }} />}
         </span>
         <Eyebrow card={card} />

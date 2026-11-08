@@ -316,7 +316,7 @@ class ProcessRunner:
         fix = (run.diagnosis or {}).get("fix_command", "")
         if is_destructive(run.command) or is_destructive(fix):
             # one approval covers one run: destructive commands go back through the approval queue
-            run.tail.append("[orion] This command is destructive — run it again from the Grimoire so you can approve it.")
+            run.tail.append("[orion] This command is destructive — run it again from Scripts so you can approve it.")
             await self.publish({"event": "RUN_FINISHED", "run": run.info()})
             return None
         if fix:

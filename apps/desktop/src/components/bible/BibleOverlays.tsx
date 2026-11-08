@@ -312,7 +312,7 @@ function MacroSave({ bible, send, patch }: Props) {
           Discard
         </PillButton>
         <PillButton color="#7FA6FF" onClick={save}>
-          <Check size={11} /> Save to Grimoire
+          <Check size={11} /> Save to Scripts
         </PillButton>
       </div>
     </motion.div>

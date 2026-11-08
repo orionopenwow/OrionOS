@@ -23,7 +23,7 @@ async def run_verification():
     # 1. Test AudioEngine directly
     log.info("1. Testing AudioEngine local Kokoro synthesis & voice blend...")
     from audio_engine import audio_engine
-    test_wav = audio_engine.speak("Orion neural audio online.", voice="af_nicole", speed=0.92)
+    test_wav = audio_engine.speak("Orion audio check.", voice="af_nicole", speed=0.92)
     assert len(test_wav) > 1000, f"WAV too small: {len(test_wav)}"
     assert test_wav.startswith(b"RIFF"), "Invalid WAV header"
     log.info("   ✓ AudioEngine produced valid WAV (%d bytes)", len(test_wav))

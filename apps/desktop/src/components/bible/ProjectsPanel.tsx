@@ -210,7 +210,7 @@ function Constellation({ bible, send }: { bible: BibleState; send: BibleSend }) 
 
   return (
     <Section
-      title="Constellation"
+      title="Project map"
       color="#8DB0FF"
       icon={<Sparkles size={14} />}
       right={active ? <span className="text-[11px] font-mono text-[#8DB0FF]">★ {active.w.name}</span> : null}

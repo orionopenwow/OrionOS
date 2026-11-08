@@ -27,7 +27,7 @@
   --glass-tint: 0.6;
   --lit-x: 50%;
   --lit-y: 50%;
-  border-radius: 16px;
+  border-radius: 5px;
   /* look pass: dark gunmetal glass with a faint brushed-steel grain (var(--orion-grain), index.css) */
   background-color: rgba(26, 31, 39, var(--glass-tint));
   background-image: var(--orion-grain);
@@ -131,7 +131,7 @@
   inset: max(56px, env(safe-area-inset-top)) 0 0 0 !important;
   width: auto !important;
   height: auto !important;
-  border-radius: 22px 22px 0 0;
+  border-radius: 6px 6px 0 0;
   border-bottom: 0;
   padding-bottom: env(safe-area-inset-bottom);
 }
@@ -234,7 +234,7 @@
   gap: 6px;
   height: 28px;
   padding: 0 10px;
-  border-radius: 9px;
+  border-radius: 4px;
   border: 1px solid transparent;
   background: transparent;
   font-size: 13px;
@@ -263,7 +263,7 @@
 .orion-tab__badge {
   min-width: 16px;
   padding: 0 4px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: #2E6BFF;
   color: #fff;
   font-size: 11px;
@@ -283,7 +283,7 @@
   flex-shrink: 0;
   width: 26px;
   height: 26px;
-  border-radius: 8px;
+  border-radius: 4px;
   border: 0;
   background: transparent;
   display: grid;
@@ -307,7 +307,7 @@
   width: 30px;
   height: 28px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 4px;
   background: transparent;
   display: grid;
   place-items: center;
@@ -334,7 +334,7 @@
   align-items: center;
   gap: 6px;
   padding: 6px;
-  border-radius: 18px;
+  border-radius: 6px;
 }
 .orion-taskbar__sep {
   width: 1px;
@@ -348,7 +348,7 @@
   width: 44px;
   height: 44px;
   padding: 0;
-  border-radius: 12px;
+  border-radius: 4px;
   display: grid;
   place-items: center;
   background: rgba(221, 229, 240, 0.045);
@@ -408,7 +408,7 @@
   left: 50%;
   transform: translate(-50%, 4px);
   padding: 4px 9px;
-  border-radius: 8px;
+  border-radius: 4px;
   background: rgba(26, 31, 39, 0.94);
   border: 1px solid rgba(221, 229, 240, 0.1);
   color: #DDE5F0;
@@ -431,7 +431,7 @@
   right: 0;
   min-width: 16px;
   padding: 0 4px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: #ffc66b;
   color: #05070e;
   font-size: 11px;
@@ -639,7 +639,7 @@ html[data-calm-motion] .orion-tile:hover {
   right: -3px;
   min-width: 19px;
   padding: 0 5px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: #ffc66b;
   color: #06080c;
   font-size: 11.5px;
@@ -683,7 +683,7 @@ html[data-arrival='playing'] .orion-orb {
 .orion-console__close {
   width: 38px;
   height: 38px;
-  border-radius: 12px;
+  border-radius: 4px;
   display: grid;
   place-items: center;
   color: #e6ecf5;
@@ -715,7 +715,7 @@ html[data-arrival='playing'] .orion-orb {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  border-radius: 20px;
+  border-radius: 6px;
   background-color: rgba(26, 31, 39, 0.86);
   background-image: var(--orion-grain);
   background-size: 240px 240px;
@@ -728,7 +728,7 @@ html[data-arrival='playing'] .orion-orb {
   min-width: 0;
   height: 52px;
   padding: 0 16px;
-  border-radius: 14px;
+  border-radius: 5px;
   font-size: 16px;
   font-weight: 500;
   color: #f2f5fa;
@@ -746,7 +746,7 @@ html[data-arrival='playing'] .orion-orb {
   width: 52px;
   height: 52px;
   flex-shrink: 0;
-  border-radius: 14px;
+  border-radius: 5px;
   display: grid;
   place-items: center;
   color: #e6ecf5;
@@ -779,7 +779,7 @@ html[data-arrival='playing'] .orion-orb {
   gap: 6px;
   height: 32px;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: 13.5px;
   font-weight: 600;
   color: #e6ecf5;
@@ -804,7 +804,7 @@ html[data-arrival='playing'] .orion-orb {
   outline-offset: 2px;
 }
 .orion-bubble {
-  border-radius: 16px;
+  border-radius: 5px;
   padding: 13px 15px;
   font-size: 15px;
   line-height: 1.6;
@@ -816,7 +816,7 @@ html[data-arrival='playing'] .orion-orb {
 
 /* features around the chat */
 .orion-section {
-  border-radius: 18px;
+  border-radius: 6px;
   padding: 12px;
   background-color: rgba(26, 31, 39, 0.66);
   background-image: var(--orion-grain);
@@ -844,7 +844,7 @@ html[data-arrival='playing'] .orion-orb {
   gap: 11px;
   width: 100%;
   padding: 7px 8px;
-  border-radius: 12px;
+  border-radius: 4px;
   text-align: left;
   border: 1px solid transparent;
   background: transparent;
@@ -861,7 +861,7 @@ html[data-arrival='playing'] .orion-orb {
   flex-shrink: 0;
   width: 32px;
   height: 32px;
-  border-radius: 10px;
+  border-radius: 4px;
   display: grid;
   place-items: center;
   color: #b7cbff;
@@ -891,7 +891,7 @@ html[data-arrival='playing'] .orion-orb {
   color: #b4bed0;
 }
 .orion-feature__badge {
-  border-radius: 999px;
+  border-radius: 6px;
   padding: 0 6px;
   font-size: 11.5px;
   font-weight: 800;
@@ -942,7 +942,7 @@ html[data-arrival='playing'] .orion-orb {
   }
   .orion-console__chat {
     height: 72vh;
-    border-radius: 16px;
+    border-radius: 5px;
   }
   .orion-console__side {
     grid-template-columns: minmax(0, 1fr);
@@ -1016,11 +1016,11 @@ svg.lucide { stroke-width: 2.4px; }
 .orion-console__chat {
   border: var(--matte-stroke) solid var(--matte-edge);
   box-shadow: var(--matte-depth);
-  border-radius: 22px;
+  border-radius: 6px;
 }
 .orion-section {
   border: var(--matte-stroke) solid var(--matte-edge);
-  border-radius: 20px;
+  border-radius: 6px;
 }
 .orion-section__title { color: #ffffff; }
 .orion-section__hint { color: #c9d1dc; }
@@ -1128,7 +1128,7 @@ svg.lucide { stroke-width: 2.4px; }
   padding: 12px 12px 10px;
   background-color: rgba(22, 26, 33, 0.72);
   border: var(--matte-stroke) solid rgba(255, 255, 255, 0.1);
-  border-radius: 20px;
+  border-radius: 6px;
 }
 .orion-section[data-section='life'] { --cat: var(--cat-life); --cat-solid: var(--cat-life-solid); }
 .orion-section[data-section='connect'] { --cat: var(--cat-connect); --cat-solid: var(--cat-connect-solid); }
@@ -1177,7 +1177,7 @@ svg.lucide { stroke-width: 2.4px; }
   gap: 6px;
   min-width: 0;
   padding: 9px 4px 8px;
-  border-radius: 14px;
+  border-radius: 5px;
   text-align: center;
   border: var(--matte-stroke) solid transparent;
   background: transparent;
@@ -1193,7 +1193,7 @@ svg.lucide { stroke-width: 2.4px; }
   position: relative;
   width: 40px;
   height: 40px;
-  border-radius: 13px;
+  border-radius: 5px;
   color: var(--cat);
   background: color-mix(in srgb, var(--cat-solid) 18%, transparent);
   border: var(--matte-stroke) solid color-mix(in srgb, var(--cat) 30%, transparent);
@@ -1244,7 +1244,7 @@ svg.lucide { stroke-width: 2.4px; }
   padding: 0 5px;
   display: grid;
   place-items: center;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: 11.5px;
   font-weight: 800;
   line-height: 1;
@@ -1277,3 +1277,100 @@ svg.lucide { stroke-width: 2.4px; }
   .orion-feature:hover, .orion-feature:focus-visible { transform: none; }
 }
 html[data-calm-motion] .orion-feature:hover, html[data-calm-motion] .orion-feature:focus-visible { transform: none; }
+
+/* =====================================================================================================
+   Burned matte pass (owner feedback, 2026-11-07: "way less rounded windows, more matte and burned colours than
+   glow or glassmorph, more Arial bold fonts"). Square-ish corners (radii above were cut to 4-6px), solid matte
+   surfaces instead of frosted glass, deeper muted ("burned") colours, bold Arial. Comes last so it wins.
+   ===================================================================================================== */
+:root {
+  /* burned colour roles: darker, less saturated; the light tint is only for small text and icons */
+  --role-now: #7f9fe0;       --role-now-solid: #2a54b8;
+  --role-message: #5fb7ad;   --role-message-solid: #23786f;
+  --role-approval: #d9a54e;  --role-approval-solid: #9a6a1c;
+  --role-needs: #e0805f;     --role-needs-solid: #a8432b;
+  --role-next: #a593d6;      --role-next-solid: #5c4a9e;
+  --cat-work: #7f9fe0;       --cat-work-solid: #2a54b8;
+  --cat-life: #e0a07a;       --cat-life-solid: #a9592b;
+  --cat-connect: #5fb7ad;    --cat-connect-solid: #23786f;
+  --cat-system: #a3adbb;     --cat-system-solid: #4d5868;
+  --matte-surface: #1b1f25;
+  --matte-surface-2: #22272e;
+}
+/* bold Arial everywhere text is read */
+body, .glass-ui, .orion-console, .orion-window { font-family: var(--font-ui); }
+.orion-console h1, .orion-console h2, .orion-console h3,
+.orion-window__title, .orion-feature__label, .focus-card__title, .orion-section__title { font-weight: 700; letter-spacing: 0; }
+.orion-console, .orion-window { font-weight: 600; }
+
+/* solid matte surfaces: no frosted glass on the panels themselves (the space background still shows in the gaps) */
+.orion-glass, .orion-window {
+  background-color: var(--matte-surface);
+  background-image: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border-radius: 6px;
+}
+.orion-window[data-focused] { border-color: rgba(255, 255, 255, 0.24); }
+.orion-console__chat { background-color: var(--matte-surface); background-image: none; border-radius: 6px; }
+.orion-section { background-color: var(--matte-surface); background-image: none; -webkit-backdrop-filter: none; backdrop-filter: none; border-radius: 6px; }
+.orion-console__input, .orion-console__send, .orion-console__icon-btn, .orion-console__close, .orion-chip { border-radius: 4px; }
+.orion-console__send, .orion-chip[data-active], .orion-console__icon-btn.is-live { background: #2a54b8; border-color: #2a54b8; }
+.orion-feature[data-main] .orion-feature__icon { background: #2a54b8; }
+
+/* focus cards: a solid surface with a burned tint of their kind, no blur */
+.orion-console .focus-card {
+  background: color-mix(in srgb, var(--k-solid) 16%, var(--matte-surface));
+  border-color: color-mix(in srgb, var(--k-solid) 45%, rgba(255, 255, 255, 0.08));
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border-radius: 6px;
+}
+.orion-console .focus-card:hover { background: color-mix(in srgb, var(--k-solid) 22%, var(--matte-surface-2)); transform: none; }
+.orion-console .focus-card::before { border-radius: 1px; }
+.orion-console .focus-card--hero { background: color-mix(in srgb, var(--role-now-solid) 20%, var(--matte-surface)); }
+.orion-console .focus-card--hero .focus-btn:hover { background: #3363d0; }
+
+/* =====================================================================================================
+   Gunmetal pass (owner feedback, 2026-11-07: "less see-through, less blue-oriented, more gunmetal textured;
+   themes later"). Neutral steel surfaces with a visible brushed-metal grain, solid panels, blue only as a small
+   accent (progress, focus line, the Now bar). Colour themes come later as a separate setting.
+   ===================================================================================================== */
+:root {
+  --matte-surface: #222427;
+  --matte-surface-2: #2a2d31;
+  --steel-btn: #3b3f45;
+  --steel-btn-hover: #474c53;
+  /* brushed steel: long horizontal streaks plus a fine grain, stronger than the old faint grain */
+  --gunmetal-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='320'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.004 0.9' numOctaves='3' seed='11' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.9 0 0 0 0 0.92 0 0 0 0 0.95 0.16 0 0 0 -0.05'/%3E%3C/filter%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='1' seed='5' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0.1 0 0 0 -0.035'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23b)'/%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+/* the console veil: more solid, so the panels read as one piece of metal over the space background */
+.orion-console { background-color: rgba(8, 9, 11, 0.62); }
+/* every panel: solid neutral gunmetal with the brushed grain */
+.orion-glass, .orion-window, .orion-console__chat, .orion-section {
+  background-color: var(--matte-surface);
+  background-image: var(--gunmetal-grain), linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(0, 0, 0, 0.12));
+  background-size: 320px 320px, auto;
+  border-color: rgba(255, 255, 255, 0.13);
+}
+/* blue steps back: main buttons are light steel, blue stays for progress, focus and the Now bar */
+.orion-console__send, .orion-chip[data-active], .orion-console__icon-btn.is-live {
+  background: var(--steel-btn);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+.orion-console__send:hover, .orion-chip[data-active]:hover { background: var(--steel-btn-hover); }
+.orion-feature[data-main] .orion-feature__icon { background: var(--steel-btn); border-color: rgba(255, 255, 255, 0.2); }
+.orion-console__input { background: #17191c; }
+.orion-console__input:focus { border-color: #4a72c9; }
+/* focus cards: solid steel; the kind shows only on the bar, the icon chip, the label and a faint edge tint */
+.orion-console .focus-card {
+  background-color: var(--matte-surface-2);
+  background-image: var(--gunmetal-grain);
+  background-size: 320px 320px;
+  border-color: color-mix(in srgb, var(--k-solid) 35%, rgba(255, 255, 255, 0.1));
+}
+.orion-console .focus-card:hover { background-color: #303338; }
+.orion-console .focus-card--hero { background-color: #2c2f34; }
+.orion-console .focus-card--hero .focus-btn { background: var(--steel-btn); border: 1.5px solid rgba(255, 255, 255, 0.24); color: #fff; }
+.orion-console .focus-card--hero .focus-btn:hover { background: var(--steel-btn-hover); }

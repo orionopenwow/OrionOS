@@ -34,7 +34,7 @@ const CATEGORY_STYLE: Record<string, { label: string; color: string }> = {
   bug: { label: 'Bug Report', color: '#FF5C8A' },
   question: { label: 'Question', color: '#00E5FF' },
   self_evolve: { label: 'Self-Evolve Patch', color: '#FFB300' },
-  grimoire: { label: 'Grimoire Command', color: '#00E5FF' },
+  grimoire: { label: 'Saved Command', color: '#00E5FF' },
   devlog: { label: 'Devlog Draft', color: '#7FA6FF' },
   boardroom: { label: 'Boardroom', color: '#FFB300' },
 };

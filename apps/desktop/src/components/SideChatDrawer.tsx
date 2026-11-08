@@ -104,7 +104,7 @@ export default function SideChatDrawer({
                   ORION INTELLIGENCE
                 </div>
                 <div className="text-[11px] text-dust font-mono flex items-center gap-1.5">
-                  <span>Neural Chat Thread</span>
+                  <span>Chat</span>
                   {micActive && (
                     <span className="text-danger flex items-center gap-1 animate-pulse font-semibold">
                       • Listening live...

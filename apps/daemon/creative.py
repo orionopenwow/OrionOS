@@ -157,7 +157,7 @@ class AssetPipeline:
         if kind == "model":
             conv = self._converter()
             return [{"id": "convert_m2", "label": "Convert GLB → WoW M2 Patch", "enabled": bool(conv),
-                     "reason": None if conv else "Add a Grimoire command mentioning GLB and M2 with {input} and "
+                     "reason": None if conv else "Add a saved script mentioning GLB and M2 with {input} and "
                                                  "{output} placeholders"}]
         return []
 
@@ -199,9 +199,9 @@ class AssetPipeline:
         elif action == "convert_m2":
             conv = self._converter()
             if not conv:
-                raise ValueError("no GLB → M2 converter configured in the Grimoire")
+                raise ValueError("no GLB → M2 converter configured in Scripts")
             if conv.get("requires_approval"):
-                raise ValueError("the GLB → M2 converter is marked requires_approval — run it from the Grimoire")
+                raise ValueError("the GLB → M2 converter is marked requires_approval — run it from Scripts")
             out = self._out_path(asset, ".m2")
             cmd = conv["command"].replace("{input}", f'"{src}"').replace("{output}", f'"{out}"')
             run = await self.runner.start(cmd, cwd=conv.get("cwd"), label=f"GLB → M2: {asset['name']}")

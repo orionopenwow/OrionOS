@@ -135,7 +135,7 @@ export default function SystemAnalyticsDial({ telemetry }: Props) {
         {/* Center Column: Live Hex / Code Matrix Stream (matching reference asset sheet) */}
         <div className="lg:col-span-3 font-mono text-[11px] space-y-1 bg-black/40 p-3 rounded-xl border border-white/5">
           <div className="text-[10.5px] uppercase tracking-wider text-[#7FA6FF] mb-2 flex items-center justify-between">
-            <span>Hex Telemetry</span>
+            <span>Live Stats</span>
             <span className="text-[#3DFFA8]">SYNCED</span>
           </div>
           <div className="space-y-1">

@@ -195,7 +195,7 @@ def detect_commands(project: Path, grimoire: Optional[list[dict[str, Any]]] = No
         offer("test", "go test ./...", "go.mod")
         offer("build", "go build ./...", "go.mod")
     for verb, cmd in _grimoire_commands(project, grimoire or []).items():
-        offer(verb, cmd, "your most-used commands (Grimoire)")
+        offer(verb, cmd, "your most-used commands (Scripts)")
     return found
 
 

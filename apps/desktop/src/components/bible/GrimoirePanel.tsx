@@ -37,7 +37,7 @@ export default function GrimoirePanel({ bible, send }: Props) {
   return (
     <div className="space-y-3">
       <Section
-        title={`Living Grimoire (${bible.grimoire.length})`}
+        title={`Scripts (${bible.grimoire.length})`}
         color="#7FA6FF"
         icon={<BookOpen size={14} />}
         right={
@@ -90,7 +90,7 @@ export default function GrimoirePanel({ bible, send }: Props) {
           ))}
           {!entries.length && (
             <Empty>
-              Nothing matches. Drop .bat / .ps1 / .py / .js / .user.js files into the Grimoire folder, or say “watch what I
+              Nothing matches. Drop .bat / .ps1 / .py / .js / .user.js files into the scripts folder (~/.orion/grimoire), or say “watch what I
               do next” to record a macro.
             </Empty>
           )}

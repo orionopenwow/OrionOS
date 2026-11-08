@@ -20,7 +20,7 @@ import type {
 
 /** Each open widget is an Orion Glass window (id `widget:<key>`) with its own taskbar tile. */
 export const WIDGET_META: Record<keyof WidgetState, { title: string; color: string }> = {
-  analytics: { title: 'Cosmic telemetry', color: '#00E5FF' },
+  analytics: { title: 'System stats', color: '#00E5FF' },
   agents: { title: 'Agent crew', color: '#5CFFB0' },
   chrome: { title: 'Chrome live scraper', color: '#FF7043' },
   discord: { title: 'Discord community', color: '#8C95FF' },
@@ -106,7 +106,7 @@ export default function FloatingWidgetsLayer({
           <GlassWindow
             key="analytics"
             id="widget:analytics"
-            title="Cosmic telemetry"
+            title="System stats"
             icon={<Activity size={14} className="text-[#00E5FF]" />}
             onClose={close('analytics')}
             className="top-14 right-4 w-[460px] max-w-[calc(50vw-220px)] max-h-[460px]"

@@ -132,17 +132,17 @@ const ROUTINE: RoutineSuggestion = {
 const PET_JOBS = ['Reading App.tsx', 'Running the unit tests', 'Editing singularity.css', 'Fixing a type error', 'Writing the release notes'];
 const SONGS: MediaState[] = [
   { title: 'Night Drive', artist: 'Lumen Fields', album: 'Afterglow', app: 'Spotify', playing: true, position: 42, duration: 214, art: null },
-  { title: 'Orbit Decay', artist: 'Halcyon Array', album: 'Low Earth', app: 'Spotify', playing: true, position: 0, duration: 188, art: null },
+  { title: 'Slow Morning', artist: 'Harbor Lane', album: 'Weekdays', app: 'Spotify', playing: true, position: 0, duration: 188, art: null },
 ];
 
 // ---------------------------------------------------------------- XP (mirrors apps/daemon/xp.py)
 const AWARDS: Record<string, number> = { focus_block: 50, recovery: 20, commit: 10, idea: 5, water: 2, approval: 3, devlog: 15 };
 const SKINS = [
-  { id: 'default', name: 'Cosmic Cobalt', level: 1 },
-  { id: 'emerald', name: 'Emerald Nebula', level: 3 },
-  { id: 'supernova', name: 'Supernova Gold', level: 5 },
-  { id: 'bloodmoon', name: 'Blood Moon Eclipse', level: 8 },
-  { id: 'runic', name: 'Arcane Runic', level: 12 },
+  { id: 'default', name: 'Cobalt Blue', level: 1 },
+  { id: 'emerald', name: 'Emerald Green', level: 3 },
+  { id: 'supernova', name: 'Gold', level: 5 },
+  { id: 'bloodmoon', name: 'Deep Red', level: 8 },
+  { id: 'runic', name: 'Indigo', level: 12 },
 ];
 function levelFor(xp: number) {
   const level = Math.floor(Math.sqrt(Math.max(0, xp) / 100)) + 1;

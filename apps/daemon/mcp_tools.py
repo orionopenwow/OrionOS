@@ -795,7 +795,7 @@ class OrionTools:
                          "needs_approval": bool(e.get("requires_approval")),
                          "command": e.get("command") or ""})
         if not rows:
-            return "No saved macros match." if q else "The Grimoire is empty."
+            return "No saved macros match." if q else "No saved macros yet."
         return self.out(json.dumps(rows[:200], indent=1, ensure_ascii=False))
 
     async def grimoire_run(self, a: dict[str, Any]) -> str:
@@ -806,11 +806,11 @@ class OrionTools:
         command = grimoire_command(entry, a.get("args") or [])
         if grimoire_needs_approval(entry, command):
             return await self.propose({"action": "run", "project": str(project), "command": command,
-                                       "label": f"Grimoire: {entry['description'][:50]}",
+                                       "label": f"Script: {entry['description'][:50]}",
                                        "why": "this macro is marked as needing approval or can delete things"})
         run = await self._start_run({"project": str(project), "grimoire_id": entry["id"],
                                      "args": a.get("args") or []},
-                                    project, command, f"Grimoire: {entry['description'][:50]}", False)
+                                    project, command, f"Script: {entry['description'][:50]}", False)
         info = await self._wait_run(run, _clamp(a.get("wait_seconds"), 0, 600, 60))
         return self._describe_run(info)
 
@@ -1087,10 +1087,10 @@ class OrionTools:
         L = {"type": "array", "items": {"type": "string"}}
         return [
             Tool("grimoire_list", "List saved macros",
-                 "List the shell macros and scripts saved in Orion's Grimoire.", "read",
+                 "List the shell macros and scripts saved in Orion's Scripts.", "read",
                  _schema({"query": {**S, "description": "Words to filter by"}}), self.grimoire_list),
             Tool("grimoire_run", "Run a saved macro",
-                 "Run a saved Grimoire macro in the project folder and return its output. Macros marked as "
+                 "Run a saved macro in the project folder and return its output. Macros marked as "
                  "needing approval (or that can delete things) are sent to the user for approval instead.", "run",
                  _schema({"name": {**S, "description": "Macro name from grimoire_list"},
                           "args": {**L, "description": "Extra arguments, passed quoted"},
